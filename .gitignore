@@ -1,0 +1,19 @@
+# Local research and working context: do not commit.
+/.control-center-knowledge/
+/.notes/
+/source_repos/
+/cc_template/
+
+# Local and derived artifacts.
+/result
+/result-*
+/.direnv/
+/docs/.obsidian/
+/.cc-local/
+
+# Personal AI tool settings: each person uses their own account and preferences.
+/.claude/settings.local.json
+/CLAUDE.local.md
+/AGENTS.override.md
+/.cursor/*.local.*
+__pycache__/

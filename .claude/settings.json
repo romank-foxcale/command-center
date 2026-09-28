@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(./cc help)",
+      "Bash(./cc show:*)",
+      "Bash(./cc validate)",
+      "Bash(./cc doctor)",
+      "Bash(./cc agents check)",
+      "Bash(./cc repo list)",
+      "Bash(./cc repo show:*)",
+      "Bash(./cc plan list)",
+      "Bash(./cc plan show:*)",
+      "Bash(./cc worktree status:*)",
+      "Bash(./cc bootstrap validate)"
+    ]
+  }
+}
