@@ -2,7 +2,7 @@
 id: decision.0007-agent-councils
 title: Agent roles and councils bound to models
 status: accepted
-summary: The CC assigns a provider CLI and model to each agent role, and runs coding and testing councils in which Claude and GPT propose, an anonymous judge decides, the user approves and a writer implements under ./cc verify.
+summary: The CC assigns a provider CLI and model to each agent role, and runs coding, testing and debug councils in which Claude and GPT propose or diagnose, an anonymous judge decides, the user approves and a writer implements under ./cc verify.
 verified_at: 2026-10-06
 evidence:
   - scripts/council/run.py
@@ -10,6 +10,7 @@ evidence:
   - scripts/validate-control-center.py
   - templates/agents/writer.json
   - templates/councils/coding.json
+  - templates/councils/debug.json
   - .agents/skills/cc-council/SKILL.md
 relations:
   - docs/index.md
@@ -30,6 +31,7 @@ One model's blind spots go unchallenged when it designs, writes and judges its o
 - `./cc council run` executes the pipeline as headless CLI calls under the user's own subscription logins: proposers in parallel, a judge that sees only shuffled labels, a pause for user approval, the writer, `./cc feature <feature> verify` with bounded retries, then a security review.
 - Access is enforced by CLI flags, not prompts: Claude gets a fixed tool set without Bash, and Codex runs in its OS sandbox with temporary directories excluded. Only the writer can edit, and only inside the feature worktree.
 - Proposers, judge and writer share the `lean-code` skill, adapted from Ponytail (MIT): read fully, then stop at the first rung of the reuse ladder that holds. It also applies to interactive coding. Test writers and the judge share the `tdd` skill, and failures are investigated with the `debug` skill, both adapted from Superpowers (MIT).
+- The debug council gives every role the CC's own verify output as evidence, and the runner enforces red before green: the writer's reproduction test must fail on the unfixed code, must stay unchanged during the fix, and three failed fixes stop the run.
 - The CC still holds no credentials and never falls back to another provider or model when one is logged out.
 - Run artifacts live in `../worktrees/<feature>/.cc-runs/`, outside Git. Councils never commit or push.
 

@@ -17,7 +17,7 @@ TARGETS = {"windows", "linux", "macos"}
 # Must match scripts/council/providers.py.
 PROVIDERS = {"claude", "codex"}
 ACCESS_LEVELS = {"read-only", "write-worktree"}
-COUNCIL_KINDS = {"coding", "testing"}
+COUNCIL_KINDS = {"coding", "testing", "debug"}
 EXPECTED_LAYOUT = {
     "projectsRoot": "..",
     "repositories": "../repos",

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "investigator-claude",
+  "purpose": "Diagnoses the root cause of a failure without editing",
+  "provider": "claude",
+  "model": "opus",
+  "access": "read-only",
+  "skills": [
+    "debug",
+    "council-investigate"
+  ]
+}

@@ -1,6 +1,6 @@
 ---
 name: cc-council
-description: Run, approve, reject or inspect multi-model coding and testing councils (Claude and GPT propose, an anonymous judge decides, a writer implements, ./cc verify gates) with ./cc council, and change which provider and model each agent role uses. Use when the user wants a council to implement or test something on a feature, approves or rejects a council verdict, asks about council runs, or wants a role such as judge or writer to use another model.
+description: Run, approve, reject or inspect multi-model coding, testing and debug councils (Claude and GPT propose or diagnose, an anonymous judge decides, a writer implements, ./cc verify gates) with ./cc council, and change which provider and model each agent role uses. Use when the user wants a council to implement, test or debug something on a feature, approves or rejects a council verdict, asks about council runs, or wants a role such as judge or writer to use another model.
 ---
 
 # CC council
@@ -13,6 +13,7 @@ First read `../_shared/cc-cli.md` and follow it.
 |---|---|
 | Implement X on feature F | `./cc council run coding --feature <feature> [--repo <repo>] --task "<task>"` |
 | Write tests for X on feature F | `./cc council run testing --feature <feature> [--repo <repo>] --task "<task>"` |
+| Find and fix bug X on feature F | `./cc council run debug --feature <feature> [--repo <repo>] --task "<symptom>"` |
 | Go ahead / approve | `./cc council approve <run-id>` |
 | Use proposal B instead / change something | `./cc council approve <run-id> [--pick <label>] [--note "<instruction>"]` |
 | Stop this run | `./cc council reject <run-id>` |
@@ -23,6 +24,7 @@ First read `../_shared/cc-cli.md` and follow it.
 
 - The feature worktree must exist (`cc-worktree`) and be clean; the council refuses uncommitted changes. A plan work package makes the best task: pass it with `--task-file`.
 - Write the task as an outcome with constraints and acceptance, not as a design: the proposers design.
+- For a debug council, describe the symptom exactly (input, expected, actual, platform, error text), never a suspected cause. The runner first runs verify and gives its output to the investigators; after approval the writer must produce a reproduction test that fails, and only then the fix. Stage `failed` with "does not reproduce the bug" means the chosen diagnosis was wrong; "fixes failed: question the design" means three fixes failed and the design needs a conversation, not a fourth attempt.
 - A run stops after the verdict. Show the user the verdict and the hidden proposal authors, and wait for an explicit decision; never approve on the user's behalf.
 - Runs take minutes. Run them in the background when the tool allows it and report the final stage line and the artifacts folder.
 - Councils verify with `--quality`. A `done` summary that ends in `WARNING: mutation gate missing` means the tests were not checked against injected bugs; repeat that warning to the user. "tests pass but miss injected bugs" means the mutation gate failed.
