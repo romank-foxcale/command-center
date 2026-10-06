@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Help"
+  short_description: "List the CC skills and explain one"
+  default_prompt: "Use $cc-help to show which skills this Control Center has."
+policy:
+  allow_implicit_invocation: true

@@ -135,6 +135,8 @@ You can also call the skill directly: `/grill-cc-bootstrap` in Claude Code and C
 
 ## 5. Everyday work
 
+Not sure which skill fits? Ask "what can the CC do?" or type `/cc-help`: it lists the skills by purpose and explains the one you pick.
+
 To plan a bigger task:
 
 > Plan this with the grill-task-planning skill: <what you want to achieve>

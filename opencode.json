@@ -10,6 +10,7 @@
       "cc-repo": "allow",
       "cc-verify": "allow",
       "cc-council": "allow",
+      "cc-help": "allow",
       "lean-code": "allow",
       "debug": "allow",
       "tdd": "allow",
