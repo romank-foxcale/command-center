@@ -7,7 +7,7 @@ The `cc-*` skills are thin front ends over `./cc`. `./cc` stays the single sourc
 Run every command from the CC root.
 
 - Inside Linux, macOS or WSL: `./cc <command> ...`
-- From native Windows (Git Bash or PowerShell): `wsl --cd "<CC root as a Windows path>" -- bash -lc './cc <command> ...'`. The login shell (`-l`) is required: without it the Nix profile is not loaded and Nix commands report that Nix is not installed.
+- From native Windows: the `cc.cmd` launcher in the CC root runs `./cc` inside WSL with the Nix profile loaded. Use `./cc.cmd <command> ...` from Git Bash, `.\cc <command> ...` from PowerShell, `cc <command> ...` from cmd. It uses the default WSL distribution, or `CC_WSL_DISTRO`.
 
 `./cc` needs bash, Python 3 and, for `check|build|run|show|doctor`, Nix. Never fall back to a Windows-native Python or Git when WSL fails: worktree manifests and Nix overrides must be produced by the same environment that uses them. If WSL or Nix is missing, stop and report it.
 

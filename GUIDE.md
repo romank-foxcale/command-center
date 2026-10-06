@@ -135,6 +135,8 @@ You can also call the skill directly: `/grill-cc-bootstrap` in Claude Code and C
 
 ## 5. Everyday work
 
+Not sure which skill fits? Ask "what can the CC do?" or type `/cc-help`: it lists the skills by purpose and explains the one you pick.
+
 To plan a bigger task:
 
 > Plan this with the grill-task-planning skill: <what you want to achieve>
@@ -147,6 +149,8 @@ The agent turns it into an agreed plan with work packages and checks, saved in `
 ./cc worktree status my-feature
 ./cc worktree remove my-feature               # refuses if anything is uncommitted or unpushed
 ```
+
+**From Windows without opening Ubuntu:** the `cc.cmd` launcher in the CC folder runs the same commands inside WSL for you, with the same output and exit code. In PowerShell type `.\cc check`, in cmd `cc check`, in Git Bash `./cc.cmd check`. It works whether the CC lives on `C:` or inside Ubuntu (`\\wsl.localhost\Ubuntu\home\...`). With several Linux distributions installed, set `CC_WSL_DISTRO` to the one with Nix.
 
 Other commands, run from the CC folder:
 
