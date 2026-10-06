@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Settings"
+  short_description: "Show and change the CC settings in chat"
+  default_prompt: "Use $cc-settings to show this Control Center's settings."
+policy:
+  allow_implicit_invocation: true

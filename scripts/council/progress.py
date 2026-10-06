@@ -1,4 +1,4 @@
-"""Progress of a council run, computed from its state.json: shared by the runner's ticker and ./cc ui."""
+"""Progress of a council run, computed from its state.json: shared by the runner's ticker, ./cc council status and ./cc settings."""
 
 from __future__ import annotations
 

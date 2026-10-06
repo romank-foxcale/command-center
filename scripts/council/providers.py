@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -80,7 +81,9 @@ def command(role: dict[str, Any], cwd: Path, last_message: Path) -> list[str]:
             "--permission-mode", CLAUDE_MODES[access],
             "--no-session-persistence",
             "--strict-mcp-config",
-            "--output-format", "text",
+            # Streamed events let ./cc council status show what the agent is doing while it works.
+            "--output-format", "stream-json",
+            "--verbose",
             "--tools", *CLAUDE_TOOLS[access],
         ]
     if provider == "codex":
@@ -110,24 +113,54 @@ def run(role: dict[str, Any], prompt: str, cwd: Path, log: Path, timeout: int = 
     log.parent.mkdir(parents=True, exist_ok=True)
     last_message = log.with_suffix(".last.txt")
     argv = command(role, cwd, last_message)
+    final = ""
     with log.open("w", encoding="utf-8") as stream:
         stream.write(f"$ {' '.join(argv)}\n\n")
         stream.flush()
-        result = subprocess.run(
-            argv,
-            input=prompt,
-            cwd=cwd,
-            stdout=subprocess.PIPE,
-            stderr=stream,
-            text=True,
-            timeout=timeout,
-        )
-        stream.write(result.stdout)
-    if result.returncode != 0:
+        process = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stream, cwd=cwd, text=True)
+        timer = threading.Timer(timeout, process.kill)
+        timer.start()
+        try:
+            process.stdin.write(prompt)
+            process.stdin.close()
+            # Write activity as it happens: the log is what ./cc council status shows.
+            for line in process.stdout:
+                if role["provider"] == "claude":
+                    event, activity = parse_claude_event(line)
+                    if event.get("type") == "result":
+                        final = str(event.get("result", ""))
+                    line = f"{activity}\n" if activity else ""
+                stream.write(line)
+                stream.flush()
+            process.wait()
+        finally:
+            timer.cancel()
+    if process.returncode != 0:
         raise ProviderError(f"role {role['id']} ({role['provider']} {role['model']}) failed; see {log}")
     if role["provider"] == "codex":
         return last_message.read_text(encoding="utf-8").strip()
-    return result.stdout.strip()
+    return final.strip()
+
+
+def parse_claude_event(line: str) -> tuple[dict[str, Any], str]:
+    """One stream-json line of `claude --print`: the event, and a short activity line for the log."""
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return {}, line.strip()
+    if event.get("type") == "result":
+        return event, f"result: {event.get('subtype', 'done')}"
+    if event.get("type") != "assistant":
+        return event, ""
+    activity = []
+    for item in event.get("message", {}).get("content", []):
+        if item.get("type") == "tool_use":
+            arguments = item.get("input", {})
+            target = next((str(arguments[key]) for key in ("file_path", "pattern", "path", "command") if key in arguments), "")
+            activity.append(f"tool: {item.get('name')} {target}".strip())
+        elif item.get("type") == "text" and item.get("text", "").strip():
+            activity.append("say: " + " ".join(item["text"].split())[:160])
+    return event, "\n".join(activity)
 
 
 def main() -> int:

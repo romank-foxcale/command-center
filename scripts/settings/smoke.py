@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Headless smoke test for ./cc ui: render a fixture CC and check what the dashboard reports."""
+"""Headless smoke test for ./cc settings: render a fixture CC and check the panel, show and run progress."""
 
 from __future__ import annotations
 
@@ -10,7 +10,9 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from app import Dashboard, ModelPicker  # noqa: E402
+from app import ModelPicker, Settings, show  # noqa: E402
+from state import snapshot  # noqa: E402
+import progress  # noqa: E402  (app.py puts scripts/council on the path)
 from textual.widgets import DataTable, OptionList, Static  # noqa: E402
 
 
@@ -41,7 +43,7 @@ def fixture(base: Path) -> Path:
 
 
 async def check(root: Path) -> None:
-    app = Dashboard(root, models=lambda root: {"claude": ["opus", "sonnet"], "codex": []})
+    app = Settings(root, models=lambda root: {"claude": ["opus", "sonnet"], "codex": []})
     async with app.run_test(size=(160, 45)) as pilot:
         await pilot.pause()
         face = str(app.query_one("#mascot", Static).render())
@@ -49,26 +51,17 @@ async def check(root: Path) -> None:
         assert "×   ×" in face, f"a stalled run must make the mascot grim:\n{face}"
         assert "1 waiting for you" in summary and "1/1 repos verified" in summary, summary
         assert "stalled" in summary, summary
-        runs = app.query_one("#t-runs", DataTable)
-        statuses = {runs.get_row_at(i)[0].plain: runs.get_row_at(i)[3].plain for i in range(runs.row_count)}
-        assert statuses == {"r2": "stalled (writing)", "r1": "awaiting-approval"}, statuses
-        r2 = next(runs.get_row_at(i) for i in range(runs.row_count) if runs.get_row_at(i)[0].plain == "r2")
-        assert r2[4].plain == "▰▰▰▰▰▰▱▱▱ 6/9", f"progress bar: {r2[4].plain}"
-        assert r2[5].plain == "fix · claude opus …", f"only the current step's agents, still working: {r2[5].plain}"
-        assert r2[6].plain.startswith("step ") and "total" in r2[6].plain, r2[6].plain
-        plans = app.query_one("#t-plans", DataTable)
-        assert plans.get_row_at(0)[3].plain == "Ship [the] thing", "markup in data must be shown verbatim"
+        assert [pane.id for pane in app.query("TabPane")] == ["agents", "councils", "repos"], "settings only"
         for table, rows in (("#t-agents", 1), ("#t-councils", 1), ("#t-repos", 1)):
             assert app.query_one(table, DataTable).row_count == rows, table
-        await pilot.press("e")  # On the Runs tab, edit only explains what it edits.
-        await pilot.pause()
 
         # Navigation: the rows have focus from the start, and the arrow keys switch tabs.
-        assert app.focused is runs, f"the Runs table must have focus, not {app.focused}"
+        agents = app.query_one("#t-agents", DataTable)
+        assert app.focused is agents, f"the Agents table must have focus, not {app.focused}"
         await pilot.press("right")
         await pilot.pause()
-        assert app.query_one("#tabs").active == "plans" and app.focused is plans, app.focused
-        await pilot.press("right")
+        assert app.query_one("#tabs").active == "councils" and app.focused is app.query_one("#t-councils"), app.focused
+        await pilot.press("left")
         await pilot.pause()
 
         # Model picker: only logged-in providers, grouped under a header, current model preselected.
@@ -87,11 +80,22 @@ async def check(root: Path) -> None:
         await pilot.pause()
         assert not isinstance(app.screen, ModelPicker)
 
+    text = show(snapshot(root))
+    for expected in ("x_CC · ready", "1 waiting for you", "AGENTS", "judge", "COUNCILS", "approval on", "REPOS", "csharp"):
+        assert expected in text, f"show must contain {expected!r}:\n{text}"
+
+    # Run progress, as ./cc council status prints it.
+    r2 = json.loads((root.parent / "worktrees/feat/.cc-runs/r2/state.json").read_text())
+    assert progress.bar(r2) == "▰▰▰▰▰▰▱▱▱ 6/9", progress.bar(r2)
+    assert progress.agents(r2) == "claude opus …", f"only the current step's agents, still working: {progress.agents(r2)}"
+    assert progress.elapsed(r2).startswith("step ") and "total" in progress.elapsed(r2)
+    assert progress.elapsed({**r2, "finishedAt": "2026-01-01T11:10:00"}) == "total 10:00", "a finished run's clock stops"
+
 
 def main() -> int:
     with tempfile.TemporaryDirectory() as directory:
         asyncio.run(check(fixture(Path(directory))))
-    print("ui smoke test passed")
+    print("settings smoke test passed")
     return 0
 
 

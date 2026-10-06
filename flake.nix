@@ -34,13 +34,13 @@
           };
           uiPython = pkgs.python3.withPackages (ps: [ ps.textual ]);
           ui = pkgs.writeShellApplication {
-            name = "cc-ui";
+            name = "cc-settings";
             runtimeInputs = [
               uiPython
               pkgs.git
             ];
             text = ''
-              exec python3 ${self}/scripts/ui/app.py "$@"
+              exec python3 ${self}/scripts/settings/app.py "$@"
             '';
           };
           adapterTargets = pkgs.lib.mapAttrs (_: project: project.targets or { }) projects;
@@ -63,9 +63,9 @@
                 ${pkgs.python3}/bin/python ${self}/scripts/agent-configs.py ${self} check
                 touch "$out"
               '';
-              ui-smoke = pkgs.runCommand "control-center-ui-smoke" { } ''
+              settings-smoke = pkgs.runCommand "control-center-settings-smoke" { } ''
                 export HOME=$TMPDIR
-                ${uiPython}/bin/python ${self}/scripts/ui/smoke.py
+                ${uiPython}/bin/python ${self}/scripts/settings/smoke.py
                 touch "$out"
               '';
             }
@@ -82,7 +82,7 @@
             {
               default = ccLib.mkApp validator "cc-validate";
               validate = ccLib.mkApp validator "cc-validate";
-              ui = ccLib.mkApp ui "cc-ui";
+              settings = ccLib.mkApp ui "cc-settings";
             }
             // ccLib.collect "apps" projects
             // ccLib.collect "apps" workflows;

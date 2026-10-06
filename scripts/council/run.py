@@ -150,12 +150,12 @@ class Run:
 
     def save(self, **changes: Any) -> None:
         with self.lock:
-            # The process that last advanced the run; ./cc ui marks a live stage with a dead pid as stalled.
+            # The process that last advanced the run; ./cc settings marks a live stage with a dead pid as stalled.
             self.state.update(changes, pid=os.getpid())
             write_json(self.state_path, self.state)
 
     def step(self, name: str) -> None:
-        """Enter a step of the plan: ./cc ui and the ticker show it with its own timer."""
+        """Enter a step of the plan: ./cc council status and the ticker show it with its own timer."""
         say(f"-> {name}")
         self.save(phase=name, phaseStartedAt=now())
 
@@ -428,14 +428,25 @@ def command_status(root: Path, args: argparse.Namespace) -> None:
         run = find_run(root, args.run)
         if run.state["stage"] == "awaiting-approval":
             run.show_verdict()
-        else:
-            say(json.dumps({key: value for key, value in run.state.items() if key != "instructions"}, indent=2))
+            return
+        say(progress.line(run.state))
+        if run.state.get("summary"):
+            say(f"  {run.state['summary']}")
+        # What each working agent is doing: the last lines of its live log.
+        for call in run.state.get("calls", []):
+            if call.get("startedAt") and not call.get("finishedAt"):
+                waited = progress.clock(progress.seconds_since(call["startedAt"]))
+                say(f"  {call['role']} ({call['provider']} {call['model']}), working {waited}:")
+                log = run.directory / "logs" / f"{call['step']}.log"
+                lines = log.read_text(encoding="utf-8", errors="replace").splitlines()[2:] if log.is_file() else []
+                for line in [line for line in lines if line.strip()][-args.lines:] or ["(no activity logged yet)"]:
+                    say(f"    {line[:160]}")
         return
     rows = []
     for path in sorted(worktrees_root(root).glob("*/.cc-runs/*/state.json")):
         state = load_json(path)
-        rows.append(f"{state['id']}\t{state['feature']}/{state['repository']}\t{state['stage']}")
-    say("RUN\tFEATURE/REPO\tSTAGE\n" + "\n".join(rows) if rows else "no council runs")
+        rows.append(f"{state['id']}\t{state['feature']}/{state['repository']}\t{state['stage']}\t{progress.bar(state)}")
+    say("RUN\tFEATURE/REPO\tSTAGE\tPROGRESS\n" + "\n".join(rows) if rows else "no council runs")
 
 
 def edit_validated(root: Path, path: Path, changes: dict[str, Any]) -> None:
@@ -461,6 +472,12 @@ def command_set_role(root: Path, args: argparse.Namespace) -> None:
     edit_validated(root, path, changes)
     role = load_json(path)
     say(f"{args.role}: {role['provider']} {role['model']}")
+
+
+def command_models(root: Path, args: argparse.Namespace) -> None:
+    for provider in providers.PROVIDERS:
+        names = providers.models(provider)
+        say(f"{provider}: {', '.join(names) if names else '(not logged in)'}")
 
 
 def command_set_council(root: Path, args: argparse.Namespace) -> None:
@@ -505,6 +522,7 @@ def parser() -> argparse.ArgumentParser:
 
     status = subparsers.add_parser("status", help="list runs, or show one")
     status.add_argument("run", nargs="?")
+    status.add_argument("--lines", type=int, default=5, help="activity lines per working agent")
     status.set_defaults(handler=command_status)
 
     set_role = subparsers.add_parser("set-role", help="change which provider and model a role uses")
@@ -512,6 +530,9 @@ def parser() -> argparse.ArgumentParser:
     set_role.add_argument("--provider", help="claude or codex")
     set_role.add_argument("--model")
     set_role.set_defaults(handler=command_set_role)
+
+    models = subparsers.add_parser("models", help="list the models of each logged-in provider")
+    models.set_defaults(handler=command_models)
 
     set_council = subparsers.add_parser("set", help="change a council's approval pause or retry limit")
     set_council.add_argument("council")
