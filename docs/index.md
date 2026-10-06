@@ -17,6 +17,8 @@ relations:
   - docs/decisions/0005-multi-tool-agent-configs.md
   - docs/decisions/0006-target-platform-gates.md
   - docs/decisions/0007-agent-councils.md
+  - docs/decisions/0008-quality-gates.md
+  - docs/rules/quality-gates.md
 ---
 
 # Knowledge map
@@ -28,6 +30,7 @@ relations:
 - [Markdown knowledge layout](rules/knowledge-layout.md)
 - [Connecting sibling projects](rules/project-adapters.md)
 - [Planning agent tasks](rules/task-planning.md)
+- [Quality gates per stack](rules/quality-gates.md)
 - [Worktree topology](rules/worktrees.md)
 
 ## Architecture
@@ -43,6 +46,7 @@ relations:
 - [One set of skills for every AI tool](decisions/0005-multi-tool-agent-configs.md)
 - [Every target platform has its own gate](decisions/0006-target-platform-gates.md)
 - [Agent roles and councils bound to models](decisions/0007-agent-councils.md)
+- [Language-specific quality gates behind language-neutral skills](decisions/0008-quality-gates.md)
 
 ## Current context
 

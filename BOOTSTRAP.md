@@ -54,7 +54,7 @@ This topology can only be changed by a separate, explicit decision of the user.
 In normal work use the executable interface, not manual `git worktree`:
 
 ```bash
-./cc repo add <repo> --remote <git-url> --role <role> --targets <windows|linux|macos>... --clone
+./cc repo add <repo> --remote <git-url> --role <role> --targets <windows|linux|macos>... --stack <language>... --clone
 ./cc worktree create <feature> <repo>...
 ./cc feature <feature> verify
 ./cc worktree status <feature>

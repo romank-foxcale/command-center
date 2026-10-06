@@ -8,6 +8,9 @@
   "targets": [
     "windows"
   ],
+  "stack": [
+    "csharp"
+  ],
   "sourceInput": "repo-id",
   "adapter": "nix/projects/repo-id.nix",
   "status": "discovered"

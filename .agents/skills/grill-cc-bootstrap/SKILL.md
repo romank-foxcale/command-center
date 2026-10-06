@@ -14,7 +14,7 @@ First read `../_shared/grilling-core.md` in full, then `BOOTSTRAP.md`. Apply bot
 3. Record the name, status and topology in `control-center.json`.
 4. Collect the use cases, boundaries and permissions.
 5. Build the repository inventory. Do not write adapters until names, roles and relationships are agreed.
-6. Onboard one repo at a time: `./cc repo add --targets ...` → inspect → flake input/adapter → package/check and one gate per target → `./cc verify <id>` → `./cc repo set-status <id> verified`.
+6. Onboard one repo at a time: `./cc repo add --targets ... --stack ...` → inspect → flake input/adapter → package/check, one gate per target and, where feasible, `quality.mutation` → `./cc verify <id> --quality` → `./cc repo set-status <id> verified`.
 7. Only then assemble workflows and benchmarks.
 8. Replace the template README and project map with real data; remove the examples and placeholders. Keep `GUIDE.md`, `install/`, `CLAUDE.md` and `.claude/skills`: they are the entry point for people and AI tools.
 
@@ -43,6 +43,10 @@ Always ask, never infer: "Which platforms does `<repo>` ship on: windows, linux,
 - a cross-compiled or emulated check (MinGW, Wine) only as an extra early signal, never as the only windows gate.
 
 A target the user names but nobody can gate yet stays in `targets`; mark the repo `blocked` with that reason instead of dropping the target.
+
+### Stack and quality gate
+
+Record the repo's languages with `--stack`, read from the code and confirmed with the user. Wire its existing test framework into the check, and propose a `quality.mutation` gate with the stack's default tool from `docs/rules/quality-gates.md`; the gate must fail on surviving mutants. A repo without the gate is allowed, but `./cc verify --quality` and councils will warn that its tests are not checked against injected bugs.
 
 ## Acceptance
 

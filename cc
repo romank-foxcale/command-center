@@ -13,12 +13,12 @@ usage() {
     '  check          Evaluate and build every flake check' \
     '  build <name>   Build .#<name>' \
     '  run <name>     Run .#<name>' \
-    '  verify [repo...]  Run every check plus the gate of each catalog target' \
+    '  verify [repo...] [--quality]  Run every check plus each catalog target gate (and quality gates)' \
     '  council <run|approve|reject|status> ...  Multi-model coding/testing councils' \
     '  validate       Validate the Markdown knowledge graph'     '  agents <sync|check>  Mirror .agents/skills into .claude/skills' \
     '  bootstrap install [target]  Materialize a new CC from this clone' \
     '  bootstrap validate          Validate the configured CC contract' \
-    '  repo <add|list|show|set-status|set-targets> ...' \
+    '  repo <add|list|show|set-status|set-targets|set-stack> ...' \
     '  worktree <create|add|status|remove> ...' \
     '  plan <create|list|show|accept|archive|complete> ...' \
     '  feature <name> <show|check|build|run|verify> ...  Use feature input overrides'
@@ -29,6 +29,12 @@ require_nix() {
     printf '%s\n' 'error: Nix is not installed; see https://nixos.org/download/' >&2
     exit 1
   fi
+}
+
+# Write or refresh flake.lock before evaluating: when an evaluation creates the lock
+# itself, Nix sees the source tree change mid-evaluation and aborts.
+lock_flake() {
+  nix flake lock "$cc_root" --quiet
 }
 
 nix_override_args=()
@@ -64,16 +70,19 @@ case "$command_name" in
     ;;
   show)
     require_nix
+    lock_flake
     load_feature_overrides
     exec nix flake show "${nix_override_args[@]}" "$cc_root" "$@"
     ;;
   check)
     require_nix
+    lock_flake
     load_feature_overrides
     exec nix flake check "${nix_override_args[@]}" "$cc_root" --keep-going "$@"
     ;;
   build)
     require_nix
+    lock_flake
     target="${1:?usage: ./cc build <name>}"
     shift
     load_feature_overrides
@@ -81,6 +90,7 @@ case "$command_name" in
     ;;
   run)
     require_nix
+    lock_flake
     target="${1:?usage: ./cc run <name>}"
     shift
     load_feature_overrides
@@ -88,6 +98,7 @@ case "$command_name" in
     ;;
   verify)
     require_nix
+    lock_flake
     exec python3 "$cc_root/scripts/verify.py" "$cc_root" "$@"
     ;;
   validate)

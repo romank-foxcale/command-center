@@ -34,6 +34,8 @@
           };
           adapterTargets = pkgs.lib.mapAttrs (_: project: project.targets or { }) projects;
           adapterTargetsFile = pkgs.writeText "cc-adapter-targets.json" (builtins.toJSON adapterTargets);
+          adapterQuality = pkgs.lib.mapAttrs (_: project: project.quality or { }) projects;
+          adapterQualityChecks = pkgs.lib.mapAttrs (_: project: project.qualityChecks or { }) projects;
         in
         {
           packages =
@@ -68,7 +70,7 @@
             // ccLib.collect "apps" projects
             // ccLib.collect "apps" workflows;
 
-          inherit adapterTargets;
+          inherit adapterTargets adapterQuality adapterQualityChecks;
 
           devShell = pkgs.mkShell {
             packages = [
@@ -87,7 +89,11 @@
       checks = nixpkgs.lib.mapAttrs (_: value: value.checks) perSystem;
       apps = nixpkgs.lib.mapAttrs (_: value: value.apps) perSystem;
       # Not a package set: legacyPackages is the flake output that tolerates plain data.
-      legacyPackages = nixpkgs.lib.mapAttrs (_: value: { ccTargets = value.adapterTargets; }) perSystem;
+      legacyPackages = nixpkgs.lib.mapAttrs (_: value: {
+        ccTargets = value.adapterTargets;
+        ccQuality = value.adapterQuality;
+        ccQualityChecks = value.adapterQualityChecks;
+      }) perSystem;
       devShells = nixpkgs.lib.mapAttrs (_: value: { default = value.devShell; }) perSystem;
       formatter = nixpkgs.lib.mapAttrs (_: value: value.formatter) perSystem;
     };

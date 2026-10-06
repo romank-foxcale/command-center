@@ -55,6 +55,17 @@ def parse_targets(values: list[str]) -> list[str]:
     return [target for target in TARGETS if target in targets]
 
 
+def parse_stack(values: list[str]) -> list[str]:
+    # Languages are open-ended (java, python, typescript, csharp, cpp, rust, ...); keep the given order.
+    stack = list(dict.fromkeys(value.strip().lower() for item in values for value in item.split(",") if value.strip()))
+    if not stack:
+        raise ValueError("at least one stack entry is required, e.g. java or python")
+    invalid = [entry for entry in stack if not ID.fullmatch(entry)]
+    if invalid:
+        raise ValueError(f"stack entries must use lowercase hyphen-case: {', '.join(invalid)}")
+    return stack
+
+
 def is_git_checkout(path: Path) -> bool:
     if not path.is_dir():
         return False
@@ -89,6 +100,7 @@ def require_remote(checkout: Path, expected: str, root: Path) -> None:
 
 def command_add(root: Path, args: argparse.Namespace) -> None:
     targets = parse_targets(args.targets)
+    stack = parse_stack(args.stack)
     path = descriptor_path(root, args.id)
     if path.exists():
         raise ValueError(f"repository already exists: {args.id}")
@@ -122,6 +134,7 @@ def command_add(root: Path, args: argparse.Namespace) -> None:
             "defaultBranch": args.branch,
             "role": args.role,
             "targets": targets,
+            "stack": stack,
             "sourceInput": args.source_input or args.id,
             "adapter": args.adapter or f"nix/projects/{args.id}.nix",
             "status": "discovered",
@@ -134,17 +147,18 @@ def command_add(root: Path, args: argparse.Namespace) -> None:
 def command_list(root: Path, _: argparse.Namespace) -> None:
     _, repositories_root = layout(root)
     directory = root / "catalog" / "repositories"
-    rows: list[tuple[str, str, str, str, str]] = []
+    rows: list[tuple[str, ...]] = []
     for path in sorted(directory.glob("*.json")):
         data = load_json(path)
         identifier = str(data.get("id", path.stem))
         present = "yes" if is_git_checkout(repositories_root / identifier) else "no"
         targets = ",".join(data.get("targets") or []) or "?"
-        rows.append((identifier, str(data.get("status", "?")), targets, present, str(data.get("role", "?"))))
+        stack = ",".join(data.get("stack") or []) or "?"
+        rows.append((identifier, str(data.get("status", "?")), targets, stack, present, str(data.get("role", "?"))))
     if not rows:
         print("no repositories")
         return
-    print("ID\tSTATUS\tTARGETS\tBASE\tROLE")
+    print("ID\tSTATUS\tTARGETS\tSTACK\tBASE\tROLE")
     for row in rows:
         print("\t".join(row))
 
@@ -179,6 +193,15 @@ def command_targets(root: Path, args: argparse.Namespace) -> None:
         print(f"{args.id}: status reset to adapted; run ./cc verify {args.id}, then set-status verified")
 
 
+def command_stack(root: Path, args: argparse.Namespace) -> None:
+    stack = parse_stack(args.stack)
+    path = descriptor_path(root, args.id)
+    data = load_json(path)
+    data["stack"] = stack
+    write_json(path, data)
+    print(f"{args.id}: stack {', '.join(stack)}")
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser()
     result.add_argument("root", type=Path)
@@ -189,6 +212,7 @@ def parser() -> argparse.ArgumentParser:
     add.add_argument("--remote", required=True)
     add.add_argument("--role", required=True)
     add.add_argument("--targets", nargs="+", required=True, help=f"platforms it ships on: {', '.join(TARGETS)}")
+    add.add_argument("--stack", nargs="+", required=True, help="languages, e.g. java, python, typescript, csharp")
     add.add_argument("--branch", default="main")
     add.add_argument("--source-input")
     add.add_argument("--adapter")
@@ -211,6 +235,11 @@ def parser() -> argparse.ArgumentParser:
     targets.add_argument("id")
     targets.add_argument("targets", nargs="+", help=f"platforms it ships on: {', '.join(TARGETS)}")
     targets.set_defaults(handler=command_targets)
+
+    stack = subparsers.add_parser("set-stack")
+    stack.add_argument("id")
+    stack.add_argument("stack", nargs="+", help="languages, e.g. java, python, typescript, csharp")
+    stack.set_defaults(handler=command_stack)
     return result
 
 
