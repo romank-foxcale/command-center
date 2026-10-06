@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +15,8 @@ from typing import Any
 
 
 FEATURE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+# Read by Claude Code sessions started inside a worktree of the feature (see write_session_guard).
+GUARD = "CLAUDE.md"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -150,6 +154,39 @@ def add_repositories(context: Context, manifest: dict[str, Any], identifiers: li
         }
 
 
+def session_context(context: Context, manifest: dict[str, Any]) -> str:
+    """What a coding session on this feature must know; given to the tool by ./cc open."""
+    lines = [
+        f"This session works on feature '{context.feature}' of the Control Center {context.cc_name} "
+        f"({context.root}); its AGENTS.md rules and skills apply.",
+        "Edit project code only in the feature's worktrees, never in the base clones under ../repos:",
+    ]
+    for identifier, entry in sorted(manifest.get("repositories", {}).items()):
+        worktree = context.resolve_project_path(entry["worktree"])
+        lines.append(f"- {identifier}: {worktree} (branch {entry['branch']})")
+    lines += [
+        f"Work is done only when `./cc feature {context.feature} verify --quality` passes; run it from {context.root}.",
+        "Before editing a repository, read its own AGENTS.md or CLAUDE.md if it has one: an added "
+        "directory's instructions may not be loaded automatically.",
+        "Use lean-code for code, tdd for tests and debug for failures; propose ./cc council for risky changes.",
+    ]
+    return "\n".join(lines)
+
+
+def write_session_guard(context: Context, manifest: dict[str, Any]) -> None:
+    # A session started inside a worktree loads this file (it is above the repository and never
+    # committed), but not the CC's skills or rules: tell it to stop and restart through ./cc open.
+    guard = (
+        f"# Feature {context.feature} of {context.cc_name}\n\n"
+        "STOP before changing code. This session was started inside a feature worktree, so the Control "
+        f"Center's skills (lean-code, tdd, debug, cc-*) and its AGENTS.md rules are NOT loaded. Tell the "
+        f"user to restart with:\n\n    {context.root}/cc open {context.feature}\n\n"
+        "and continue only if they explicitly decide to work without the CC.\n\n"
+        f"{session_context(context, manifest)}\n"
+    )
+    (context.feature_root / GUARD).write_text(guard, encoding="utf-8")
+
+
 def command_create(root: Path, args: argparse.Namespace) -> None:
     context = Context(root, args.feature)
     if context.manifest_path.exists():
@@ -160,7 +197,9 @@ def command_create(root: Path, args: argparse.Namespace) -> None:
     for identifier in args.repositories:
         add_repositories(context, manifest, [identifier], args.branch)
         write_json(context.manifest_path, manifest)
+    write_session_guard(context, manifest)
     print(f"created feature {args.feature}: {len(args.repositories)} worktree(s)")
+    print(f"start working with: ./cc open {args.feature}")
 
 
 def command_add(root: Path, args: argparse.Namespace) -> None:
@@ -169,7 +208,37 @@ def command_add(root: Path, args: argparse.Namespace) -> None:
     for identifier in args.repositories:
         add_repositories(context, manifest, [identifier], args.branch)
         write_json(context.manifest_path, manifest)
+    write_session_guard(context, manifest)
     print(f"added {len(args.repositories)} worktree(s) to {args.feature}")
+
+
+def command_open(root: Path, args: argparse.Namespace) -> None:
+    """Start Claude Code or Codex in the CC root with the feature's worktrees added: only a session
+    started in the CC loads its skills and rules (Codex reads neither from a worktree)."""
+    context = Context(root, args.feature)
+    manifest = context.load_manifest()
+    worktrees = [str(context.resolve_project_path(entry["worktree"])) for entry in manifest.get("repositories", {}).values()]
+    if not worktrees:
+        raise ValueError(f"feature {args.feature} has no worktrees; add one with ./cc worktree add")
+    write_session_guard(context, manifest)
+    text = session_context(context, manifest)
+    environment = dict(os.environ)
+    if args.tool == "claude":
+        argv = ["claude", *(f"--add-dir={path}" for path in worktrees), f"--append-system-prompt={text}"]
+        # Also load each repository's own CLAUDE.md from the added worktrees.
+        environment["CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD"] = "1"
+    else:
+        argv = ["codex", "--cd", str(context.root)]
+        for path in worktrees:
+            argv += ["--add-dir", path]
+        argv += ["-c", f"developer_instructions={json.dumps(text)}"]
+    if args.dry_run:
+        print(json.dumps({"cwd": str(context.root), "argv": argv}, indent=2))
+        return
+    if shutil.which(argv[0]) is None:
+        raise ValueError(f"{argv[0]} is not installed")
+    os.chdir(context.root)
+    os.execvpe(argv[0], argv, environment)
 
 
 def unpublished_commits(worktree: Path, entry: dict[str, Any]) -> int:
@@ -216,6 +285,7 @@ def command_remove(root: Path, args: argparse.Namespace) -> None:
         write_json(context.manifest_path, manifest)
     else:
         context.manifest_path.unlink()
+        (context.feature_root / GUARD).unlink(missing_ok=True)
         context.feature_root.rmdir()
     print(f"removed {len(identifiers)} worktree(s) from {args.feature}; branches were preserved")
 
@@ -274,6 +344,12 @@ def parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status")
     status.add_argument("feature")
     status.set_defaults(handler=command_status)
+
+    open_ = subparsers.add_parser("open", help="start Claude Code or Codex in the CC with the feature's worktrees")
+    open_.add_argument("feature")
+    open_.add_argument("--tool", choices=("claude", "codex"), default="claude")
+    open_.add_argument("--dry-run", action="store_true", help="print the command instead of starting it")
+    open_.set_defaults(handler=command_open)
 
     nix_args = subparsers.add_parser("nix-args")
     nix_args.add_argument("feature")

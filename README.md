@@ -23,6 +23,7 @@ What the kit includes:
 | `CLAUDE.md` importing `AGENTS.md`, safe read-only permissions for Claude Code | `CLAUDE.md`, `.claude/settings.json` |
 | LF line endings enforced for Windows clones (CRLF only for `.ps1` and `.cmd`) | `.gitattributes` |
 | `./cc ui` dashboard with a mascot: plans, council runs, roles and models, councils, repos, worktrees; approve runs and edit settings | `scripts/ui/`, `./cc council set-role`, `./cc council set` |
+| `./cc open <feature>`: starts Claude Code or Codex in the CC with the feature's worktrees, so the CC's skills and rules apply; a session started inside a worktree is told to restart | `scripts/worktrees.py` |
 | `cc-help` skill: lists the skills by purpose and explains the one you pick | `.agents/skills/cc-help/` |
 | `cc.cmd` launcher: run `.\cc check` from PowerShell or cmd; it forwards to `./cc` in WSL | `cc.cmd` |
 | All instructions, skills, notes and templates in English | everywhere |

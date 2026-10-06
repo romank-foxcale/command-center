@@ -39,6 +39,7 @@ Do not scan all of `docs/` or the archives without a reason.
 - Never bypass Nix with direct `cmake`, `make`, `docker build` or test commands, except for diagnosis; move any working command you find into a derivation, check or app.
 - Pin remote sources through flake inputs. For local development use an input override, not absolute paths committed to Git.
 - Create feature worktrees with `./cc worktree`; build and check them with `./cc feature <feature> ...`.
+- Start every coding session on a feature with `./cc open <feature>` (or in the CC root with the worktrees added), never inside a worktree: a session started in a worktree loads none of the CC's skills or rules. If you find yourself started inside a worktree, stop and ask the user to restart.
 - Put pure, reproducible actions in `packages`/`checks`; networked, interactive and privileged ones in explicitly run `apps`.
 - Production actions are forbidden by default and require a dedicated adapter, a check and confirmation.
 - Never store secrets, full conversations or the agent's internal reasoning.
