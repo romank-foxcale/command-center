@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run every flake check, then the gate of each catalog target of the selected repositories."""
+"""Run every flake check, then the gate of each catalog target (and, with --quality, each quality gate)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,11 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+
+# Must match supportedQualityGates in nix/lib/default.nix.
+QUALITY_GATES = ("mutation",)
+WARN = "WARN: no gate"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -56,6 +61,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("root", type=Path)
     parser.add_argument("repositories", nargs="*")
+    parser.add_argument("--quality", action="store_true", help="also run quality gates such as mutation testing")
     args = parser.parse_args()
     root = args.root.resolve()
     # Keep section headers in order with the output of the nix subprocesses.
@@ -102,12 +108,60 @@ def main() -> int:
                 outcome = nix("run", *overrides, attribute)
             results.append((identifier, target, "pass" if outcome.returncode == 0 else "FAIL"))
 
+    if args.quality:
+        results.extend(run_quality(root, feature, overrides, system, repositories))
+
     if not repositories:
         print("note: no catalog repositories selected; only the flake checks ran")
-    print("\nREPO\tTARGET\tRESULT")
+    print("\nREPO\tGATE\tRESULT")
     for row in results:
         print("\t".join(row))
-    return 0 if all(result == "pass" for _, _, result in results) else 1
+    return 0 if all(result in {"pass", WARN} for _, _, result in results) else 1
+
+
+def run_quality(
+    root: Path, feature: str | None, overrides: list[str], system: str, repositories: list[dict[str, Any]]
+) -> list[tuple[str, str, str]]:
+    """Run each repository's quality gates; a missing gate is a warning, never a failure."""
+    evaluated = nix("eval", "--json", *overrides, f"{root}#legacyPackages.{system}.ccQuality", capture=True)
+    if evaluated.returncode != 0:
+        print(evaluated.stderr, file=sys.stderr)
+        return [("cc", "quality", "FAIL: cannot evaluate quality gates")]
+    gates: dict[str, dict[str, str]] = json.loads(evaluated.stdout)
+    worktrees = feature_worktrees(root, feature)
+    results = []
+    for repository in repositories:
+        identifier = repository["id"]
+        for gate in QUALITY_GATES:
+            kind = gates.get(identifier, {}).get(gate)
+            if kind is None:
+                print(f"warning: {identifier} has no quality.{gate} gate: tests were NOT checked against injected bugs")
+                results.append((identifier, gate, WARN))
+                continue
+            print(f"== {identifier} quality {gate} ({kind})")
+            if kind == "check":
+                attribute = f"{root}#legacyPackages.{system}.ccQualityChecks.{identifier}.{gate}"
+                outcome = nix("build", "--no-link", "-L", *overrides, attribute)
+            else:
+                # App gates may scope themselves to the feature's changes, e.g. mutating changed lines only.
+                environment = {**os.environ, "CC_REPO": identifier, **worktrees.get(identifier, {})}
+                outcome = subprocess.run(
+                    ["nix", "run", *overrides, f"{root}#{identifier}-quality-{gate}"], text=True, env=environment
+                )
+            results.append((identifier, gate, "pass" if outcome.returncode == 0 else "FAIL"))
+    return results
+
+
+def feature_worktrees(root: Path, feature: str | None) -> dict[str, dict[str, str]]:
+    if not feature:
+        return {}
+    layout = load_json(root / "control-center.json")["layout"]
+    projects = (root / layout["projectsRoot"]).resolve()
+    manifest = load_json((root / layout["worktrees"]).resolve() / feature / ".cc-worktree.json")
+    return {
+        identifier: {"CC_WORKTREE": str(projects / entry["worktree"]), "CC_BASE_REF": entry.get("baseHead", "")}
+        for identifier, entry in manifest.get("repositories", {}).items()
+    }
 
 
 if __name__ == "__main__":

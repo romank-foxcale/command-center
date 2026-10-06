@@ -13,6 +13,7 @@ First read `../_shared/cc-cli.md` and follow it.
 |---|---|
 | Does it work? Is it ready to push? | `./cc verify [<repo>...]` |
 | Same for feature F | `./cc feature <feature> verify` |
+| Do the tests actually catch bugs? | `./cc [feature <feature>] verify [<repo>...] --quality` |
 | Quick pure checks only | `./cc check` / `./cc feature <feature> check` |
 | Build / run target X | `./cc build <name>` / `./cc run <name> [args]` |
 | What can I build, check or run? | `./cc show` |
@@ -23,6 +24,7 @@ First read `../_shared/cc-cli.md` and follow it.
 
 - "Works", "tested", "done" and "ready to push" mean `./cc verify` passed: every flake check plus the gate of every target platform the catalog declares (for example the windows gate on the real Windows host). `./cc check` alone does not cover host gates; never report a repo as working on a platform whose gate did not run and pass.
 - When a feature worktree is in play, use `./cc feature <feature> ...`; plain commands use the pinned sources, not the worktree. `./cc feature <feature> verify` covers exactly the repos in that feature.
+- `--quality` adds each repository's `quality.mutation` gate (slow). `WARN: no gate` means the tests were not checked against injected bugs: say so explicitly, never present the result as tested quality. A failing mutation gate lists surviving mutants; the fix is tests that kill them (`tdd`), or marking a truly equivalent mutant with a reason.
 - A `FAIL: no targets.<platform> gate` result means the adapter lacks the gate for a declared platform: report it; the fix is a gate in the adapter, never dropping the target.
 - Take target names from `./cc show`; never guess them.
 - `run` executes apps, which may use the network or containers. Confirm before running an app that deploys, publishes or touches production; production actions need a dedicated adapter.

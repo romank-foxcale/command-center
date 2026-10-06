@@ -58,7 +58,8 @@ def role_prompt(root: Path, role: dict[str, Any], state: dict[str, Any], body: s
     skills = "\n\n".join(skill_text(root, skill) for skill in role.get("skills", []))
     context = (
         f"Council: {state['council']} ({state['kind']}). Feature: {state['feature']}. "
-        f"Repository: {state['repository']}, targets: {', '.join(state['targets']) or 'unknown'}. "
+        f"Repository: {state['repository']}, targets: {', '.join(state['targets']) or 'unknown'}, "
+        f"stack: {', '.join(state.get('stack', [])) or 'unknown'}. "
         "The current directory is the feature worktree."
     )
     return f"{skills}\n\n# Context\n\n{context}\n\n{body}"
@@ -74,6 +75,15 @@ def worktree_diff(worktree: Path) -> str:
         )
         diff += result.stdout
     return diff
+
+
+def verify_rows(output: str) -> list[tuple[str, str, str]]:
+    """Parse the REPO/GATE/RESULT table that ./cc verify prints last."""
+    lines = output.splitlines()
+    if "REPO\tGATE\tRESULT" not in lines:
+        return []
+    table = lines[lines.index("REPO\tGATE\tRESULT") + 1 :]
+    return [tuple(line.split("\t", 2)) for line in table if line.count("\t") >= 2]
 
 
 class Run:
@@ -158,7 +168,7 @@ class Run:
             self.call(council["writer"], body, f"write-{attempt}")
             say(f"-> verify (attempt {attempt})")
             result = subprocess.run(
-                [str(self.root / "cc"), "feature", self.state["feature"], "verify", self.state["repository"]],
+                [str(self.root / "cc"), "feature", self.state["feature"], "verify", self.state["repository"], "--quality"],
                 cwd=self.root,
                 capture_output=True,
                 text=True,
@@ -166,14 +176,18 @@ class Run:
             output = result.stdout + result.stderr
             (self.directory / f"verify-{attempt}.log").write_text(output, encoding="utf-8")
             (self.directory / "changes.diff").write_text(worktree_diff(self.worktree), encoding="utf-8")
+            rows = verify_rows(output)
+            self.save(qualityWarnings=[f"{gate} gate missing for {repo}" for repo, gate, result in rows if result.startswith("WARN")])
             if result.returncode == 0:
                 break
             if attempt >= council["maxRetries"]:
-                reason = (
-                    "new tests fail: suspected bugs in the code, see verify log"
-                    if self.state["kind"] == "testing"
-                    else f"verify still fails after {attempt} retries"
-                )
+                failed = {gate for _, gate, result in rows if result.startswith("FAIL")}
+                if failed == {"mutation"}:
+                    reason = "tests pass but miss injected bugs (surviving mutants)"
+                elif self.state["kind"] == "testing":
+                    reason = "new tests fail: suspected bugs in the code"
+                else:
+                    reason = f"verify still fails after {attempt} retries"
                 self.finish("verify-failed", f"{reason}; see verify-{attempt}.log")
                 return
             attempt += 1
@@ -187,7 +201,10 @@ class Run:
             if self.state["security"] in {"high", "unparsed"}:
                 self.finish("blocked-security", "security review blocks the change; see security.md")
                 return
-        self.finish("done", "verify passed; review changes.diff and commit it yourself")
+        summary = "verify passed; review changes.diff and commit it yourself"
+        if self.state.get("qualityWarnings"):
+            summary += f"; WARNING: {'; '.join(self.state['qualityWarnings'])}"
+        self.finish("done", summary)
 
     def finish(self, stage: str, summary: str) -> None:
         self.save(stage=stage, summary=summary, finishedAt=now())
@@ -245,7 +262,7 @@ def command_run(root: Path, args: argparse.Namespace) -> None:
                 raise ValueError(f"role {slot} needs {role['provider']}: {detail}")
 
     descriptor = root / "catalog" / "repositories" / f"{repository}.json"
-    targets = load_json(descriptor).get("targets", []) if descriptor.is_file() else []
+    entry = load_json(descriptor) if descriptor.is_file() else {}
     identifier = f"{datetime.datetime.now():%Y%m%d-%H%M%S}-{council['id']}"
     directory = worktrees_root(root) / args.feature / ".cc-runs" / identifier
     directory.mkdir(parents=True)
@@ -258,7 +275,8 @@ def command_run(root: Path, args: argparse.Namespace) -> None:
             "feature": args.feature,
             "repository": repository,
             "worktree": str(worktree),
-            "targets": targets,
+            "targets": entry.get("targets", []),
+            "stack": entry.get("stack", []),
             "task": task.strip(),
             "stage": "proposing",
             "startedAt": now(),

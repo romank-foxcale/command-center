@@ -124,6 +124,12 @@ def validate_repository(
         if isinstance(adapter, str) and not (root / adapter).is_file():
             errors.append(f"{relative}: adapter does not exist: {adapter}")
     validate_targets(relative, data, adapter_targets, errors)
+    stack = data.get("stack")
+    if not isinstance(stack, list) or not stack or not all(isinstance(entry, str) and ID.fullmatch(entry) for entry in stack):
+        errors.append(
+            f"{relative}: 'stack' must list the repository's languages in lowercase hyphen-case; "
+            f"set it with ./cc repo set-stack {identifier} <language>..."
+        )
     for field in placeholder_paths(data):
         errors.append(f"{relative}: unresolved placeholder at {field}")
     return identifier

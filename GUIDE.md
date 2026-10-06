@@ -153,6 +153,7 @@ Other commands, run from the CC folder:
 | Command | What it does |
 |---|---|
 | `./cc verify` | Run every check plus each repo's target platform gates (e.g. the real Windows build) |
+| `./cc verify --quality` | Also run each repo's mutation gate: do the tests catch injected bugs? Warns for repos without one |
 | `./cc check` | Run every pure check: builds, tests, knowledge notes, skill sync |
 | `./cc doctor` | Check Nix, Docker and the `claude`/`codex` logins |
 | `./cc show` | List everything that can be built, checked or run |

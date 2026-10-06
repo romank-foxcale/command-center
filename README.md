@@ -25,6 +25,7 @@ What the kit includes:
 | All instructions, skills, notes and templates in English | everywhere |
 | `bootstrap install` keeps empty `catalog/` folders tracked so the Nix bootstrap check can see them | `scripts/materialize-template.py` |
 | Per-repo target platforms with a gate each, including a real Windows host gate | `./cc verify`, `ccLib.mkWindowsHostGate` |
+| Per-repo `stack` (languages) and optional `quality.mutation` gates with each stack's own tool; a missing gate warns | `./cc verify --quality`, `docs/rules/quality-gates.md` |
 | Coding and testing councils: Claude and GPT propose, an anonymous judge decides, a writer implements | `./cc council`, `catalog/agents`, `catalog/councils` |
 | `lean-code` skill: the least code that works, adapted from [Ponytail](https://github.com/dietrichgebert/ponytail) (MIT) | `.agents/skills/lean-code/` |
 | `debug` and `tdd` skills: root cause before fixes, test first and honest tests, adapted from [Superpowers](https://github.com/obra/superpowers) (MIT) | `.agents/skills/debug/`, `.agents/skills/tdd/` |

@@ -29,12 +29,15 @@ let
 
   hasEntries = attrs: builtins.length (lib.attrNames attrs) > 0;
 
-  # A target gate is a pure check (derivation) or, when it needs a real host, an app.
-  ensureTargets =
-    label: attrs:
+  # Must match QUALITY_GATES in scripts/verify.py.
+  supportedQualityGates = [ "mutation" ];
+
+  # A gate is a pure check (derivation) or, when it needs a real host or Git history, an app.
+  ensureGates =
+    label: names: attrs:
     assert lib.assertMsg (lib.isAttrs attrs) "${label} must be an attribute set";
-    assert lib.assertMsg (lib.all (target: lib.elem target supportedTargets) (lib.attrNames attrs)) (
-      "${label} supports only: ${lib.concatStringsSep ", " supportedTargets}"
+    assert lib.assertMsg (lib.all (name: lib.elem name names) (lib.attrNames attrs)) (
+      "${label} supports only: ${lib.concatStringsSep ", " names}"
     );
     assert lib.assertMsg (lib.all (gate: lib.isDerivation gate || validApp gate) (lib.attrValues attrs)) (
       "every ${label} value must be a derivation or a flake app"
@@ -95,6 +98,7 @@ rec {
       checks ? { },
       apps ? { },
       targets ? { },
+      quality ? { },
       metadata ? { },
     }:
     assert lib.assertMsg (name != "") "project name must not be empty";
@@ -102,7 +106,9 @@ rec {
       hasEntries packages || hasEntries checks || hasEntries apps || hasEntries targets
     ) "project ${name} must expose at least one package, check, app or target";
     let
-      gates = ensureTargets "project ${name} targets" targets;
+      gates = ensureGates "project ${name} targets" supportedTargets targets;
+      qualityGates = ensureGates "project ${name} quality" supportedQualityGates quality;
+      kind = gate: if lib.isDerivation gate then "check" else "app";
     in
     {
       inherit name src metadata;
@@ -111,9 +117,15 @@ rec {
         ensureDerivations "project ${name} checks" checks
         // prefixAttrs "target" (lib.filterAttrs (_: lib.isDerivation) gates);
       apps =
-        ensureApps "project ${name} apps" apps // prefixAttrs "target" (lib.filterAttrs (_: validApp) gates);
+        ensureApps "project ${name} apps" apps
+        // prefixAttrs "target" (lib.filterAttrs (_: validApp) gates)
+        // prefixAttrs "quality" (lib.filterAttrs (_: validApp) qualityGates);
       # Gate kind per target, read by ./cc verify and the catalog validator.
-      targets = lib.mapAttrs (_: gate: if lib.isDerivation gate then "check" else "app") gates;
+      targets = lib.mapAttrs (_: kind) gates;
+      # Quality gates are slow (mutation testing), so they stay out of `checks` and
+      # run only through ./cc verify --quality.
+      quality = lib.mapAttrs (_: kind) qualityGates;
+      qualityChecks = lib.filterAttrs (_: lib.isDerivation) qualityGates;
     };
 
   mkWorkflow =

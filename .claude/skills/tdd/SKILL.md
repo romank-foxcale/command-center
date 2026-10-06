@@ -50,7 +50,7 @@ Code written before its test is not trusted: write the test, watch it fail again
 
 ## The mutation check
 
-Before finishing, mutate the production code in your head, or for real with the repository's mutation gate when it has one, and make sure at least one test fails for each realistic mutation: a wrong constant or argument, the wrong branch, a missing state change or side effect, an empty or default return, missing validation of zero, empty, null, unauthorized or malformed input. A mutation nothing catches is unprotected behaviour, or a tautological test.
+Before finishing, mutate the production code in your head, or for real with `./cc feature <feature> verify <repo> --quality` when the repository has a `quality.mutation` gate, and make sure at least one test fails for each realistic mutation: a wrong constant or argument, the wrong branch, a missing state change or side effect, an empty or default return, missing validation of zero, empty, null, unauthorized or malformed input. A mutation nothing catches is unprotected behaviour, or a tautological test. A surviving mutant that cannot change behaviour (an equivalent mutant, such as `<` to `<=` where both branches return the same value at the boundary) is marked with the mutation tool's skip comment and a one-line reason; never mark one a test could kill.
 
 ## Stop signals
 

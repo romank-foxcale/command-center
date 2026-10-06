@@ -15,13 +15,14 @@ relations:
   - docs/rules/executable-processes.md
   - docs/projects/index.md
   - docs/decisions/0006-target-platform-gates.md
+  - docs/rules/quality-gates.md
 ---
 
 # Connecting sibling projects
 
 ## Project contract
 
-`catalog/repositories/<id>.json` records the remote, default branch, role, target platforms, flake input, adapter and onboarding status. The descriptor is created by `./cc repo add`; build commands never go into it.
+`catalog/repositories/<id>.json` records the remote, default branch, role, target platforms, stack (languages), flake input, adapter and onboarding status. The descriptor is created by `./cc repo add`; build commands never go into it.
 
 The adapter is created with `ccLib.mkProject` and declares:
 
@@ -30,6 +31,7 @@ The adapter is created with `ccLib.mkProject` and declares:
 - `checks`: builds and tests;
 - `apps`: running, generation, external integrations;
 - `targets`: one gate per catalog target platform, a check or a host app (see [target gates](../decisions/0006-target-platform-gates.md));
+- `quality`: optional `quality.mutation` gate with the mutation tool for the repository's stack (see [quality gates](quality-gates.md));
 - `metadata`: role and owner.
 
 The adapter's attribute name in `nix/projects` equals the catalog id, so its targets can be matched against the catalog.

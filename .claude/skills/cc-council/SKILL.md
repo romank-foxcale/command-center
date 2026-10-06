@@ -25,6 +25,7 @@ First read `../_shared/cc-cli.md` and follow it.
 - Write the task as an outcome with constraints and acceptance, not as a design: the proposers design.
 - A run stops after the verdict. Show the user the verdict and the hidden proposal authors, and wait for an explicit decision; never approve on the user's behalf.
 - Runs take minutes. Run them in the background when the tool allows it and report the final stage line and the artifacts folder.
+- Councils verify with `--quality`. A `done` summary that ends in `WARNING: mutation gate missing` means the tests were not checked against injected bugs; repeat that warning to the user. "tests pass but miss injected bugs" means the mutation gate failed.
 - Final stages: `done` (verify passed; the user reviews `changes.diff` and commits), `verify-failed` (report the log; for testing it means suspected bugs), `blocked-security` (report `security.md`), `rejected`, `failed`. Never commit, push or fix things after the run on your own.
 
 ## Roles and models
