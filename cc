@@ -21,6 +21,7 @@ usage() {
     '  bootstrap validate          Validate the configured CC contract' \
     '  repo <add|list|show|set-status|set-targets|set-stack> ...' \
     '  worktree <create|add|status|remove> ...' \
+    '  open <feature> [--tool claude|codex]  Start a coding session in the CC with the feature'"'"'s worktrees' \
     '  plan <create|list|show|accept|archive|complete> ...' \
     '  feature <name> <show|check|build|run|verify> ...  Use feature input overrides'
 }
@@ -131,6 +132,9 @@ case "$command_name" in
     ;;
   worktree)
     exec python3 "$cc_root/scripts/worktrees.py" "$cc_root" "$@"
+    ;;
+  open)
+    exec python3 "$cc_root/scripts/worktrees.py" "$cc_root" open "$@"
     ;;
   council)
     exec python3 "$cc_root/scripts/council/run.py" "$cc_root" "$@"

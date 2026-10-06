@@ -12,6 +12,7 @@ First read `../_shared/cc-cli.md` and follow it.
 | Request | Command |
 |---|---|
 | Start feature X in repos A, B | `./cc worktree create <feature> <repo>... [--branch <name>]` |
+| Start coding on feature X | `./cc open <feature> [--tool claude\|codex]` (the user runs it in their terminal; it starts a new session) |
 | Also change repo C in feature X | `./cc worktree add <feature> <repo>... [--branch <name>]` |
 | State of feature X | `./cc worktree status <feature>` |
 | Clean up feature X (**destructive**) | `./cc worktree remove <feature> [<repo>...]` |
@@ -23,4 +24,5 @@ First read `../_shared/cc-cli.md` and follow it.
 - The branch defaults to the feature name. Pass `--branch` only when the user names one.
 - Never edit files in the base clones under `../repos/`; all feature changes happen in the `_wt` worktree.
 - Before `remove`, run `status` and show it. `remove` refuses dirty worktrees and unpublished commits; report that, and never force it, clean, stash or reset to get past it. Branches are preserved after removal.
+- After creating a feature, tell the user to start coding with `./cc open <feature>`, never by opening a session inside the worktree: only a session started in the CC has the CC's skills and rules. A session can edit the worktree only if it was started that way, or in the CC root with the worktree added.
 - To build or check the feature's code, hand off to `cc-verify`.

@@ -145,10 +145,13 @@ The agent turns it into an agreed plan with work packages and checks, saved in `
 
 ```bash
 ./cc worktree create my-feature repo1 repo2   # task folders under ~/Projects/worktrees/my-feature/
+./cc open my-feature                          # start Claude Code (or --tool codex) on the feature
 ./cc feature my-feature verify                # build + test your changed code on every target platform
 ./cc worktree status my-feature
 ./cc worktree remove my-feature               # refuses if anything is uncommitted or unpushed
 ```
+
+**Always start coding with `./cc open my-feature`**, not by opening Claude Code or Codex inside `~/Projects/worktrees/my-feature/<repo>_wt`. A session started inside a worktree doesn't get the CC's skills (`tdd`, `debug`, `lean-code`, …) or its rules, so it codes without them. `./cc open` starts the tool in the CC with the feature's worktrees added. If you do start a Claude session inside a worktree, it will tell you to restart.
 
 **From Windows without opening Ubuntu:** the `cc.cmd` launcher in the CC folder runs the same commands inside WSL for you, with the same output and exit code. In PowerShell type `.\cc check`, in cmd `cc check`, in Git Bash `./cc.cmd check`. It works whether the CC lives on `C:` or inside Ubuntu (`\\wsl.localhost\Ubuntu\home\...`). With several Linux distributions installed, set `CC_WSL_DISTRO` to the one with Nix.
 
