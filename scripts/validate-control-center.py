@@ -13,6 +13,7 @@ from typing import Any
 ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 CC_STATUSES = {"discovery", "adapting", "ready"}
 REPOSITORY_STATUSES = {"discovered", "adapted", "verified", "blocked"}
+TARGETS = {"windows", "linux", "macos"}
 EXPECTED_LAYOUT = {
     "projectsRoot": "..",
     "repositories": "../repos",
@@ -50,7 +51,41 @@ def placeholder_paths(value: Any, prefix: str = "") -> list[str]:
     return paths
 
 
-def validate_repository(root: Path, path: Path, errors: list[str]) -> str | None:
+def validate_targets(
+    relative: Path,
+    data: dict[str, Any],
+    adapter_targets: dict[str, Any] | None,
+    errors: list[str],
+) -> None:
+    targets = data.get("targets")
+    if not isinstance(targets, list) or not targets or not all(isinstance(target, str) for target in targets):
+        errors.append(
+            f"{relative}: 'targets' must list the platforms it ships on ({', '.join(sorted(TARGETS))}); "
+            f"set it with ./cc repo set-targets {data.get('id')} <target>..."
+        )
+        return
+    for target in sorted(set(targets) - TARGETS):
+        errors.append(f"{relative}: unsupported target '{target}'")
+    if len(set(targets)) != len(targets):
+        errors.append(f"{relative}: duplicate targets")
+    # Without the evaluated adapters (plain ./cc bootstrap validate) only the catalog is checked.
+    if adapter_targets is None or data.get("status") not in {"adapted", "verified"}:
+        return
+    declared = adapter_targets.get(str(data.get("id")), {})
+    for target in sorted(set(targets) & TARGETS):
+        if target not in declared:
+            errors.append(
+                f"{relative}: target '{target}' has no gate; declare targets.{target} "
+                f"(a check or an app) in {data.get('adapter')}"
+            )
+
+
+def validate_repository(
+    root: Path,
+    path: Path,
+    errors: list[str],
+    adapter_targets: dict[str, Any] | None = None,
+) -> str | None:
     data = load_json(path, errors)
     if data is None:
         return None
@@ -84,6 +119,7 @@ def validate_repository(root: Path, path: Path, errors: list[str]) -> str | None
         adapter = data.get("adapter")
         if isinstance(adapter, str) and not (root / adapter).is_file():
             errors.append(f"{relative}: adapter does not exist: {adapter}")
+    validate_targets(relative, data, adapter_targets, errors)
     for field in placeholder_paths(data):
         errors.append(f"{relative}: unresolved placeholder at {field}")
     return identifier
@@ -148,7 +184,7 @@ def validate_plans(root: Path, errors: list[str]) -> None:
                 errors.append(f"{relative}: completed plan must have Planning status 'accepted'")
 
 
-def validate(root: Path) -> list[str]:
+def validate(root: Path, adapter_targets: dict[str, Any] | None = None) -> list[str]:
     root = root.resolve()
     errors: list[str] = []
     manifest = load_json(root / "control-center.json", errors)
@@ -175,7 +211,7 @@ def validate(root: Path) -> list[str]:
         repositories = sorted(repositories_dir.glob("*.json"))
     seen: set[str] = set()
     for path in repositories:
-        identifier = validate_repository(root, path, errors)
+        identifier = validate_repository(root, path, errors, adapter_targets)
         if identifier in seen:
             errors.append(f"catalog/repositories: duplicate id '{identifier}'")
         if identifier:
@@ -197,7 +233,11 @@ def validate(root: Path) -> list[str]:
 
 def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
-    errors = validate(root)
+    # Optional JSON written by flake.nix: {"<project>": {"<target>": "check" | "app"}}.
+    adapter_targets = None
+    if len(sys.argv) > 2:
+        adapter_targets = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+    errors = validate(root, adapter_targets)
     if errors:
         print("control-center validation failed:", file=sys.stderr)
         for error in errors:

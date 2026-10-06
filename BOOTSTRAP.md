@@ -54,9 +54,9 @@ This topology can only be changed by a separate, explicit decision of the user.
 In normal work use the executable interface, not manual `git worktree`:
 
 ```bash
-./cc repo add <repo> --remote <git-url> --role <role> --clone
+./cc repo add <repo> --remote <git-url> --role <role> --targets <windows|linux|macos>... --clone
 ./cc worktree create <feature> <repo>...
-./cc feature <feature> check
+./cc feature <feature> verify
 ./cc worktree status <feature>
 ./cc worktree remove <feature>
 ```
@@ -68,10 +68,10 @@ In normal work use the executable interface, not manual `git worktree`:
 Do not declare the bootstrap finished until:
 
 1. `control-center.json` and the catalog reflect the agreed model.
-2. Every connected repository has a pinned source, a Nix adapter and a check.
+2. Every connected repository has a pinned source, a Nix adapter, a check, and a gate for each target platform it ships on.
 3. Workflows consume declared outputs instead of duplicating build commands.
 4. Unknown facts are explicitly marked and contradictions are resolved.
-5. `./cc bootstrap validate` and `./cc check` pass, or the unverified environment is explicitly recorded.
+5. `./cc bootstrap validate` and `./cc verify` pass, or the unverified environment is explicitly recorded.
 6. The target CC does not depend on the contents of `cc_template/`.
 
 After that, tell the user that `cc_template/` can be deleted. Do not delete it yourself.

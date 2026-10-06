@@ -14,6 +14,7 @@ let
       inherit name src;
       packages.default = package;
       checks.build = package;
+      targets.linux = package;
       metadata = {
         role = "example";
         owner = "template-user";
