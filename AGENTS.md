@@ -64,4 +64,6 @@ A change is normally finished with:
 ./cc check
 ```
 
+A change to project code is finished only with `./cc verify` (or `./cc feature <feature> verify`): it also runs the gate of every target platform the catalog declares, such as the Windows host gate. Never call code working on a platform whose gate did not pass.
+
 If Nix is unavailable, run `python3 scripts/validate-knowledge.py .` and state explicitly that the Nix part was not verified.

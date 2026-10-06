@@ -13,13 +13,14 @@ usage() {
     '  check          Evaluate and build every flake check' \
     '  build <name>   Build .#<name>' \
     '  run <name>     Run .#<name>' \
+    '  verify [repo...]  Run every check plus the gate of each catalog target' \
     '  validate       Validate the Markdown knowledge graph'     '  agents <sync|check>  Mirror .agents/skills into .claude/skills' \
     '  bootstrap install [target]  Materialize a new CC from this clone' \
     '  bootstrap validate          Validate the configured CC contract' \
-    '  repo <add|list|show|set-status> ...' \
+    '  repo <add|list|show|set-status|set-targets> ...' \
     '  worktree <create|add|status|remove> ...' \
     '  plan <create|list|show|accept|archive|complete> ...' \
-    '  feature <name> <show|check|build|run> ...  Use feature input overrides'
+    '  feature <name> <show|check|build|run|verify> ...  Use feature input overrides'
 }
 
 require_nix() {
@@ -83,6 +84,10 @@ case "$command_name" in
     load_feature_overrides
     exec nix run "${nix_override_args[@]}" "${cc_root}#$target" -- "$@"
     ;;
+  verify)
+    require_nix
+    exec python3 "$cc_root/scripts/verify.py" "$cc_root" "$@"
+    ;;
   validate)
     exec python3 "$cc_root/scripts/validate-knowledge.py" "$cc_root"
     ;;
@@ -117,7 +122,7 @@ case "$command_name" in
     exec python3 "$cc_root/scripts/plans.py" "$cc_root" "$@"
     ;;
   feature)
-    feature_name="${1:?usage: ./cc feature <name> <show|check|build|run> [arguments]}"
+    feature_name="${1:?usage: ./cc feature <name> <show|check|build|run|verify> [arguments]}"
     shift
     if [[ $# -eq 0 ]]; then
       printf '%s\n' 'error: feature requires a command' >&2

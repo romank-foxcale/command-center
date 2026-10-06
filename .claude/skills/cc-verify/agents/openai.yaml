@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Verify"
+  short_description: "Check, build and run through Nix"
+  default_prompt: "Use $cc-verify to check, build or run the CC or a feature through Nix."
+policy:
+  allow_implicit_invocation: true

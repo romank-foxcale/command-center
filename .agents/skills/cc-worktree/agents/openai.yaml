@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Worktree"
+  short_description: "Manage feature worktrees"
+  default_prompt: "Use $cc-worktree to create, inspect or remove feature worktrees."
+policy:
+  allow_implicit_invocation: true
