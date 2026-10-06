@@ -14,6 +14,8 @@ from typing import Any
 
 ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 STATUSES = {"discovered", "adapted", "verified", "blocked"}
+# Platforms a repository ships on; each one needs its own gate in the adapter.
+TARGETS = ("windows", "linux", "macos")
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -41,6 +43,16 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
     temporary = path.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def parse_targets(values: list[str]) -> list[str]:
+    targets = {value.strip().lower() for item in values for value in item.split(",") if value.strip()}
+    if not targets:
+        raise ValueError(f"at least one target is required: {', '.join(TARGETS)}")
+    unknown = sorted(targets - set(TARGETS))
+    if unknown:
+        raise ValueError(f"unsupported target(s): {', '.join(unknown)}; use {', '.join(TARGETS)}")
+    return [target for target in TARGETS if target in targets]
 
 
 def is_git_checkout(path: Path) -> bool:
@@ -76,6 +88,7 @@ def require_remote(checkout: Path, expected: str, root: Path) -> None:
 
 
 def command_add(root: Path, args: argparse.Namespace) -> None:
+    targets = parse_targets(args.targets)
     path = descriptor_path(root, args.id)
     if path.exists():
         raise ValueError(f"repository already exists: {args.id}")
@@ -108,6 +121,7 @@ def command_add(root: Path, args: argparse.Namespace) -> None:
             "remote": args.remote,
             "defaultBranch": args.branch,
             "role": args.role,
+            "targets": targets,
             "sourceInput": args.source_input or args.id,
             "adapter": args.adapter or f"nix/projects/{args.id}.nix",
             "status": "discovered",
@@ -120,16 +134,17 @@ def command_add(root: Path, args: argparse.Namespace) -> None:
 def command_list(root: Path, _: argparse.Namespace) -> None:
     _, repositories_root = layout(root)
     directory = root / "catalog" / "repositories"
-    rows: list[tuple[str, str, str, str]] = []
+    rows: list[tuple[str, str, str, str, str]] = []
     for path in sorted(directory.glob("*.json")):
         data = load_json(path)
         identifier = str(data.get("id", path.stem))
         present = "yes" if is_git_checkout(repositories_root / identifier) else "no"
-        rows.append((identifier, str(data.get("status", "?")), present, str(data.get("role", "?"))))
+        targets = ",".join(data.get("targets") or []) or "?"
+        rows.append((identifier, str(data.get("status", "?")), targets, present, str(data.get("role", "?"))))
     if not rows:
         print("no repositories")
         return
-    print("ID\tSTATUS\tBASE\tROLE")
+    print("ID\tSTATUS\tTARGETS\tBASE\tROLE")
     for row in rows:
         print("\t".join(row))
 
@@ -149,6 +164,21 @@ def command_status(root: Path, args: argparse.Namespace) -> None:
     print(f"{args.id}: {args.status}")
 
 
+def command_targets(root: Path, args: argparse.Namespace) -> None:
+    targets = parse_targets(args.targets)
+    path = descriptor_path(root, args.id)
+    data = load_json(path)
+    # Verification covered the previous targets only; a changed set must be verified again.
+    reset = data.get("targets") != targets and data.get("status") == "verified"
+    data["targets"] = targets
+    if reset:
+        data["status"] = "adapted"
+    write_json(path, data)
+    print(f"{args.id}: targets {', '.join(targets)}")
+    if reset:
+        print(f"{args.id}: status reset to adapted; run ./cc verify {args.id}, then set-status verified")
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser()
     result.add_argument("root", type=Path)
@@ -158,6 +188,7 @@ def parser() -> argparse.ArgumentParser:
     add.add_argument("id")
     add.add_argument("--remote", required=True)
     add.add_argument("--role", required=True)
+    add.add_argument("--targets", nargs="+", required=True, help=f"platforms it ships on: {', '.join(TARGETS)}")
     add.add_argument("--branch", default="main")
     add.add_argument("--source-input")
     add.add_argument("--adapter")
@@ -175,6 +206,11 @@ def parser() -> argparse.ArgumentParser:
     status.add_argument("id")
     status.add_argument("status")
     status.set_defaults(handler=command_status)
+
+    targets = subparsers.add_parser("set-targets")
+    targets.add_argument("id")
+    targets.add_argument("targets", nargs="+", help=f"platforms it ships on: {', '.join(TARGETS)}")
+    targets.set_defaults(handler=command_targets)
     return result
 
 

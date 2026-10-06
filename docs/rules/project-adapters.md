@@ -9,17 +9,19 @@ evidence:
   - nix/projects/default.nix
   - templates/project.nix
   - examples/cpp-docker-e2e/projects.nix
+  - nix/lib/default.nix
 relations:
   - docs/architecture/control-center.md
   - docs/rules/executable-processes.md
   - docs/projects/index.md
+  - docs/decisions/0006-target-platform-gates.md
 ---
 
 # Connecting sibling projects
 
 ## Project contract
 
-`catalog/repositories/<id>.json` records the remote, default branch, role, flake input, adapter and onboarding status. The descriptor is created by `./cc repo add`; build commands never go into it.
+`catalog/repositories/<id>.json` records the remote, default branch, role, target platforms, flake input, adapter and onboarding status. The descriptor is created by `./cc repo add`; build commands never go into it.
 
 The adapter is created with `ccLib.mkProject` and declares:
 
@@ -27,7 +29,10 @@ The adapter is created with `ccLib.mkProject` and declares:
 - `packages`: the project's artifacts;
 - `checks`: builds and tests;
 - `apps`: running, generation, external integrations;
+- `targets`: one gate per catalog target platform, a check or a host app (see [target gates](../decisions/0006-target-platform-gates.md));
 - `metadata`: role and owner.
+
+The adapter's attribute name in `nix/projects` equals the catalog id, so its targets can be matched against the catalog.
 
 The remote source is pinned in `flake.lock`. Local development does not change the contract: the same input is temporarily overridden to `path:../repo`.
 

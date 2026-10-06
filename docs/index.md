@@ -15,6 +15,7 @@ relations:
   - docs/rules/task-planning.md
   - docs/rules/worktrees.md
   - docs/decisions/0005-multi-tool-agent-configs.md
+  - docs/decisions/0006-target-platform-gates.md
 ---
 
 # Knowledge map
@@ -39,6 +40,7 @@ relations:
 - [Template as a temporary seed](decisions/0003-template-as-seed.md)
 - [Plan lifecycle](decisions/0004-plan-lifecycle.md)
 - [One set of skills for every AI tool](decisions/0005-multi-tool-agent-configs.md)
+- [Every target platform has its own gate](decisions/0006-target-platform-gates.md)
 
 ## Current context
 

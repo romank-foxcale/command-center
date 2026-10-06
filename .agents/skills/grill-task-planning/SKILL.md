@@ -31,6 +31,8 @@ Choose a stable `task-id`; it maps to `../worktrees/<task-id>/<repo>_wt`. Includ
 
 When moving to implementation, use `./cc worktree create <task-id> <repo>...` and `./cc feature <task-id> ...`.
 
+Run plan transitions through `cc-plan`, worktrees through `cc-worktree` and checks through `cc-verify`.
+
 ## Agent-ready plan
 
 Every work package has: one outcome; an exact write scope; inputs/outputs; dependencies; a completion check. Parallel packages never change the same files or interfaces. Derive parallelism from the graph, not from the desired number of agents. Keep integration/final verification separate.

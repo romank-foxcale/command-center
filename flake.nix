@@ -19,7 +19,10 @@
         system:
         let
           pkgs = import nixpkgs { inherit system; };
-          ccLib = import ./nix/lib { inherit (pkgs) lib; };
+          ccLib = import ./nix/lib {
+            inherit pkgs;
+            inherit (pkgs) lib;
+          };
           projects = import ./nix/projects { inherit pkgs ccLib inputs; };
           workflows = import ./nix/workflows { inherit pkgs ccLib projects; };
           validator = pkgs.writeShellApplication {
@@ -29,6 +32,8 @@
               exec python3 ${self}/scripts/validate-knowledge.py "$PWD"
             '';
           };
+          adapterTargets = pkgs.lib.mapAttrs (_: project: project.targets or { }) projects;
+          adapterTargetsFile = pkgs.writeText "cc-adapter-targets.json" (builtins.toJSON adapterTargets);
         in
         {
           packages =
@@ -48,7 +53,7 @@
             }
             // pkgs.lib.optionalAttrs (builtins.pathExists "${toString ./.}/control-center.json") {
               bootstrap = pkgs.runCommand "control-center-bootstrap" { } ''
-                ${pkgs.python3}/bin/python ${self}/scripts/validate-control-center.py ${self}
+                ${pkgs.python3}/bin/python ${self}/scripts/validate-control-center.py ${self} ${adapterTargetsFile}
                 touch "$out"
               '';
             }
@@ -62,6 +67,8 @@
             }
             // ccLib.collect "apps" projects
             // ccLib.collect "apps" workflows;
+
+          inherit adapterTargets;
 
           devShell = pkgs.mkShell {
             packages = [
@@ -79,6 +86,8 @@
       packages = nixpkgs.lib.mapAttrs (_: value: value.packages) perSystem;
       checks = nixpkgs.lib.mapAttrs (_: value: value.checks) perSystem;
       apps = nixpkgs.lib.mapAttrs (_: value: value.apps) perSystem;
+      # Not a package set: legacyPackages is the flake output that tolerates plain data.
+      legacyPackages = nixpkgs.lib.mapAttrs (_: value: { ccTargets = value.adapterTargets; }) perSystem;
       devShells = nixpkgs.lib.mapAttrs (_: value: { default = value.devShell; }) perSystem;
       formatter = nixpkgs.lib.mapAttrs (_: value: value.formatter) perSystem;
     };
