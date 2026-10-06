@@ -32,6 +32,17 @@
               exec python3 ${self}/scripts/validate-knowledge.py "$PWD"
             '';
           };
+          uiPython = pkgs.python3.withPackages (ps: [ ps.textual ]);
+          ui = pkgs.writeShellApplication {
+            name = "cc-ui";
+            runtimeInputs = [
+              uiPython
+              pkgs.git
+            ];
+            text = ''
+              exec python3 ${self}/scripts/ui/app.py "$@"
+            '';
+          };
           adapterTargets = pkgs.lib.mapAttrs (_: project: project.targets or { }) projects;
           adapterTargetsFile = pkgs.writeText "cc-adapter-targets.json" (builtins.toJSON adapterTargets);
           adapterQuality = pkgs.lib.mapAttrs (_: project: project.quality or { }) projects;
@@ -52,6 +63,11 @@
                 ${pkgs.python3}/bin/python ${self}/scripts/agent-configs.py ${self} check
                 touch "$out"
               '';
+              ui-smoke = pkgs.runCommand "control-center-ui-smoke" { } ''
+                export HOME=$TMPDIR
+                ${uiPython}/bin/python ${self}/scripts/ui/smoke.py
+                touch "$out"
+              '';
             }
             // pkgs.lib.optionalAttrs (builtins.pathExists "${toString ./.}/control-center.json") {
               bootstrap = pkgs.runCommand "control-center-bootstrap" { } ''
@@ -66,6 +82,7 @@
             {
               default = ccLib.mkApp validator "cc-validate";
               validate = ccLib.mkApp validator "cc-validate";
+              ui = ccLib.mkApp ui "cc-ui";
             }
             // ccLib.collect "apps" projects
             // ccLib.collect "apps" workflows;

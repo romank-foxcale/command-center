@@ -159,6 +159,7 @@ Other commands, run from the CC folder:
 | `./cc verify` | Run every check plus each repo's target platform gates (e.g. the real Windows build) |
 | `./cc verify --quality` | Also run each repo's mutation gate: do the tests catch injected bugs? Warns for repos without one |
 | `./cc check` | Run every pure check: builds, tests, knowledge notes, skill sync |
+| `./cc ui` | Dashboard: pending plans, council runs (and which agent and model is working), roles and models, councils, repos, worktrees; approve runs and change settings with the keyboard |
 | `./cc doctor` | Check Nix, Docker and the `claude`/`codex` logins |
 | `./cc show` | List everything that can be built, checked or run |
 | `./cc build <name>` / `./cc run <name>` | Build or run one thing |
@@ -183,7 +184,7 @@ A testing council works the same way: both models write tests, the judge merges 
 
 A debug council finds and fixes a bug: `./cc council run debug --feature my-feature --task "<exact symptom>"`. The CC first runs verify and hands its output to both models; each diagnoses the root cause with evidence; the judge picks the best-evidenced one; after your approval the writer adds a reproduction test that must fail, and only then fixes the cause. After three failed fixes it stops and asks you to rethink the design.
 
-Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "opus"` in `writer.json`); `catalog/councils/` sets the roles, the approval pause and the retry limit. Ask your agent to change them, or edit the JSON. Run files are kept in `~/Projects/worktrees/<feature>/.cc-runs/`.
+Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "opus"` in `writer.json`); `catalog/councils/` sets the roles, the approval pause and the retry limit. Change them in `./cc ui` (select a row, press `e`), with `./cc council set-role` and `./cc council set`, or by asking your agent. Run files are kept in `~/Projects/worktrees/<feature>/.cc-runs/`.
 
 ---
 

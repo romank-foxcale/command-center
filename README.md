@@ -22,6 +22,7 @@ What the kit includes:
 | Skills for every tool: canonical in `.agents/skills` (Codex, Cursor, OpenCode), synced copy in `.claude/skills` (Claude Code), checked by `./cc check` | `scripts/agent-configs.py`, `./cc agents` |
 | `CLAUDE.md` importing `AGENTS.md`, safe read-only permissions for Claude Code | `CLAUDE.md`, `.claude/settings.json` |
 | LF line endings enforced for Windows clones (CRLF only for `.ps1` and `.cmd`) | `.gitattributes` |
+| `./cc ui` dashboard with a mascot: plans, council runs, roles and models, councils, repos, worktrees; approve runs and edit settings | `scripts/ui/`, `./cc council set-role`, `./cc council set` |
 | `cc-help` skill: lists the skills by purpose and explains the one you pick | `.agents/skills/cc-help/` |
 | `cc.cmd` launcher: run `.\cc check` from PowerShell or cmd; it forwards to `./cc` in WSL | `cc.cmd` |
 | All instructions, skills, notes and templates in English | everywhere |
