@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from app import ModelPicker, Settings, show  # noqa: E402
+from app import ChoicePicker, ModelPicker, Settings, show  # noqa: E402
 from state import snapshot  # noqa: E402
 import progress  # noqa: E402  (app.py puts scripts/council on the path)
 from textual.widgets import DataTable, OptionList, Static  # noqa: E402
@@ -51,7 +52,7 @@ async def check(root: Path) -> None:
         assert "×   ×" in face, f"a stalled run must make the mascot grim:\n{face}"
         assert "1 waiting for you" in summary and "1/1 repos verified" in summary, summary
         assert "stalled" in summary, summary
-        assert [pane.id for pane in app.query("TabPane")] == ["agents", "councils", "repos"], "settings only"
+        assert [pane.id for pane in app.query("TabPane")] == ["agents", "councils", "repos", "trello"], "settings only"
         for table, rows in (("#t-agents", 1), ("#t-councils", 1), ("#t-repos", 1)):
             assert app.query_one(table, DataTable).row_count == rows, table
 
@@ -80,8 +81,32 @@ async def check(root: Path) -> None:
         await pilot.pause()
         assert not isinstance(app.screen, ModelPicker)
 
+        # Trello: the board and list mapping are picked, then connected through ./cc trello connect.
+        trello = dict((row[0].plain, row[1].plain) for row in (app.query_one("#t-trello", DataTable).get_row_at(i) for i in range(4)))
+        assert trello["board"] == "not connected" and trello["credentials"].startswith("missing"), trello
+        sent: list[tuple[str, ...]] = []
+        app.output = lambda *arguments: ["Bd1\tPV board"] if arguments[1] == "boards" else ["To do", "In progress", "Done"]
+        app.cc = lambda *arguments: sent.append(arguments)
+        for _ in range(3):
+            await pilot.press("right")
+        await pilot.pause()
+        assert app.query_one("#tabs").active == "trello"
+        await pilot.press("e")
+        for choice in (None, "In progress", "Done"):  # board (first option), active list, completed list
+            for _ in range(20):
+                await pilot.pause(0.05)
+                if isinstance(app.screen, ChoicePicker):
+                    break
+            assert isinstance(app.screen, ChoicePicker), f"expected a picker for {choice or 'the board'}"
+            picker = app.screen.query_one("#models", OptionList)
+            if choice:
+                picker.highlighted = [str(picker.get_option_at_index(i).prompt) for i in range(picker.option_count)].index(choice)
+            await pilot.press("enter")
+            await pilot.pause()
+        assert sent == [("trello", "connect", "--board", "Bd1", "--active-list", "In progress", "--completed-list", "Done")], sent
+
     text = show(snapshot(root))
-    for expected in ("x_CC · ready", "1 waiting for you", "AGENTS", "judge", "COUNCILS", "approval on", "REPOS", "csharp"):
+    for expected in ("x_CC · ready", "1 waiting for you", "AGENTS", "judge", "COUNCILS", "approval on", "REPOS", "csharp", "TRELLO", "not connected"):
         assert expected in text, f"show must contain {expected!r}:\n{text}"
 
     # Run progress, as ./cc council status prints it.
@@ -94,6 +119,9 @@ async def check(root: Path) -> None:
 
 def main() -> int:
     with tempfile.TemporaryDirectory() as directory:
+        # Independent of the machine: no Trello credentials unless the test creates them.
+        os.environ["CC_TRELLO_ENV"] = str(Path(directory) / "no-trello.env")
+        os.environ.pop("TRELLO_TOKEN", None)
         asyncio.run(check(fixture(Path(directory))))
     print("settings smoke test passed")
     return 0

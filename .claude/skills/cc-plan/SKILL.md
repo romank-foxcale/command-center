@@ -25,4 +25,5 @@ First read `../_shared/cc-cli.md` and follow it.
 - `create` only scaffolds the plan from the template. Its content comes from `grill-task-planning`; do not invent it here.
 - `accept` only after the user explicitly agrees with the plan in this conversation. Silence or "looks fine so far" is not agreement.
 - `complete` requires an accepted plan and real evidence: a passing `./cc feature <task-id> verify` (or `./cc verify`), a merged PR, or another observable result. Never write evidence that was not observed.
+- When a plan with a `Trello:` card is accepted or completed, offer to move its card (`cc-trello`); never move or comment without the user's yes.
 - Archived and completed plans are final; never move a plan back or copy it between states.

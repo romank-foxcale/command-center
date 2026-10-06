@@ -24,7 +24,7 @@ from state import Snapshot, snapshot  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "council"))
 from progress import SPINNER  # noqa: E402  shared with the council runner
 
-TABS = ("agents", "councils", "repos")
+TABS = ("agents", "councils", "repos", "trello")
 
 
 def available_models(root: Path) -> dict[str, list[str]]:
@@ -138,7 +138,7 @@ class ModelPicker(ModalScreen[tuple[str, str] | None]):
             for name in names:
                 if (provider, name) == self.current:
                     highlight = len(options)
-                options.append(Option(f"  {name}", id=f"{provider}	{name}"))
+                options.append(Option(f"  {name}", id=f"{provider}\t{name}"))
         with Vertical(id="dialog"):
             yield Label(f"[b]{self.role}[/b] uses {self.current[0]} {self.current[1]} · Enter choose · Esc cancel")
             if options:
@@ -149,8 +149,30 @@ class ModelPicker(ModalScreen[tuple[str, str] | None]):
                 yield Label("No provider is logged in: run claude auth login or codex login.")
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        provider, name = event.option.id.split("	", 1)
+        provider, name = event.option.id.split("\t", 1)
         self.dismiss((provider, name))
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+class ChoicePicker(ModalScreen[str | None]):
+    """Pick one of a few values (boards, lists) instead of typing it."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel")]
+
+    def __init__(self, title: str, choices: list[tuple[str, str]]):
+        super().__init__()
+        self.title_text = title
+        self.choices = choices
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="dialog"):
+            yield Label(f"{self.title_text} · Enter choose · Esc cancel")
+            yield OptionList(*(Option(label, id=value) for value, label in self.choices), id="models")
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        self.dismiss(event.option.id)
 
     def action_cancel(self) -> None:
         self.dismiss(None)
@@ -163,7 +185,7 @@ class Settings(App):
     #mascot { width: 18; color: $text; }
     #summary { padding: 1 2; }
     #dialog { width: 70; height: auto; border: heavy $accent; padding: 1 2; background: $surface; }
-    Ask, ModelPicker { align: center middle; }
+    Ask, ModelPicker, ChoicePicker { align: center middle; }
     #models { height: auto; max-height: 20; }
     DataTable { height: 1fr; }
     """
@@ -191,6 +213,7 @@ class Settings(App):
                 ("Agents", ("role", "provider", "model", "access")),
                 ("Councils", ("council", "kind", "proposers", "judge", "writer", "approval", "retries")),
                 ("Repos", ("repo", "status", "targets", "stack", "role")),
+                ("Trello", ("setting", "value")),
             ):
                 with TabPane(tab, id=tab.lower()):
                     table = DataTable(id=f"t-{tab.lower()}", cursor_type="row", zebra_stripes=True)
@@ -252,6 +275,7 @@ class Settings(App):
             [(c["id"], c["kind"], c["proposers"], c["judge"], c["writer"], "on" if c["approval"] else "off", str(c["maxRetries"])) for c in state.councils],
         )
         self.fill("repos", [(r["id"], self.paint(r["status"]), r["targets"], r["stack"], r["role"]) for r in state.repos])
+        self.fill("trello", list(state.trello.items()))
 
     @staticmethod
     def paint(status: str) -> Text:
@@ -300,6 +324,40 @@ class Settings(App):
             lambda choice: choice and self.cc("council", "set-role", role, "--provider", choice[0], "--model", choice[1]),
         )
 
+    def output(self, *arguments: str) -> list[str] | None:
+        """Run ./cc in a worker thread; on failure tell the user and return None."""
+        result = subprocess.run([str(self.root / "cc"), *arguments], cwd=self.root, capture_output=True, text=True)
+        if result.returncode != 0:
+            self.call_from_thread(self.notify, (result.stderr or result.stdout).strip()[-300:], severity="error", timeout=10)
+            return None
+        return [line for line in result.stdout.splitlines() if line.strip()]
+
+    def connect_trello(self) -> None:
+        """Board, then the list for active plans, then the list for completed ones; connect runs ./cc trello."""
+        boards = self.output("trello", "boards")
+        if not boards:
+            return
+        choices = [tuple(line.split("\t", 1)) for line in boards]
+
+        def board_chosen(board: str | None) -> None:
+            if board:
+                self.run_worker(lambda: self.pick_lists(board), thread=True)
+
+        self.call_from_thread(self.push_screen, ChoicePicker("Trello board for this CC", choices), board_chosen)
+
+    def pick_lists(self, board: str) -> None:
+        lists = self.output("trello", "lists", "--board", board)
+        if not lists:
+            return
+        choices = [(name, name) for name in lists]
+
+        def active_chosen(active: str | None) -> None:
+            if active:
+                self.push_screen(ChoicePicker("List for completed plans", choices), lambda done: done and self.cc(
+                    "trello", "connect", "--board", board, "--active-list", active, "--completed-list", done))
+
+        self.call_from_thread(self.push_screen, ChoicePicker("List for active plans", choices), active_chosen)
+
     def action_edit(self) -> None:
         tab = self.query_one("#tabs", TabbedContent).active
         item = self.selected(tab)
@@ -314,6 +372,9 @@ class Settings(App):
             self.push_screen(Ask(f"Council {item}: approval pause (on/off) and max retries (0-5)",
                 [("on or off", "on" if council["approval"] else "off"), ("max retries", str(council["maxRetries"]))]),
                 lambda answer: answer and self.cc("council", "set", item, "--approval", answer[0], "--max-retries", answer[1]))
+        elif tab == "trello":
+            self.notify("loading your Trello boards...", timeout=2)
+            self.run_worker(self.connect_trello, thread=True)
         elif tab == "repos":
             repo = next(repo for repo in self.state.repos if repo["id"] == item)
             def apply(answer: list[str] | None) -> None:
@@ -345,6 +406,9 @@ def show(state: Snapshot) -> str:
         "COUNCILS (council · approval · max retries · proposers → judge → writer)",
         *(f"  {c['id']:<9} approval {'on ' if c['approval'] else 'off'}  retries {c['maxRetries']}  {c['proposers']} → {c['judge']} → {c['writer']}"
           for c in state.councils),
+        "",
+        "TRELLO",
+        *(f"  {name:<15} {value}" for name, value in state.trello.items()),
         "",
         "REPOS (repo · status · targets · stack)",
         *(f"  {r['id']:<14} {r['status']:<11} {r['targets']:<15} {r['stack']}" for r in state.repos),

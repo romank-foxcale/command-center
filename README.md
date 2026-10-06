@@ -24,6 +24,7 @@ What the kit includes:
 | LF line endings enforced for Windows clones (CRLF only for `.ps1` and `.cmd`) | `.gitattributes` |
 | `./cc settings` panel with a mascot (agents and models, councils, repos, status line), the same in chat via the `cc-settings` skill, and `./cc council status` for live run progress | `scripts/settings/`, `.agents/skills/cc-settings/`, `./cc council set-role`, `./cc council set` |
 | `./cc open <feature>`: starts Claude Code or Codex in the CC with the feature's worktrees, so the CC's skills and rules apply; a session started inside a worktree is told to restart | `scripts/worktrees.py` |
+| Trello on demand: link plans and features to cards, preview then post comments or move cards (`cc-trello`); credentials stay in `~/.config/cc/trello.env` | `./cc trello`, `.agents/skills/cc-trello/` |
 | `cc-help` skill: lists the skills by purpose and explains the one you pick | `.agents/skills/cc-help/` |
 | `cc.cmd` launcher: run `.\cc check` from PowerShell or cmd; it forwards to `./cc` in WSL | `cc.cmd` |
 | All instructions, skills, notes and templates in English | everywhere |

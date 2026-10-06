@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Trello"
+  short_description: "Update Trello cards on demand"
+  default_prompt: "Use $cc-trello to post this result to the linked Trello card."
+policy:
+  allow_implicit_invocation: true

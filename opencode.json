@@ -12,6 +12,7 @@
       "cc-council": "allow",
       "cc-help": "allow",
       "cc-settings": "allow",
+      "cc-trello": "allow",
       "lean-code": "allow",
       "debug": "allow",
       "tdd": "allow",

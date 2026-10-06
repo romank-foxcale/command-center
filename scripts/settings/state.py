@@ -52,6 +52,7 @@ class Snapshot:
     councils: list[dict[str, Any]] = field(default_factory=list)
     repos: list[dict[str, Any]] = field(default_factory=list)
     tools: dict[str, bool] = field(default_factory=dict)
+    trello: dict[str, str] = field(default_factory=dict)
 
     @property
     def waiting(self) -> list[dict[str, Any]]:
@@ -130,4 +131,18 @@ def snapshot(root: Path) -> Snapshot:
             }
         )
     result.tools = {tool: shutil.which(tool) is not None for tool in ("nix", "git", "claude", "codex")}
+    result.trello = trello(root)
     return result
+
+
+def trello(root: Path) -> dict[str, str]:
+    """The board settings, and whether credentials exist; the token itself is never read here."""
+    settings = load_json(root / "catalog" / "integrations" / "trello.json")
+    env = Path(os.environ.get("CC_TRELLO_ENV", Path.home() / ".config" / "cc" / "trello.env"))
+    found = env.is_file() or bool(os.environ.get("TRELLO_TOKEN"))
+    return {
+        "board": settings.get("name", settings.get("board", "not connected")) if settings else "not connected",
+        "active list": settings.get("lists", {}).get("active", "-") if settings else "-",
+        "completed list": settings.get("lists", {}).get("completed", "-") if settings else "-",
+        "credentials": f"found ({env})" if found else f"missing: put TRELLO_API_KEY and TRELLO_TOKEN in {env}",
+    }

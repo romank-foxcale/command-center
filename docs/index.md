@@ -18,6 +18,7 @@ relations:
   - docs/decisions/0006-target-platform-gates.md
   - docs/decisions/0007-agent-councils.md
   - docs/decisions/0008-quality-gates.md
+  - docs/decisions/0009-trello-on-demand.md
   - docs/rules/quality-gates.md
 ---
 
@@ -47,6 +48,7 @@ relations:
 - [Every target platform has its own gate](decisions/0006-target-platform-gates.md)
 - [Agent roles and councils bound to models](decisions/0007-agent-councils.md)
 - [Language-specific quality gates behind language-neutral skills](decisions/0008-quality-gates.md)
+- [Trello cards are updated on demand](decisions/0009-trello-on-demand.md)
 
 ## Current context
 
