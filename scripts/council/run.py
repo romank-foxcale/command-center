@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import datetime
+import importlib.util
 import json
+import os
 import random
 import re
 import subprocess
@@ -113,7 +115,8 @@ class Run:
 
     def save(self, **changes: Any) -> None:
         with self.lock:
-            self.state.update(changes)
+            # The process that last advanced the run; ./cc ui marks a live stage with a dead pid as stalled.
+            self.state.update(changes, pid=os.getpid())
             write_json(self.state_path, self.state)
 
     def call(self, identifier: str, body: str, name: str) -> str:
@@ -374,6 +377,47 @@ def command_status(root: Path, args: argparse.Namespace) -> None:
     say("RUN\tFEATURE/REPO\tSTAGE\n" + "\n".join(rows) if rows else "no council runs")
 
 
+def edit_validated(root: Path, path: Path, changes: dict[str, Any]) -> None:
+    """Apply changes to a catalog file and keep them only if the CC still validates."""
+    spec = importlib.util.spec_from_file_location("validator", root / "scripts" / "validate-control-center.py")
+    validator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(validator)
+    original = path.read_text(encoding="utf-8")
+    write_json(path, {**json.loads(original), **changes})
+    errors = [error for error in validator.validate(root) if "catalog/agents" in error or "catalog/councils" in error]
+    if errors:
+        path.write_text(original, encoding="utf-8")
+        raise ValueError("change rejected:\n  " + "\n  ".join(errors))
+
+
+def command_set_role(root: Path, args: argparse.Namespace) -> None:
+    path = root / "catalog" / "agents" / f"{args.role}.json"
+    if not path.is_file():
+        raise ValueError(f"role not found: catalog/agents/{args.role}.json")
+    changes = {key: value for key, value in (("provider", args.provider), ("model", args.model)) if value}
+    if not changes:
+        raise ValueError("give --provider and/or --model")
+    edit_validated(root, path, changes)
+    role = load_json(path)
+    say(f"{args.role}: {role['provider']} {role['model']}")
+
+
+def command_set_council(root: Path, args: argparse.Namespace) -> None:
+    path = root / "catalog" / "councils" / f"{args.council}.json"
+    if not path.is_file():
+        raise ValueError(f"council not found: catalog/councils/{args.council}.json")
+    changes: dict[str, Any] = {}
+    if args.approval:
+        changes["approval"] = args.approval == "on"
+    if args.max_retries is not None:
+        changes["maxRetries"] = args.max_retries
+    if not changes:
+        raise ValueError("give --approval and/or --max-retries")
+    edit_validated(root, path, changes)
+    council = load_json(path)
+    say(f"{args.council}: approval {'on' if council['approval'] else 'off'}, max retries {council['maxRetries']}")
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(prog="./cc council")
     result.add_argument("root", type=Path)
@@ -401,6 +445,18 @@ def parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="list runs, or show one")
     status.add_argument("run", nargs="?")
     status.set_defaults(handler=command_status)
+
+    set_role = subparsers.add_parser("set-role", help="change which provider and model a role uses")
+    set_role.add_argument("role")
+    set_role.add_argument("--provider", help="claude or codex")
+    set_role.add_argument("--model")
+    set_role.set_defaults(handler=command_set_role)
+
+    set_council = subparsers.add_parser("set", help="change a council's approval pause or retry limit")
+    set_council.add_argument("council")
+    set_council.add_argument("--approval", choices=("on", "off"))
+    set_council.add_argument("--max-retries", type=int)
+    set_council.set_defaults(handler=command_set_council)
     return result
 
 

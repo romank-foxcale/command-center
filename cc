@@ -14,7 +14,8 @@ usage() {
     '  build <name>   Build .#<name>' \
     '  run <name>     Run .#<name>' \
     '  verify [repo...] [--quality]  Run every check plus each catalog target gate (and quality gates)' \
-    '  council <run|approve|reject|status> ...  Multi-model coding/testing councils' \
+    '  council <run|approve|reject|status|set-role|set> ...  Multi-model councils and their settings' \
+    '  ui             Open the dashboard: plans, runs, agents, models, repos, health' \
     '  validate       Validate the Markdown knowledge graph'     '  agents <sync|check>  Mirror .agents/skills into .claude/skills' \
     '  bootstrap install [target]  Materialize a new CC from this clone' \
     '  bootstrap validate          Validate the configured CC contract' \
@@ -133,6 +134,11 @@ case "$command_name" in
     ;;
   council)
     exec python3 "$cc_root/scripts/council/run.py" "$cc_root" "$@"
+    ;;
+  ui)
+    require_nix
+    lock_flake
+    exec nix run "$cc_root#ui" -- "$cc_root"
     ;;
   plan)
     exec python3 "$cc_root/scripts/plans.py" "$cc_root" "$@"

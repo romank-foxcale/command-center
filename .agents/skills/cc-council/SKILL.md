@@ -34,6 +34,7 @@ First read `../_shared/cc-cli.md` and follow it.
 
 Roles are `catalog/agents/<role>.json`: `provider` (`claude` or `codex`), `model`, `access` (`read-only` or `write-worktree`), `skills`. Councils are `catalog/councils/<name>.json` and name the roles for `proposers`, `judge`, `writer` and `security`, plus `approval` and `maxRetries`.
 
-- To change a model, edit the `model` (and `provider`) field of that role, then run `./cc bootstrap validate`. List Codex models with `codex debug models`; Claude accepts aliases such as `opus` and `sonnet` or full model ids.
+- Change a role with `./cc council set-role <role> [--provider claude|codex] [--model <model>]`, and a council with `./cc council set <council> [--approval on|off] [--max-retries N]`; both validate and refuse an invalid change. Never edit the JSON by hand. List Codex models with `codex debug models`; Claude accepts aliases such as `opus` and `sonnet` or full model ids.
+- `./cc ui` shows all of this live (runs, plans, roles and models, councils, repos, worktrees) and can approve runs and edit settings; suggest it when the user wants an overview.
 - Proposers, judge and security must stay `read-only`; only the writer is `write-worktree`. Validation enforces this.
 - A council needs at least two proposers. Using the same provider for every proposer defeats the point; warn the user if they ask for it.
