@@ -1,0 +1,6 @@
+interface:
+  display_name: "TDD"
+  short_description: "Test first, watch it fail, then implement"
+  default_prompt: "Use $tdd to implement this test-first."
+policy:
+  allow_implicit_invocation: true
