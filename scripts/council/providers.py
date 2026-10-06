@@ -27,8 +27,28 @@ CLAUDE_MODES = {"read-only": "dontAsk", "write-worktree": "acceptEdits"}
 CODEX_SANDBOX = {"read-only": "read-only", "write-worktree": "workspace-write"}
 
 
+# The Claude CLI cannot list models, so these are maintained here: aliases follow the newest model
+# of each tier, full ids pin one. Update when Anthropic releases models.
+CLAUDE_MODELS = ["opus", "sonnet", "haiku", "claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-haiku-4-5-20251001"]
+
+
 class ProviderError(RuntimeError):
     pass
+
+
+def models(provider: str) -> list[str]:
+    """Models a role can use with this provider; empty when the provider is not logged in."""
+    if not login_status(provider)[0]:
+        return []
+    if provider == "claude":
+        return list(CLAUDE_MODELS)
+    result = subprocess.run(["codex", "debug", "models"], capture_output=True, text=True)
+    try:
+        catalog = json.loads(result.stdout)["models"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return []
+    listed = [model for model in catalog if model.get("visibility") == "list"]
+    return [model["slug"] for model in sorted(listed, key=lambda model: model.get("priority", 99))]
 
 
 def login_status(provider: str) -> tuple[bool, str]:
@@ -113,6 +133,9 @@ def run(role: dict[str, Any], prompt: str, cwd: Path, log: Path, timeout: int = 
 def main() -> int:
     """`status`: print every provider's login state. `probe <provider> <model>`: prove read-only holds."""
     action = sys.argv[1] if len(sys.argv) > 1 else "status"
+    if action == "models":
+        print(json.dumps({provider: models(provider) for provider in PROVIDERS}))
+        return 0
     if action == "status":
         for provider in PROVIDERS:
             available, detail = login_status(provider)
@@ -134,7 +157,7 @@ def main() -> int:
             wrote = (work / "probe.txt").exists() or (work / "existing.txt").read_text() != "unchanged\n"
             print(f"{sys.argv[2]} {sys.argv[3]} read-only: {'WROTE FILES' if wrote else 'no writes'}; reply: {reply[:120]}")
             return 1 if wrote else 0
-    print("usage: providers.py status | probe <provider> <model>", file=sys.stderr)
+    print("usage: providers.py status | models | probe <provider> <model>", file=sys.stderr)
     return 2
 
 

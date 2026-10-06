@@ -10,8 +10,8 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from app import Dashboard  # noqa: E402
-from textual.widgets import DataTable, Static  # noqa: E402
+from app import Dashboard, ModelPicker  # noqa: E402
+from textual.widgets import DataTable, OptionList, Static  # noqa: E402
 
 
 def write(path: Path, data: object) -> None:
@@ -37,7 +37,7 @@ def fixture(base: Path) -> Path:
 
 
 async def check(root: Path) -> None:
-    app = Dashboard(root)
+    app = Dashboard(root, models=lambda root: {"claude": ["opus", "sonnet"], "codex": []})
     async with app.run_test(size=(160, 45)) as pilot:
         await pilot.pause()
         face = str(app.query_one("#mascot", Static).render())
@@ -54,6 +54,30 @@ async def check(root: Path) -> None:
             assert app.query_one(table, DataTable).row_count == rows, table
         await pilot.press("e")  # On the Runs tab, edit only explains what it edits.
         await pilot.pause()
+
+        # Navigation: the rows have focus from the start, and the arrow keys switch tabs.
+        assert app.focused is runs, f"the Runs table must have focus, not {app.focused}"
+        await pilot.press("right")
+        await pilot.pause()
+        assert app.query_one("#tabs").active == "plans" and app.focused is plans, app.focused
+        await pilot.press("right")
+        await pilot.pause()
+
+        # Model picker: only logged-in providers, grouped under a header, current model preselected.
+        await pilot.press("e")
+        for _ in range(20):
+            await pilot.pause(0.05)
+            if isinstance(app.screen, ModelPicker):
+                break
+        assert isinstance(app.screen, ModelPicker), f"e on Agents must open the model picker, got {app.screen}"
+        options = app.screen.query_one("#models", OptionList)
+        prompts = [str(options.get_option_at_index(i).prompt).strip() for i in range(options.option_count)]
+        assert prompts == ["claude", "opus", "sonnet"], prompts
+        assert options.get_option_at_index(0).disabled, "provider headers are not selectable"
+        assert options.highlighted == 1, "the role's current model is preselected"
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not isinstance(app.screen, ModelPicker)
 
 
 def main() -> int:

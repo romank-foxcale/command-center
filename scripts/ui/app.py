@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import time
@@ -14,10 +15,25 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, DataTable, Footer, Input, Label, Static, TabbedContent, TabPane
+from textual.widgets import Button, DataTable, Footer, Input, Label, OptionList, Static, TabbedContent, TabPane
+from textual.widgets.option_list import Option
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from state import Snapshot, snapshot  # noqa: E402
+
+TABS = ("runs", "plans", "agents", "councils", "repos", "worktrees")
+
+
+def available_models(root: Path) -> dict[str, list[str]]:
+    """Models per logged-in provider, from the CC's own provider adapter."""
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts" / "council" / "providers.py"), "models"], capture_output=True, text=True
+    )
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError:
+        # An older CC whose provider adapter cannot list models yet, or a broken one: say so.
+        raise RuntimeError((result.stderr or result.stdout).strip()[-300:] or "providers.py models printed nothing") from None
 
 FACES = {
     "calm": ("◉   ◉", " ─── "),
@@ -98,6 +114,45 @@ class Ask(ModalScreen[list[str] | None]):
         self.dismiss([field.value.strip() for field in self.query(Input)])
 
 
+class ModelPicker(ModalScreen[tuple[str, str] | None]):
+    """Every model of every logged-in provider, grouped under a provider header."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel")]
+
+    def __init__(self, role: str, current: tuple[str, str], models: dict[str, list[str]]):
+        super().__init__()
+        self.role = role
+        self.current = current
+        self.models = models
+
+    def compose(self) -> ComposeResult:
+        options: list[Option] = []
+        highlight = None
+        for provider, names in self.models.items():
+            if not names:
+                continue
+            options.append(Option(Text(provider, style="bold reverse"), disabled=True))
+            for name in names:
+                if (provider, name) == self.current:
+                    highlight = len(options)
+                options.append(Option(f"  {name}", id=f"{provider}	{name}"))
+        with Vertical(id="dialog"):
+            yield Label(f"[b]{self.role}[/b] uses {self.current[0]} {self.current[1]} · Enter choose · Esc cancel")
+            if options:
+                picker = OptionList(*options, id="models")
+                picker.highlighted = highlight
+                yield picker
+            else:
+                yield Label("No provider is logged in: run claude auth login or codex login.")
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        provider, name = event.option.id.split("	", 1)
+        self.dismiss((provider, name))
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
 class Dashboard(App):
     TITLE = "Control Center"
     CSS = """
@@ -105,7 +160,8 @@ class Dashboard(App):
     #mascot { width: 18; color: $text; }
     #summary { padding: 1 2; }
     #dialog { width: 70; height: auto; border: heavy $accent; padding: 1 2; background: $surface; }
-    Ask { align: center middle; }
+    Ask, ModelPicker { align: center middle; }
+    #models { height: auto; max-height: 20; }
     DataTable { height: 1fr; }
     """
     BINDINGS = [
@@ -115,11 +171,14 @@ class Dashboard(App):
         Binding("p", "pick", "Pick proposal"),
         Binding("x", "reject", "Reject run"),
         Binding("e", "edit", "Edit selected"),
+        Binding("left", "tab(-1)", "Prev tab", priority=True),
+        Binding("right", "tab(1)", "Next tab", priority=True),
     ]
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, models=available_models):
         super().__init__()
         self.root = root
+        self.models = models
         self.state = snapshot(root)
         self.line = 0
 
@@ -146,6 +205,16 @@ class Dashboard(App):
         self.sub_title = str(self.root)
         self.render_state()
         self.set_interval(3, self.action_refresh)
+
+    def action_tab(self, step: int) -> None:
+        if isinstance(self.screen, ModalScreen):
+            return
+        tabs = self.query_one("#tabs", TabbedContent)
+        tabs.active = TABS[(TABS.index(tabs.active) + step) % len(TABS)]
+
+    def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        # Keep the arrow keys on the rows of whichever tab is showing.
+        self.query_one(f"#t-{event.pane.id}", DataTable).focus()
 
     # Rendering -----------------------------------------------------------------------
 
@@ -259,6 +328,19 @@ class Dashboard(App):
         if run:
             self.push_screen(Ask(f"Reject {run['id']}?", []), lambda answer: answer is not None and self.cc("council", "reject", run["id"]))
 
+    def pick_model(self, role: str, current: tuple[str, str]) -> None:
+        """Runs in a worker thread: listing Codex models takes a moment."""
+        try:
+            models = self.models(self.root)
+        except RuntimeError as error:
+            self.call_from_thread(self.notify, f"cannot list models: {error}", severity="error", timeout=10)
+            return
+        self.call_from_thread(
+            self.push_screen,
+            ModelPicker(role, current, models),
+            lambda choice: choice and self.cc("council", "set-role", role, "--provider", choice[0], "--model", choice[1]),
+        )
+
     def action_edit(self) -> None:
         tab = self.query_one("#tabs", TabbedContent).active
         item = self.selected(tab)
@@ -266,8 +348,8 @@ class Dashboard(App):
             return
         if tab == "agents":
             role = next(role for role in self.state.roles if role["id"] == item)
-            self.push_screen(Ask(f"Role {item}: provider (claude or codex) and model", [("provider", role["provider"]), ("model", role["model"])]),
-                lambda answer: answer and self.cc("council", "set-role", item, "--provider", answer[0], "--model", answer[1]))
+            self.notify("loading models of the logged-in providers...", timeout=2)
+            self.run_worker(lambda: self.pick_model(item, (role["provider"], role["model"])), thread=True)
         elif tab == "councils":
             council = next(council for council in self.state.councils if council["id"] == item)
             self.push_screen(Ask(f"Council {item}: approval pause (on/off) and max retries (0-5)",
