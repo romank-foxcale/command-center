@@ -21,7 +21,8 @@ What the kit includes:
 | `cc-kit` command: `new`, `list`, `open`, `doctor`, `update` | `install/cc-kit` |
 | Skills for every tool: canonical in `.agents/skills` (Codex, Cursor, OpenCode), synced copy in `.claude/skills` (Claude Code), checked by `./cc check` | `scripts/agent-configs.py`, `./cc agents` |
 | `CLAUDE.md` importing `AGENTS.md`, safe read-only permissions for Claude Code | `CLAUDE.md`, `.claude/settings.json` |
-| LF line endings enforced for Windows clones | `.gitattributes` |
+| LF line endings enforced for Windows clones (CRLF only for `.ps1` and `.cmd`) | `.gitattributes` |
+| `cc.cmd` launcher: run `.\cc check` from PowerShell or cmd; it forwards to `./cc` in WSL | `cc.cmd` |
 | All instructions, skills, notes and templates in English | everywhere |
 | `bootstrap install` keeps empty `catalog/` folders tracked so the Nix bootstrap check can see them | `scripts/materialize-template.py` |
 | Per-repo target platforms with a gate each, including a real Windows host gate | `./cc verify`, `ccLib.mkWindowsHostGate` |

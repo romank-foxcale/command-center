@@ -148,6 +148,8 @@ The agent turns it into an agreed plan with work packages and checks, saved in `
 ./cc worktree remove my-feature               # refuses if anything is uncommitted or unpushed
 ```
 
+**From Windows without opening Ubuntu:** the `cc.cmd` launcher in the CC folder runs the same commands inside WSL for you, with the same output and exit code. In PowerShell type `.\cc check`, in cmd `cc check`, in Git Bash `./cc.cmd check`. It works whether the CC lives on `C:` or inside Ubuntu (`\\wsl.localhost\Ubuntu\home\...`). With several Linux distributions installed, set `CC_WSL_DISTRO` to the one with Nix.
+
 Other commands, run from the CC folder:
 
 | Command | What it does |
