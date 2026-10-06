@@ -14,7 +14,7 @@ First read `../_shared/grilling-core.md` in full, then `BOOTSTRAP.md`. Apply bot
 3. Record the name, status and topology in `control-center.json`.
 4. Collect the use cases, boundaries and permissions.
 5. Build the repository inventory. Do not write adapters until names, roles and relationships are agreed.
-6. Onboard one repo at a time: `./cc repo add` → inspect → flake input/adapter → package/check → `./cc repo set-status <id> verified`.
+6. Onboard one repo at a time: `./cc repo add --targets ...` → inspect → flake input/adapter → package/check and one gate per target → `./cc verify <id>` → `./cc repo set-status <id> verified`.
 7. Only then assemble workflows and benchmarks.
 8. Replace the template README and project map with real data; remove the examples and placeholders. Keep `GUIDE.md`, `install/`, `CLAUDE.md` and `.claude/skills`: they are the entry point for people and AI tools.
 
@@ -34,10 +34,20 @@ First study the repo and its CI, then close the gaps: remote/branch/role/owner; 
 
 Put build commands straight into the Nix adapter, not into the grilling transcript.
 
+### Target platforms
+
+Always ask, never infer: "Which platforms does `<repo>` ship on: windows, linux, macos?" CI or a Dockerfile shows where something is built, not where it runs. Record the answer with `--targets` on `./cc repo add`. For each target, agree on its gate:
+
+- a pure Nix check (`targets.<platform> = <derivation>`) when Nix can build and test natively for that platform;
+- `ccLib.mkWindowsHostGate` for windows: a PowerShell script that builds and tests with the real toolchain on the Windows host from WSL. Ask for the toolchain and the exact build and test commands;
+- a cross-compiled or emulated check (MinGW, Wine) only as an extra early signal, never as the only windows gate.
+
+A target the user names but nobody can gate yet stays in `targets`; mark the repo `blocked` with that reason instead of dropping the target.
+
 ## Acceptance
 
 - `control-center.json` and the catalog are valid.
-- Every repo is verified or has an explicit blocker.
+- Every repo declares its targets and is verified on all of them by `./cc verify`, or has an explicit blocker.
 - Cross-repo relationships are represented by a workflow/check.
 - The critical path passes end to end.
 - The target CC does not depend on `cc_template`.

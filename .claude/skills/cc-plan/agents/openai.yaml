@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Plan"
+  short_description: "Manage the task plan lifecycle"
+  default_prompt: "Use $cc-plan to list, record or move task plans in this Control Center."
+policy:
+  allow_implicit_invocation: true
