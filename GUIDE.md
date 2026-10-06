@@ -177,6 +177,8 @@ A council makes Claude and GPT work on the same task. It needs both CLIs install
 
 A testing council works the same way: both models write tests, the judge merges them, and a failing new test is reported as a suspected bug.
 
+A debug council finds and fixes a bug: `./cc council run debug --feature my-feature --task "<exact symptom>"`. The CC first runs verify and hands its output to both models; each diagnoses the root cause with evidence; the judge picks the best-evidenced one; after your approval the writer adds a reproduction test that must fail, and only then fixes the cause. After three failed fixes it stops and asks you to rethink the design.
+
 Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "opus"` in `writer.json`); `catalog/councils/` sets the roles, the approval pause and the retry limit. Ask your agent to change them, or edit the JSON. Run files are kept in `~/Projects/worktrees/<feature>/.cc-runs/`.
 
 ---

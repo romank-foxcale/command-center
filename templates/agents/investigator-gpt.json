@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "investigator-gpt",
+  "purpose": "Diagnoses the root cause of a failure without editing",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "access": "read-only",
+  "skills": [
+    "debug",
+    "council-investigate"
+  ]
+}

@@ -77,6 +77,15 @@ def worktree_diff(worktree: Path) -> str:
     return diff
 
 
+def tail(output: str, lines: int = 200) -> str:
+    return "\n".join(output.splitlines()[-lines:])
+
+
+def changed_files(worktree: Path) -> list[str]:
+    tracked = git(worktree, "diff", "--name-only", "HEAD").splitlines()
+    return tracked + git(worktree, "ls-files", "--others", "--exclude-standard").splitlines()
+
+
 def verify_rows(output: str) -> list[tuple[str, str, str]]:
     """Parse the REPO/GATE/RESULT table that ./cc verify prints last."""
     lines = output.splitlines()
@@ -118,13 +127,36 @@ class Run:
         (self.directory / f"{name}.md").write_text(reply + "\n", encoding="utf-8")
         return reply
 
+    def verify(self, name: str) -> tuple[bool, str, list[tuple[str, str, str]]]:
+        say(f"-> verify ({name})")
+        result = subprocess.run(
+            [str(self.root / "cc"), "feature", self.state["feature"], "verify", self.state["repository"], "--quality"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+        )
+        output = result.stdout + result.stderr
+        (self.directory / f"verify-{name}.log").write_text(output, encoding="utf-8")
+        return result.returncode == 0, output, verify_rows(output)
+
     # Stages -------------------------------------------------------------------------
 
     def propose_and_judge(self, council: dict[str, Any]) -> None:
-        task = self.state["task"]
+        task = f"# Task\n\n{self.state['task']}"
+        if self.state["kind"] == "debug":
+            # Evidence before opinions: every role sees what the CC itself reports for the failure.
+            passed, output, _ = self.verify("reproduce")
+            command = f"./cc feature {self.state['feature']} verify {self.state['repository']} --quality"
+            task += (
+                f"\n\n# Reproduction\n\n`{command}` passes: no existing check reproduces the failure, "
+                "so the reproduction test has to."
+                if passed
+                else f"\n\n# Reproduction\n\n`{command}` fails:\n\n```\n{tail(output)}\n```"
+            )
+        self.save(brief=task)
         with concurrent.futures.ThreadPoolExecutor(len(council["proposers"])) as pool:
             futures = {
-                identifier: pool.submit(self.call, identifier, f"# Task\n\n{task}", f"proposal-{identifier}")
+                identifier: pool.submit(self.call, identifier, task, f"proposal-{identifier}")
                 for identifier in council["proposers"]
             }
             proposals = {identifier: future.result() for identifier, future in futures.items()}
@@ -137,7 +169,7 @@ class Run:
         anonymous = "\n\n".join(
             f"# Proposal {label}\n\n{proposals[identifier]}" for label, identifier in labels.items()
         )
-        verdict = self.call(council["judge"], f"# Task\n\n{task}\n\n{anonymous}", "verdict")
+        verdict = self.call(council["judge"], f"{task}\n\n{anonymous}", "verdict")
         decision = re.match(r"\s*DECISION:\s*([A-Z]+)", verdict)
         self.save(decision=decision.group(1) if decision else "UNPARSED")
         if self.state["decision"] == "REJECT":
@@ -155,30 +187,45 @@ class Run:
 
     def write_and_verify(self, council: dict[str, Any]) -> None:
         self.save(stage="writing")
-        instructions = self.state["instructions"]
+        brief = self.state.get("brief") or f"# Task\n\n{self.state['task']}"
+        instructions = f"{brief}\n\n# Approved instructions\n\n{self.state['instructions']}"
+        phase = ""
+        guarded: dict[str, bytes] = {}
+        if self.state["kind"] == "debug":
+            # Red first, enforced: the reproduction test must fail on the unfixed code.
+            self.call(
+                council["writer"],
+                f"{instructions}\n\n# Phase 1 of 2: reproduction test\n\n"
+                "Write only the failing reproduction test from the instructions. Do not change production code yet.",
+                "write-test",
+            )
+            passed, output, _ = self.verify("red")
+            if passed:
+                self.finish("failed", "the reproduction test passes on the unfixed code, so it does not reproduce the bug; see verify-red.log")
+                return
+            guarded = {path: (self.worktree / path).read_bytes() for path in changed_files(self.worktree)}
+            phase = (
+                "\n\n# Phase 2 of 2: fix\n\nThe reproduction test is written and fails as expected. Fix the root cause "
+                f"so it passes. Do not modify the reproduction test.\n\n```\n{tail(output)}\n```"
+            )
         attempt = 0
         failure = ""
         while True:
-            body = f"# Task\n\n{self.state['task']}\n\n# Approved instructions\n\n{instructions}"
+            body = instructions + phase
             if failure:
                 body += (
                     f"\n\n# Verification failed (retry {attempt} of {council['maxRetries']})\n\n"
                     f"Fix the cause. Never weaken tests or checks.\n\n```\n{failure}\n```"
                 )
             self.call(council["writer"], body, f"write-{attempt}")
-            say(f"-> verify (attempt {attempt})")
-            result = subprocess.run(
-                [str(self.root / "cc"), "feature", self.state["feature"], "verify", self.state["repository"], "--quality"],
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-            )
-            output = result.stdout + result.stderr
-            (self.directory / f"verify-{attempt}.log").write_text(output, encoding="utf-8")
+            touched = [path for path, content in guarded.items() if not (self.worktree / path).is_file() or (self.worktree / path).read_bytes() != content]
+            if touched:
+                self.finish("failed", f"the writer changed the reproduction test during the fix: {', '.join(touched)}")
+                return
+            passed, output, rows = self.verify(str(attempt))
             (self.directory / "changes.diff").write_text(worktree_diff(self.worktree), encoding="utf-8")
-            rows = verify_rows(output)
             self.save(qualityWarnings=[f"{gate} gate missing for {repo}" for repo, gate, result in rows if result.startswith("WARN")])
-            if result.returncode == 0:
+            if passed:
                 break
             if attempt >= council["maxRetries"]:
                 failed = {gate for _, gate, result in rows if result.startswith("FAIL")}
@@ -186,12 +233,14 @@ class Run:
                     reason = "tests pass but miss injected bugs (surviving mutants)"
                 elif self.state["kind"] == "testing":
                     reason = "new tests fail: suspected bugs in the code"
+                elif self.state["kind"] == "debug":
+                    reason = f"{attempt + 1} fixes failed: question the design with the user before another attempt"
                 else:
                     reason = f"verify still fails after {attempt} retries"
                 self.finish("verify-failed", f"{reason}; see verify-{attempt}.log")
                 return
             attempt += 1
-            failure = "\n".join(output.splitlines()[-200:])
+            failure = tail(output)
 
         if council.get("security"):
             diff = (self.directory / "changes.diff").read_text(encoding="utf-8")
