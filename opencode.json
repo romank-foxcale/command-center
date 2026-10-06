@@ -4,7 +4,13 @@
     "skill": {
       "*": "ask",
       "grill-cc-bootstrap": "allow",
-      "grill-task-planning": "allow"
+      "grill-task-planning": "allow",
+      "cc-plan": "allow",
+      "cc-worktree": "allow",
+      "cc-repo": "allow",
+      "cc-verify": "allow",
+      "cc-council": "allow",
+      "council-*": "deny"
     },
     "external_directory": "ask"
   }

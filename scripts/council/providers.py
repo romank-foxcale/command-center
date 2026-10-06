@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""Run one agent role through its provider CLI with the role's access level enforced by CLI flags."""
+
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+
+
+# Must match PROVIDERS and ACCESS_LEVELS in scripts/validate-control-center.py.
+PROVIDERS = ("claude", "codex")
+
+# Claude Code: --tools is the hard set of tools the model can call. No Bash for anyone,
+# so a role can only touch files through Edit/Write, which acceptEdits limits to the cwd.
+CLAUDE_TOOLS = {
+    "read-only": ["Read", "Grep", "Glob"],
+    "write-worktree": ["Read", "Grep", "Glob", "Edit", "Write"],
+}
+CLAUDE_MODES = {"read-only": "dontAsk", "write-worktree": "acceptEdits"}
+
+# Codex: the OS-level sandbox; workspace-write allows writes only under --cd.
+CODEX_SANDBOX = {"read-only": "read-only", "write-worktree": "workspace-write"}
+
+
+class ProviderError(RuntimeError):
+    pass
+
+
+def login_status(provider: str) -> tuple[bool, str]:
+    if shutil.which(provider) is None:
+        return False, f"{provider} CLI is not installed"
+    if provider == "claude":
+        result = subprocess.run(["claude", "auth", "status"], capture_output=True, text=True)
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return False, "claude auth status returned no JSON"
+        if data.get("loggedIn"):
+            return True, f"logged in ({data.get('authMethod', '?')})"
+        return False, "not logged in; run: claude auth login"
+    result = subprocess.run(["codex", "login", "status"], capture_output=True, text=True)
+    message = (result.stdout + result.stderr).strip().splitlines()
+    if result.returncode == 0 and message and "logged in" in message[-1].lower():
+        return True, message[-1].lower()
+    return False, "not logged in; run: codex login"
+
+
+def command(role: dict[str, Any], cwd: Path, last_message: Path) -> list[str]:
+    provider, model, access = role["provider"], role["model"], role["access"]
+    if provider == "claude":
+        return [
+            "claude",
+            "--print",
+            "--model", model,
+            "--permission-mode", CLAUDE_MODES[access],
+            "--no-session-persistence",
+            "--strict-mcp-config",
+            "--output-format", "text",
+            "--tools", *CLAUDE_TOOLS[access],
+        ]
+    if provider == "codex":
+        return [
+            "codex", "exec",
+            "--model", model,
+            "--sandbox", CODEX_SANDBOX[access],
+            # workspace-write also allows /tmp and $TMPDIR by default; keep writes inside --cd.
+            "--config", "sandbox_workspace_write.exclude_slash_tmp=true",
+            "--config", "sandbox_workspace_write.exclude_tmpdir_env_var=true",
+            "--cd", str(cwd),
+            "--skip-git-repo-check",
+            "--ephemeral",
+            "--ignore-user-config",
+            "--color", "never",
+            "--output-last-message", str(last_message),
+            "-",
+        ]
+    raise ProviderError(f"unsupported provider: {provider}")
+
+
+def run(role: dict[str, Any], prompt: str, cwd: Path, log: Path, timeout: int = 3600) -> str:
+    """Run the role non-interactively in cwd; return its final message. The prompt goes on stdin."""
+    available, detail = login_status(role["provider"])
+    if not available:
+        raise ProviderError(f"role {role['id']}: {role['provider']} {detail}")
+    log.parent.mkdir(parents=True, exist_ok=True)
+    last_message = log.with_suffix(".last.txt")
+    argv = command(role, cwd, last_message)
+    with log.open("w", encoding="utf-8") as stream:
+        stream.write(f"$ {' '.join(argv)}\n\n")
+        stream.flush()
+        result = subprocess.run(
+            argv,
+            input=prompt,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=stream,
+            text=True,
+            timeout=timeout,
+        )
+        stream.write(result.stdout)
+    if result.returncode != 0:
+        raise ProviderError(f"role {role['id']} ({role['provider']} {role['model']}) failed; see {log}")
+    if role["provider"] == "codex":
+        return last_message.read_text(encoding="utf-8").strip()
+    return result.stdout.strip()
+
+
+def main() -> int:
+    """`status`: print every provider's login state. `probe <provider> <model>`: prove read-only holds."""
+    action = sys.argv[1] if len(sys.argv) > 1 else "status"
+    if action == "status":
+        for provider in PROVIDERS:
+            available, detail = login_status(provider)
+            print(f"{provider}: {'ok' if available else 'MISSING'} - {detail}")
+        return 0
+    if action == "probe" and len(sys.argv) == 4:
+        role = {"id": "probe", "provider": sys.argv[2], "model": sys.argv[3], "access": "read-only"}
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            (work / "existing.txt").write_text("unchanged\n", encoding="utf-8")
+            prompt = (
+                "Create a file named probe.txt containing 'written' and overwrite existing.txt with "
+                "'changed'. Use any tool available. Then reply with exactly DONE or BLOCKED."
+            )
+            try:
+                reply = run(role, prompt, work, work / "logs" / "probe.log", timeout=600)
+            except ProviderError as error:
+                reply = f"(provider error: {error})"
+            wrote = (work / "probe.txt").exists() or (work / "existing.txt").read_text() != "unchanged\n"
+            print(f"{sys.argv[2]} {sys.argv[3]} read-only: {'WROTE FILES' if wrote else 'no writes'}; reply: {reply[:120]}")
+            return 1 if wrote else 0
+    print("usage: providers.py status | probe <provider> <model>", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

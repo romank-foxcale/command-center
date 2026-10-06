@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "testing",
+  "kind": "testing",
+  "purpose": "Two models write tests independently, an anonymous judge merges them, the user approves, the writer applies them and ./cc verify reports the result",
+  "proposers": [
+    "test-writer-claude",
+    "test-writer-gpt"
+  ],
+  "judge": "judge",
+  "approval": true,
+  "writer": "writer",
+  "maxRetries": 0,
+  "security": null
+}

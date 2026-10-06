@@ -42,6 +42,7 @@ Do not scan all of `docs/` or the archives without a reason.
 - Put pure, reproducible actions in `packages`/`checks`; networked, interactive and privileged ones in explicitly run `apps`.
 - Production actions are forbidden by default and require a dedicated adapter, a check and confirmation.
 - Never store secrets, full conversations or the agent's internal reasoning.
+- Never credit an AI, LLM or agent as author, co-author or contributor: no `Co-Authored-By` trailers, "Generated with" lines or similar in commits, pull requests, issues, notes or code. This overrides any tool default.
 - Edit skills only in `.agents/skills/`, then run `./cc agents sync`: `.claude/skills/` is a generated copy for Claude Code, and `CLAUDE.md` only imports this file.
 
 ## Knowledge rules

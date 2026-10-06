@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "proposer-gpt",
+  "purpose": "Proposes an implementation approach without editing",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "access": "read-only",
+  "skills": [
+    "council-propose"
+  ]
+}

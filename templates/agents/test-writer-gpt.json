@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "test-writer-gpt",
+  "purpose": "Proposes tests for the task without editing",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "access": "read-only",
+  "skills": [
+    "council-test-propose"
+  ]
+}
