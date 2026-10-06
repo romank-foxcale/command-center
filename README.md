@@ -24,6 +24,8 @@ What the kit includes:
 | LF line endings enforced for Windows clones | `.gitattributes` |
 | All instructions, skills, notes and templates in English | everywhere |
 | `bootstrap install` keeps empty `catalog/` folders tracked so the Nix bootstrap check can see them | `scripts/materialize-template.py` |
+| Per-repo target platforms with a gate each, including a real Windows host gate | `./cc verify`, `ccLib.mkWindowsHostGate` |
+| Coding and testing councils: Claude and GPT propose, an anonymous judge decides, a writer implements | `./cc council`, `catalog/agents`, `catalog/councils` |
 
 ---
 

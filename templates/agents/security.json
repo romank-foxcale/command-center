@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "security",
+  "purpose": "Reviews the final diff for security issues without editing",
+  "provider": "claude",
+  "model": "opus",
+  "access": "read-only",
+  "skills": [
+    "council-security"
+  ]
+}

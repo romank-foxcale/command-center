@@ -89,7 +89,9 @@ def main() -> int:
             continue
         for target in targets:
             kind = gates.get(identifier, {}).get(target)
-            attribute = f"{root}#{identifier}-target-{target}"
+            # A bare .#name resolves only packages and apps; checks need their full path.
+            name = f"{identifier}-target-{target}"
+            attribute = f"{root}#checks.{system}.{name}" if kind == "check" else f"{root}#{name}"
             if kind is None:
                 results.append((identifier, target, f"FAIL: no targets.{target} gate in {repository.get('adapter')}"))
                 continue

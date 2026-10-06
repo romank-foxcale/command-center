@@ -71,6 +71,12 @@ def materialize(source: Path, target: Path) -> None:
         encoding="utf-8",
     )
 
+    # Default agent roles and councils; each CC then edits its own copies.
+    for group in ("agents", "councils"):
+        (target / "catalog" / group).mkdir(parents=True, exist_ok=True)
+        for path in sorted((source / "templates" / group).glob("*.json")):
+            shutil.copy2(path, target / "catalog" / group / path.name)
+
     for relative in (
         "catalog/repositories",
         "catalog/workflows",

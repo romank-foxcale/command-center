@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "writer",
+  "purpose": "Implements the approved approach in the feature worktree, reusing existing code first",
+  "provider": "claude",
+  "model": "opus",
+  "access": "write-worktree",
+  "skills": [
+    "council-write"
+  ]
+}

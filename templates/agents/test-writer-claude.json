@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "test-writer-claude",
+  "purpose": "Proposes tests for the task without editing",
+  "provider": "claude",
+  "model": "opus",
+  "access": "read-only",
+  "skills": [
+    "council-test-propose"
+  ]
+}

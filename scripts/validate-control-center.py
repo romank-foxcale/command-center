@@ -14,6 +14,10 @@ ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 CC_STATUSES = {"discovery", "adapting", "ready"}
 REPOSITORY_STATUSES = {"discovered", "adapted", "verified", "blocked"}
 TARGETS = {"windows", "linux", "macos"}
+# Must match scripts/council/providers.py.
+PROVIDERS = {"claude", "codex"}
+ACCESS_LEVELS = {"read-only", "write-worktree"}
+COUNCIL_KINDS = {"coding", "testing"}
 EXPECTED_LAYOUT = {
     "projectsRoot": "..",
     "repositories": "../repos",
@@ -151,6 +155,76 @@ def validate_descriptor_group(root: Path, group: str, errors: list[str]) -> None
             errors.append(f"{relative}: unresolved placeholder at {field}")
 
 
+def validate_agents(root: Path, errors: list[str]) -> dict[str, dict[str, Any]]:
+    """Validate catalog/agents (optional): one role per file, bound to a provider CLI and model."""
+    roles: dict[str, dict[str, Any]] = {}
+    directory = root / "catalog" / "agents"
+    for path in sorted(directory.glob("*.json")) if directory.is_dir() else []:
+        data = load_json(path, errors)
+        if data is None:
+            continue
+        relative = path.relative_to(root)
+        identifier = data.get("id")
+        if not isinstance(identifier, str) or not ID.fullmatch(identifier) or path.stem != identifier:
+            errors.append(f"{relative}: id must use lowercase hyphen-case and equal the filename")
+            continue
+        if data.get("schemaVersion") != 1:
+            errors.append(f"{relative}: schemaVersion must be 1")
+        if data.get("provider") not in PROVIDERS:
+            errors.append(f"{relative}: provider must be one of {', '.join(sorted(PROVIDERS))}")
+        if not isinstance(data.get("model"), str) or not data["model"].strip():
+            errors.append(f"{relative}: 'model' must be a non-empty string")
+        if data.get("access") not in ACCESS_LEVELS:
+            errors.append(f"{relative}: access must be one of {', '.join(sorted(ACCESS_LEVELS))}")
+        skills = data.get("skills")
+        if not isinstance(skills, list) or not all(isinstance(skill, str) for skill in skills):
+            errors.append(f"{relative}: 'skills' must be a list of skill names")
+        else:
+            for skill in skills:
+                if not (root / ".agents" / "skills" / skill / "SKILL.md").is_file():
+                    errors.append(f"{relative}: skill does not exist: .agents/skills/{skill}/SKILL.md")
+        roles[identifier] = data
+    return roles
+
+
+def validate_councils(root: Path, roles: dict[str, dict[str, Any]], errors: list[str]) -> None:
+    """Validate catalog/councils (optional): which roles fill each slot of a fixed pipeline."""
+    directory = root / "catalog" / "councils"
+    for path in sorted(directory.glob("*.json")) if directory.is_dir() else []:
+        data = load_json(path, errors)
+        if data is None:
+            continue
+        relative = path.relative_to(root)
+        if not isinstance(data.get("id"), str) or path.stem != data["id"]:
+            errors.append(f"{relative}: id must equal the filename")
+        if data.get("schemaVersion") != 1:
+            errors.append(f"{relative}: schemaVersion must be 1")
+        if data.get("kind") not in COUNCIL_KINDS:
+            errors.append(f"{relative}: kind must be one of {', '.join(sorted(COUNCIL_KINDS))}")
+        if not isinstance(data.get("approval"), bool):
+            errors.append(f"{relative}: 'approval' must be true or false")
+        retries = data.get("maxRetries")
+        if not isinstance(retries, int) or isinstance(retries, bool) or not 0 <= retries <= 5:
+            errors.append(f"{relative}: 'maxRetries' must be an integer from 0 to 5")
+
+        def require_role(slot: str, value: Any, access: str) -> None:
+            if value not in roles:
+                errors.append(f"{relative}: {slot} '{value}' is not a role in catalog/agents")
+            elif roles[value].get("access") != access:
+                errors.append(f"{relative}: {slot} '{value}' must have access '{access}'")
+
+        proposers = data.get("proposers")
+        if not isinstance(proposers, list) or len(proposers) < 2 or len(set(map(str, proposers))) != len(proposers):
+            errors.append(f"{relative}: 'proposers' must list at least two distinct roles")
+        else:
+            for proposer in proposers:
+                require_role("proposer", proposer, "read-only")
+        require_role("judge", data.get("judge"), "read-only")
+        require_role("writer", data.get("writer"), "write-worktree")
+        if data.get("security") is not None:
+            require_role("security", data.get("security"), "read-only")
+
+
 def validate_plans(root: Path, errors: list[str]) -> None:
     plans_root = root / "plans"
     if not plans_root.is_dir():
@@ -219,6 +293,7 @@ def validate(root: Path, adapter_targets: dict[str, Any] | None = None) -> list[
 
     validate_descriptor_group(root, "workflows", errors)
     validate_descriptor_group(root, "benchmarks", errors)
+    validate_councils(root, validate_agents(root, errors), errors)
     validate_plans(root, errors)
 
     if status == "ready":

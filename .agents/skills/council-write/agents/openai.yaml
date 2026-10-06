@@ -1,0 +1,6 @@
+interface:
+  display_name: "Council Write"
+  short_description: "Implement an approved council verdict"
+  default_prompt: "Run a council with ./cc council; this role skill is loaded by the runner."
+policy:
+  allow_implicit_invocation: false

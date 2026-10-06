@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Council"
+  short_description: "Run multi-model coding and testing councils"
+  default_prompt: "Use $cc-council to run a coding or testing council on a feature."
+policy:
+  allow_implicit_invocation: true
