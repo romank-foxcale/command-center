@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""./cc ui: a terminal dashboard for one Control Center. Reads files; changes go through ./cc."""
+"""./cc settings: the Control Center's settings panel (agents, councils, repos) with a status header.
+Reads files; every change goes through ./cc. `./cc settings show` prints the same as text."""
 
 from __future__ import annotations
 
@@ -20,9 +21,10 @@ from textual.widgets.option_list import Option
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from state import Snapshot, snapshot  # noqa: E402
-from progress import SPINNER  # noqa: E402  (state.py puts scripts/council on the path)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "council"))
+from progress import SPINNER  # noqa: E402  shared with the council runner
 
-TABS = ("runs", "plans", "agents", "councils", "repos", "worktrees")
+TABS = ("agents", "councils", "repos")
 
 
 def available_models(root: Path) -> dict[str, list[str]]:
@@ -154,8 +156,8 @@ class ModelPicker(ModalScreen[tuple[str, str] | None]):
         self.dismiss(None)
 
 
-class Dashboard(App):
-    TITLE = "Control Center"
+class Settings(App):
+    TITLE = "Control Center settings"
     CSS = """
     #top { height: 8; }
     #mascot { width: 18; color: $text; }
@@ -168,9 +170,6 @@ class Dashboard(App):
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh"),
-        Binding("a", "approve", "Approve run"),
-        Binding("p", "pick", "Pick proposal"),
-        Binding("x", "reject", "Reject run"),
         Binding("e", "edit", "Edit selected"),
         Binding("left", "tab(-1)", "Prev tab", priority=True),
         Binding("right", "tab(1)", "Next tab", priority=True),
@@ -189,12 +188,9 @@ class Dashboard(App):
             yield Static(id="summary")
         with TabbedContent(id="tabs"):
             for tab, columns in (
-                ("Runs", ("run", "council", "feature/repo", "status", "progress", "current step · agents", "time", "summary")),
-                ("Plans", ("plan", "lifecycle", "planning", "title")),
                 ("Agents", ("role", "provider", "model", "access")),
                 ("Councils", ("council", "kind", "proposers", "judge", "writer", "approval", "retries")),
                 ("Repos", ("repo", "status", "targets", "stack", "role")),
-                ("Worktrees", ("feature", "repo", "branch", "changes")),
             ):
                 with TabPane(tab, id=tab.lower()):
                     table = DataTable(id=f"t-{tab.lower()}", cursor_type="row", zebra_stripes=True)
@@ -205,7 +201,7 @@ class Dashboard(App):
     def on_mount(self) -> None:
         self.sub_title = str(self.root)
         self.render_state()
-        # Every second, so run timers and the spinner move.
+        # Every second, so the header's run spinner moves.
         self.set_interval(1, self.action_refresh)
 
     def action_tab(self, step: int) -> None:
@@ -250,15 +246,12 @@ class Dashboard(App):
             summary += "\n[b red]" + escape(" · ".join(state.problems[:3])) + "[/b red]"
         self.query_one("#summary", Static).update(summary)
 
-        self.fill("runs", [(r["id"], r["council"], r["target"], self.paint(r["status"]), r["progress"], r["step"], r["time"], r["summary"][:60]) for r in state.runs])
-        self.fill("plans", [(p["id"], p["lifecycle"], p["planning"], p["title"]) for p in state.plans])
         self.fill("agents", [(r["id"], r["provider"], r["model"], r["access"]) for r in state.roles])
         self.fill(
             "councils",
             [(c["id"], c["kind"], c["proposers"], c["judge"], c["writer"], "on" if c["approval"] else "off", str(c["maxRetries"])) for c in state.councils],
         )
         self.fill("repos", [(r["id"], self.paint(r["status"]), r["targets"], r["stack"], r["role"]) for r in state.repos])
-        self.fill("worktrees", [(w["feature"], w["repo"], w["branch"], w["changes"]) for w in state.worktrees])
 
     @staticmethod
     def paint(status: str) -> Text:
@@ -287,49 +280,12 @@ class Dashboard(App):
 
     # Actions: every change goes through ./cc ------------------------------------------
 
-    def cc(self, *arguments: str, background: str | None = None) -> None:
+    def cc(self, *arguments: str) -> None:
         command = [str(self.root / "cc"), *arguments]
-        if background:
-            # Long council steps outlive the dashboard; their output goes to the run folder.
-            log = open(background, "a", encoding="utf-8")
-            subprocess.Popen(command, cwd=self.root, stdout=log, stderr=log, start_new_session=True)
-            self.notify(f"started: ./cc {' '.join(arguments)}")
-            return
         result = subprocess.run(command, cwd=self.root, capture_output=True, text=True)
         output = (result.stdout + result.stderr).strip() or "done"
         self.notify(output[-400:], severity="information" if result.returncode == 0 else "error", timeout=8)
         self.action_refresh()
-
-    def waiting_run(self) -> dict | None:
-        self.query_one("#tabs", TabbedContent).active = "runs"
-        identifier = self.selected("runs")
-        run = next((run for run in self.state.runs if run["id"] == identifier), None)
-        if not run or run["status"] != "awaiting-approval":
-            self.notify("select a run that is awaiting approval", severity="warning")
-            return None
-        return run
-
-    def action_approve(self) -> None:
-        run = self.waiting_run()
-        if run:
-            authors = ", ".join(f"{label}: {role}" for label, role in run["labels"].items())
-            note = Ask(f"Approve {run['id']}? Authors: {authors}. Optional note for the writer:", [("note (optional)", "")])
-            self.push_screen(note, lambda answer: answer is not None and self.cc(
-                "council", "approve", run["id"], *(["--note", answer[0]] if answer[0] else []),
-                background=f"{run['directory']}/approve.log"))
-
-    def action_pick(self) -> None:
-        run = self.waiting_run()
-        if run:
-            labels = "/".join(run["labels"])
-            self.push_screen(Ask(f"Use which proposal instead of the verdict ({labels})?", [("label", "")]),
-                lambda answer: answer and answer[0] and self.cc(
-                    "council", "approve", run["id"], "--pick", answer[0], background=f"{run['directory']}/approve.log"))
-
-    def action_reject(self) -> None:
-        run = self.waiting_run()
-        if run:
-            self.push_screen(Ask(f"Reject {run['id']}?", []), lambda answer: answer is not None and self.cc("council", "reject", run["id"]))
 
     def pick_model(self, role: str, current: tuple[str, str]) -> None:
         """Runs in a worker thread: listing Codex models takes a moment."""
@@ -370,12 +326,39 @@ class Dashboard(App):
             self.push_screen(Ask(f"Repo {item}: target platforms and stack (comma-separated)",
                 [("windows, linux, macos", repo["targets"]), ("languages", repo["stack"])]), apply)
         else:
-            self.notify("e edits roles (Agents), councils (Councils) and repos (Repos)", severity="warning")
+            self.notify("nothing to edit here", severity="warning")
+
+
+def show(state: Snapshot) -> str:
+    """The settings as text, for sessions (the cc-settings skill) and terminals without the panel."""
+    tools = "  ".join(f"{tool} {'ok' if ok else 'MISSING'}" for tool, ok in state.tools.items())
+    active_plans = sum(plan["lifecycle"] == "active" for plan in state.plans)
+    verified = sum(repo["status"] == "verified" for repo in state.repos)
+    lines = [
+        f"{state.name} · {state.status} · {tools}",
+        f"{active_plans} plan(s) active · {len(state.active_runs)} run(s) working · {len(state.waiting)} waiting for you · "
+        f"{verified}/{len(state.repos)} repos verified",
+        "",
+        "AGENTS (role · provider · model · access)",
+        *(f"  {r['id']:<22} {r['provider']:<7} {r['model']:<26} {r['access']}" for r in state.roles),
+        "",
+        "COUNCILS (council · approval · max retries · proposers → judge → writer)",
+        *(f"  {c['id']:<9} approval {'on ' if c['approval'] else 'off'}  retries {c['maxRetries']}  {c['proposers']} → {c['judge']} → {c['writer']}"
+          for c in state.councils),
+        "",
+        "REPOS (repo · status · targets · stack)",
+        *(f"  {r['id']:<14} {r['status']:<11} {r['targets']:<15} {r['stack']}" for r in state.repos),
+    ]
+    return "\n".join(lines)
 
 
 def main() -> int:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
-    Dashboard(root).run()
+    arguments = sys.argv[1:]
+    root = Path(arguments[0] if arguments else ".").resolve()
+    if arguments[1:2] == ["show"]:
+        print(show(snapshot(root)))
+        return 0
+    Settings(root).run()
     return 0
 
 

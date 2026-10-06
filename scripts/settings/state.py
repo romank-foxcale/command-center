@@ -1,4 +1,4 @@
-"""Read-only snapshot of a Control Center for ./cc ui: plans, council runs, roles, councils, repos, worktrees."""
+"""Read-only snapshot of a Control Center for ./cc settings: plans and runs for the header, roles, councils, repos."""
 
 from __future__ import annotations
 
@@ -6,15 +6,10 @@ import json
 import os
 import re
 import shutil
-import subprocess
-import sys
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "council"))
-import progress  # noqa: E402  shared with the council runner
 
 TERMINAL = {"done", "rejected", "verify-failed", "blocked-security", "failed"}
 
@@ -56,7 +51,6 @@ class Snapshot:
     roles: list[dict[str, Any]] = field(default_factory=list)
     councils: list[dict[str, Any]] = field(default_factory=list)
     repos: list[dict[str, Any]] = field(default_factory=list)
-    worktrees: list[dict[str, str]] = field(default_factory=list)
     tools: dict[str, bool] = field(default_factory=dict)
 
     @property
@@ -99,27 +93,11 @@ def snapshot(root: Path) -> Snapshot:
         state = load_json(path)
         if not state:
             continue
-        calls = state.get("calls", [])
-        current = calls[-1] if calls else {}
-        # Runs started before step tracking have no phase: show their last call instead.
-        step = (
-            " · ".join(part for part in (state["phase"], progress.agents(state)) if part)
-            if state.get("phase")
-            else f"{current.get('step', '-')} · {current.get('provider', '')} {current.get('model', '')}".strip()
-        )
         result.runs.append(
             {
                 "id": state.get("id", path.parent.name),
-                "council": state.get("council", "?"),
-                "target": f"{state.get('feature', '?')}/{state.get('repository', '?')}",
                 "status": run_status(state),
-                "progress": progress.bar(state),
-                "step": step,
-                "time": progress.elapsed(state) if state.get("startedAt") else "",
-                "summary": state.get("summary", ""),
-                "labels": state.get("labels", {}),
                 "started": state.get("startedAt", ""),
-                "directory": str(path.parent),
             }
         )
     result.runs.sort(key=lambda run: run["started"], reverse=True)
@@ -151,38 +129,5 @@ def snapshot(root: Path) -> Snapshot:
                 "role": repo.get("role", "?"),
             }
         )
-    for manifest_path in sorted(worktrees_root.glob("*/.cc-worktree.json")):
-        feature = load_json(manifest_path)
-        if feature.get("controlCenter") != result.name:
-            continue
-        for identifier, entry in feature.get("repositories", {}).items():
-            worktree = (root / layout.get("projectsRoot", "..")).resolve() / entry.get("worktree", "")
-            result.worktrees.append(
-                {"feature": feature.get("feature", "?"), "repo": identifier, "branch": entry.get("branch", "?"), "changes": changes(worktree)}
-            )
-
     result.tools = {tool: shutil.which(tool) is not None for tool in ("nix", "git", "claude", "codex")}
     return result
-
-
-_changes: dict[Path, tuple[float, str]] = {}
-
-
-def changes(worktree: Path) -> str:
-    # The dashboard refreshes every second; git status per worktree only every ten.
-    cached = _changes.get(worktree)
-    if cached and time.monotonic() - cached[0] < 10:
-        return cached[1]
-    value = _git_changes(worktree)
-    _changes[worktree] = (time.monotonic(), value)
-    return value
-
-
-def _git_changes(worktree: Path) -> str:
-    if not worktree.is_dir():
-        return "missing"
-    try:
-        dirty = subprocess.run(["git", "-C", str(worktree), "status", "--porcelain"], capture_output=True, text=True, timeout=10).stdout
-    except (OSError, subprocess.TimeoutExpired):
-        return "?"
-    return f"{len(dirty.splitlines())} uncommitted" if dirty.strip() else "clean"

@@ -162,7 +162,8 @@ Other commands, run from the CC folder:
 | `./cc verify` | Run every check plus each repo's target platform gates (e.g. the real Windows build) |
 | `./cc verify --quality` | Also run each repo's mutation gate: do the tests catch injected bugs? Warns for repos without one |
 | `./cc check` | Run every pure check: builds, tests, knowledge notes, skill sync |
-| `./cc ui` | Dashboard: pending plans, council runs (and which agent and model is working), roles and models, councils, repos, worktrees. ←/→ switch tabs, ↑/↓ pick a row, `e` edits it (a role gets a model list of your logged-in subscriptions), `a`/`p`/`x` approve, pick or reject a waiting run |
+| `./cc settings` | Settings panel: agents and their models, councils, repos, with a status line (logins, plans, runs). ←/→ switch tabs, ↑/↓ pick a row, `e` edits it (a role gets a model list of your logged-in subscriptions). `./cc settings show` prints the same as text; in a Claude Code or Codex session, `/cc-settings` does it with pick lists |
+| `./cc council status [run]` | Progress of council runs; for one run also what each working agent is doing right now |
 | `./cc doctor` | Check Nix, Docker and the `claude`/`codex` logins |
 | `./cc show` | List everything that can be built, checked or run |
 | `./cc build <name>` / `./cc run <name>` | Build or run one thing |
@@ -179,7 +180,7 @@ A council makes Claude and GPT work on the same task. It needs both CLIs install
 
 1. Both models study the worktree and propose an approach, without editing.
 2. A judge compares them as "Proposal A" and "Proposal B", without knowing who wrote which, and picks one or a hybrid.
-While it works, the terminal shows a live line with a progress bar, the current step, which models are still working and timers, for example `⠹ debug ▰▰▰▱▱▱▱▱▱ 3/9 propose claude opus ✓ · codex gpt-6.1-sol … step 02:31 · total 04:10`; `./cc ui` shows the same in its Runs tab.
+While it works, the terminal shows a live line with a progress bar, the current step, which models are still working and timers, for example `⠹ debug ▰▰▰▱▱▱▱▱▱ 3/9 propose claude opus ✓ · codex gpt-6.1-sol … step 02:31 · total 04:10`; `./cc council status <run>` shows the same plus each working agent's latest actions, and in a session you can just ask "how is it going?".
 3. The run stops and shows you the verdict and who wrote what. Approve it, pick the other proposal, add a note, or reject it.
 4. The writer implements it in the worktree, reusing existing code first; `./cc feature my-feature verify` must pass, with up to 2 retries.
 5. A security reviewer reads the diff. You review `changes.diff` and commit it yourself.
@@ -188,7 +189,7 @@ A testing council works the same way: both models write tests, the judge merges 
 
 A debug council finds and fixes a bug: `./cc council run debug --feature my-feature --task "<exact symptom>"`. The CC first runs verify and hands its output to both models; each diagnoses the root cause with evidence; the judge picks the best-evidenced one; after your approval the writer adds a reproduction test that must fail, and only then fixes the cause. After three failed fixes it stops and asks you to rethink the design.
 
-Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "opus"` in `writer.json`); `catalog/councils/` sets the roles, the approval pause and the retry limit. Change them in `./cc ui` (on Agents, select a role, press `e` and pick a model from the list), with `./cc council set-role` and `./cc council set`, or by asking your agent. Run files are kept in `~/Projects/worktrees/<feature>/.cc-runs/`.
+Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "opus"` in `writer.json`); `catalog/councils/` sets the roles, the approval pause and the retry limit. Change them with `/cc-settings` in your session, in `./cc settings` (on Agents, select a role, press `e` and pick a model from the list), or with `./cc council set-role` and `./cc council set`. Run files are kept in `~/Projects/worktrees/<feature>/.cc-runs/`.
 
 ---
 
