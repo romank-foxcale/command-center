@@ -21,6 +21,7 @@ usage() {
     '  bootstrap validate          Validate the configured CC contract' \
     '  repo <add|list|show|set-status|set-targets|set-stack> ...' \
     '  worktree <create|add|status|remove> ...' \
+    '  trello <status|boards|lists|connect|link|show|comment|move> ...  Trello cards, on demand only' \
     '  open <feature> [--tool claude|codex]  Start a coding session in the CC with the feature'"'"'s worktrees' \
     '  plan <create|list|show|accept|archive|complete> ...' \
     '  feature <name> <show|check|build|run|verify> ...  Use feature input overrides'
@@ -132,6 +133,9 @@ case "$command_name" in
     ;;
   worktree)
     exec python3 "$cc_root/scripts/worktrees.py" "$cc_root" "$@"
+    ;;
+  trello)
+    exec python3 "$cc_root/scripts/trello.py" "$cc_root" "$@"
     ;;
   open)
     exec python3 "$cc_root/scripts/worktrees.py" "$cc_root" open "$@"

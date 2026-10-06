@@ -172,6 +172,19 @@ Other commands, run from the CC folder:
 | `./cc validate` | Check the `docs/` notes only (works without Nix) |
 | `./cc agents sync` | After editing a skill in `.agents/skills/`, copy it to `.claude/skills/` |
 
+### Trello (optional, on demand)
+
+Link plans and features to Trello cards and update them when **you** ask; nothing is posted automatically.
+
+1. Get a Trello API key and token (Trello's Power-Up admin page, then its token link) and put them in `~/.config/cc/trello.env` (never in a repo):
+   ```
+   TRELLO_API_KEY=...
+   TRELLO_TOKEN=...
+   ```
+2. Connect the CC to a board: in `./cc settings` open the Trello tab and press `e`, or ask `/cc-settings`, or run `./cc trello connect --board <board url>` (default lists: "In progress" for active plans, "Done" for completed).
+3. Link cards: `./cc trello link --plan <id> <card url>`, `./cc trello link --feature <name> <card url>`, or `./cc worktree create <feature> <repo> --card <card url>`.
+4. Ask in your session: "post the verdict to the card", "move the card to Done". You see the exact comment or move first; it is sent only after your yes.
+
 ### Councils
 
 A council makes Claude and GPT work on the same task. It needs both CLIs installed and logged in inside Ubuntu (`claude auth login`, `codex login`); `./cc doctor` shows their state.

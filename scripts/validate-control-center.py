@@ -193,6 +193,25 @@ def validate_agents(root: Path, errors: list[str]) -> dict[str, dict[str, Any]]:
     return roles
 
 
+def validate_trello(root: Path, errors: list[str]) -> None:
+    """catalog/integrations/trello.json (optional): the board and list mapping, never credentials."""
+    path = root / "catalog" / "integrations" / "trello.json"
+    if not path.is_file():
+        return
+    data = load_json(path, errors)
+    if data is None:
+        return
+    relative = path.relative_to(root)
+    if not isinstance(data.get("board"), str) or not data["board"]:
+        errors.append(f"{relative}: 'board' must be the board's short id")
+    lists = data.get("lists")
+    if not isinstance(lists, dict) or not all(isinstance(lists.get(key), str) and lists[key] for key in ("active", "completed")):
+        errors.append(f"{relative}: 'lists' must map active and completed to list names")
+    for key in data:
+        if re.search(r"key|token|secret", key, re.IGNORECASE):
+            errors.append(f"{relative}: '{key}' looks like a credential; credentials belong in ~/.config/cc/trello.env")
+
+
 def validate_councils(root: Path, roles: dict[str, dict[str, Any]], errors: list[str]) -> None:
     """Validate catalog/councils (optional): which roles fill each slot of a fixed pipeline."""
     directory = root / "catalog" / "councils"
@@ -300,6 +319,7 @@ def validate(root: Path, adapter_targets: dict[str, Any] | None = None) -> list[
     validate_descriptor_group(root, "workflows", errors)
     validate_descriptor_group(root, "benchmarks", errors)
     validate_councils(root, validate_agents(root, errors), errors)
+    validate_trello(root, errors)
     validate_plans(root, errors)
 
     if status == "ready":

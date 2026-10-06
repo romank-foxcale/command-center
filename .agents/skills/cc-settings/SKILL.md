@@ -1,6 +1,6 @@
 ---
 name: cc-settings
-description: Show and change the Control Center's settings inside the chat - which provider and model each agent role uses (picked from the models of the logged-in subscriptions), each council's approval pause and retry limit, and each repo's target platforms and stack. Use when the user asks for the settings, wants to see or change a role's model, a council setting, or a repo's platforms or stack, or types /cc-settings.
+description: Show and change the Control Center's settings inside the chat - which provider and model each agent role uses (picked from the models of the logged-in subscriptions), each council's approval pause and retry limit, each repo's target platforms and stack, and the connected Trello board. Use when the user asks for the settings, wants to see or change a role's model, a council setting, or a repo's platforms or stack, or types /cc-settings.
 ---
 
 # CC settings
@@ -22,6 +22,7 @@ Offer every choice as a pick list: in Claude Code with the question tool (clicka
 | A council's retry limit | 0 to 5 | `./cc council set <council> --max-retries <n>` |
 | A repo's target platforms | windows, linux, macos (several allowed) | `./cc repo set-targets <repo> <platform>...` |
 | A repo's stack | the languages found in the repo's code, plus other | `./cc repo set-stack <repo> <language>...` |
+| Trello board | `./cc trello boards`, then the board's lists (`./cc trello lists --board <id>`) for active and for completed plans | `./cc trello connect --board <id> --active-list <name> --completed-list <name>` |
 
 - When a choice list would exceed the question tool's option limit, ask for the provider first, then the model.
 - Choosing a model sets its provider; never mix a model with another provider.
@@ -31,5 +32,6 @@ Offer every choice as a pick list: in Claude Code with the question tool (clicka
 
 ## Related
 
+- Posting to or moving Trello cards is not a setting: that is `cc-trello`, on demand only.
 - Run progress is not a setting: "how is the run going?" belongs to `cc-council` (`./cc council status <run>`).
 - In a terminal, `./cc settings` opens the same settings as a panel.

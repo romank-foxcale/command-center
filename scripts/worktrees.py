@@ -193,6 +193,8 @@ def command_create(root: Path, args: argparse.Namespace) -> None:
         raise ValueError(f"feature already exists: {args.feature}")
     manifest = context.new_manifest()
     context.feature_root.mkdir(parents=True, exist_ok=True)
+    if args.card:
+        manifest["trelloCard"] = args.card  # on-demand updates: ./cc trello comment|move --feature
     write_json(context.manifest_path, manifest)
     for identifier in args.repositories:
         add_repositories(context, manifest, [identifier], args.branch)
@@ -328,6 +330,7 @@ def parser() -> argparse.ArgumentParser:
     create.add_argument("feature")
     create.add_argument("repositories", nargs="*")
     create.add_argument("--branch")
+    create.add_argument("--card", help="Trello card URL to link to the feature")
     create.set_defaults(handler=command_create)
 
     add = subparsers.add_parser("add")
