@@ -6,6 +6,7 @@
   "model": "opus",
   "access": "write-worktree",
   "skills": [
+    "lean-code",
     "council-write"
   ]
 }

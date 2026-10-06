@@ -1,0 +1,6 @@
+interface:
+  display_name: "Lean Code"
+  short_description: "Build the least code that works"
+  default_prompt: "Use $lean-code to solve this with the smallest change that works."
+policy:
+  allow_implicit_invocation: true
