@@ -179,6 +179,7 @@ A council makes Claude and GPT work on the same task. It needs both CLIs install
 
 1. Both models study the worktree and propose an approach, without editing.
 2. A judge compares them as "Proposal A" and "Proposal B", without knowing who wrote which, and picks one or a hybrid.
+While it works, the terminal shows a live line with a progress bar, the current step, which models are still working and timers, for example `⠹ debug ▰▰▰▱▱▱▱▱▱ 3/9 propose claude opus ✓ · codex gpt-6.1-sol … step 02:31 · total 04:10`; `./cc ui` shows the same in its Runs tab.
 3. The run stops and shows you the verdict and who wrote what. Approve it, pick the other proposal, add a note, or reject it.
 4. The writer implements it in the worktree, reusing existing code first; `./cc feature my-feature verify` must pass, with up to 2 retries.
 5. A security reviewer reads the diff. You review `changes.diff` and commit it yourself.

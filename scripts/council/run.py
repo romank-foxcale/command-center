@@ -17,6 +17,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+import progress
 import providers
 
 
@@ -37,7 +38,41 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
 
 
 def say(message: str) -> None:
+    if sys.stderr.isatty():
+        sys.stderr.write("\r\033[K")  # clear the live status line first
     print(message, flush=True)
+
+
+class Ticker(threading.Thread):
+    """Shows that a run is alive: a live status line on a terminal, a heartbeat line every 30s otherwise."""
+
+    def __init__(self, run: "Run"):
+        super().__init__(daemon=True)
+        self.watched = run
+        self.stopped = threading.Event()
+
+    def run(self) -> None:
+        live = sys.stderr.isatty()
+        frame = 0
+        while not self.stopped.wait(1 if live else 30):
+            frame += 1
+            state = self.watched.state
+            if live:
+                sys.stderr.write("\r\033[K" + progress.line(state, frame)[:200])
+                sys.stderr.flush()
+            else:
+                busy = ", ".join(progress.running(state)) or "the CC"
+                waited = progress.clock(progress.seconds_since(state.get("phaseStartedAt")))
+                print(f"... still {state.get('phase', state.get('stage'))}: {busy} ({waited})", flush=True)
+
+    def __enter__(self) -> "Ticker":
+        self.start()
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.stopped.set()
+        if sys.stderr.isatty():
+            sys.stderr.write("\r\033[K")
 
 
 def git(worktree: Path, *arguments: str) -> str:
@@ -119,19 +154,33 @@ class Run:
             self.state.update(changes, pid=os.getpid())
             write_json(self.state_path, self.state)
 
+    def step(self, name: str) -> None:
+        """Enter a step of the plan: ./cc ui and the ticker show it with its own timer."""
+        say(f"-> {name}")
+        self.save(phase=name, phaseStartedAt=now())
+
     def call(self, identifier: str, body: str, name: str) -> str:
         role = self.role(identifier)
-        say(f"-> {name}: {identifier} ({role['provider']} {role['model']}, {role['access']})")
-        call = {"step": name, "role": identifier, "provider": role["provider"], "model": role["model"]}
-        self.save(calls=[*self.state.get("calls", []), call])
-        reply = providers.run(
-            role, role_prompt(self.root, role, self.state, body), self.worktree, self.directory / "logs" / f"{name}.log"
-        )
+        say(f"   {name}: {identifier} ({role['provider']} {role['model']}, {role['access']})")
+        call = {"step": name, "role": identifier, "provider": role["provider"], "model": role["model"], "startedAt": now()}
+        with self.lock:
+            calls = self.state.setdefault("calls", [])
+            index = len(calls)
+            calls.append(call)
+        self.save()
+        try:
+            reply = providers.run(
+                role, role_prompt(self.root, role, self.state, body), self.worktree, self.directory / "logs" / f"{name}.log"
+            )
+        finally:
+            with self.lock:
+                self.state["calls"][index]["finishedAt"] = now()
+            self.save()
         (self.directory / f"{name}.md").write_text(reply + "\n", encoding="utf-8")
         return reply
 
     def verify(self, name: str) -> tuple[bool, str, list[tuple[str, str, str]]]:
-        say(f"-> verify ({name})")
+        say(f"   ./cc feature {self.state['feature']} verify ({name})")
         result = subprocess.run(
             [str(self.root / "cc"), "feature", self.state["feature"], "verify", self.state["repository"], "--quality"],
             cwd=self.root,
@@ -148,6 +197,7 @@ class Run:
         task = f"# Task\n\n{self.state['task']}"
         if self.state["kind"] == "debug":
             # Evidence before opinions: every role sees what the CC itself reports for the failure.
+            self.step("reproduce")
             passed, output, _ = self.verify("reproduce")
             command = f"./cc feature {self.state['feature']} verify {self.state['repository']} --quality"
             task += (
@@ -157,6 +207,7 @@ class Run:
                 else f"\n\n# Reproduction\n\n`{command}` fails:\n\n```\n{tail(output)}\n```"
             )
         self.save(brief=task)
+        self.step("propose")
         with concurrent.futures.ThreadPoolExecutor(len(council["proposers"])) as pool:
             futures = {
                 identifier: pool.submit(self.call, identifier, task, f"proposal-{identifier}")
@@ -172,6 +223,7 @@ class Run:
         anonymous = "\n\n".join(
             f"# Proposal {label}\n\n{proposals[identifier]}" for label, identifier in labels.items()
         )
+        self.step("judge")
         verdict = self.call(council["judge"], f"{task}\n\n{anonymous}", "verdict")
         decision = re.match(r"\s*DECISION:\s*([A-Z]+)", verdict)
         self.save(decision=decision.group(1) if decision else "UNPARSED")
@@ -182,7 +234,7 @@ class Run:
             self.finish("failed", "the judge reply has no DECISION line; see verdict.md")
             return
         if council["approval"]:
-            self.save(stage="awaiting-approval")
+            self.save(stage="awaiting-approval", phase="approval", phaseStartedAt=now())
             self.show_verdict()
             return
         self.save(instructions=verdict)
@@ -196,12 +248,14 @@ class Run:
         guarded: dict[str, bytes] = {}
         if self.state["kind"] == "debug":
             # Red first, enforced: the reproduction test must fail on the unfixed code.
+            self.step("write test")
             self.call(
                 council["writer"],
                 f"{instructions}\n\n# Phase 1 of 2: reproduction test\n\n"
                 "Write only the failing reproduction test from the instructions. Do not change production code yet.",
                 "write-test",
             )
+            self.step("red check")
             passed, output, _ = self.verify("red")
             if passed:
                 self.finish("failed", "the reproduction test passes on the unfixed code, so it does not reproduce the bug; see verify-red.log")
@@ -220,11 +274,13 @@ class Run:
                     f"\n\n# Verification failed (retry {attempt} of {council['maxRetries']})\n\n"
                     f"Fix the cause. Never weaken tests or checks.\n\n```\n{failure}\n```"
                 )
+            self.step("fix" if self.state["kind"] == "debug" else "write")
             self.call(council["writer"], body, f"write-{attempt}")
             touched = [path for path, content in guarded.items() if not (self.worktree / path).is_file() or (self.worktree / path).read_bytes() != content]
             if touched:
                 self.finish("failed", f"the writer changed the reproduction test during the fix: {', '.join(touched)}")
                 return
+            self.step("verify")
             passed, output, rows = self.verify(str(attempt))
             (self.directory / "changes.diff").write_text(worktree_diff(self.worktree), encoding="utf-8")
             self.save(qualityWarnings=[f"{gate} gate missing for {repo}" for repo, gate, result in rows if result.startswith("WARN")])
@@ -247,6 +303,7 @@ class Run:
 
         if council.get("security"):
             diff = (self.directory / "changes.diff").read_text(encoding="utf-8")
+            self.step("security")
             review = self.call(council["security"], f"# Diff\n\n```diff\n{diff}\n```", "security")
             severity = re.match(r"\s*SEVERITY:\s*(\w+)", review)
             self.save(security=severity.group(1).lower() if severity else "unparsed")
@@ -331,11 +388,14 @@ def command_run(root: Path, args: argparse.Namespace) -> None:
             "stack": entry.get("stack", []),
             "task": task.strip(),
             "stage": "proposing",
+            "plan": progress.plan(council["kind"], council),
             "startedAt": now(),
         },
     )
     say(f"run {identifier}: {council['kind']} council on {args.feature}/{repository}")
-    Run(root, directory).propose_and_judge(council)
+    run = Run(root, directory)
+    with Ticker(run):
+        run.propose_and_judge(council)
 
 
 def command_approve(root: Path, args: argparse.Namespace) -> None:
@@ -352,7 +412,8 @@ def command_approve(root: Path, args: argparse.Namespace) -> None:
     if args.note:
         instructions += f"\n\n# User note (overrides the above where they conflict)\n\n{args.note}"
     run.save(instructions=instructions, approvedAt=now(), pick=args.pick)
-    run.write_and_verify(council_config(root, run.state["council"]))
+    with Ticker(run):
+        run.write_and_verify(council_config(root, run.state["council"]))
 
 
 def command_reject(root: Path, args: argparse.Namespace) -> None:

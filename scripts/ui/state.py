@@ -7,9 +7,14 @@ import os
 import re
 import shutil
 import subprocess
+import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "council"))
+import progress  # noqa: E402  shared with the council runner
 
 TERMINAL = {"done", "rejected", "verify-failed", "blocked-security", "failed"}
 
@@ -96,13 +101,21 @@ def snapshot(root: Path) -> Snapshot:
             continue
         calls = state.get("calls", [])
         current = calls[-1] if calls else {}
+        # Runs started before step tracking have no phase: show their last call instead.
+        step = (
+            " · ".join(part for part in (state["phase"], progress.agents(state)) if part)
+            if state.get("phase")
+            else f"{current.get('step', '-')} · {current.get('provider', '')} {current.get('model', '')}".strip()
+        )
         result.runs.append(
             {
                 "id": state.get("id", path.parent.name),
                 "council": state.get("council", "?"),
                 "target": f"{state.get('feature', '?')}/{state.get('repository', '?')}",
                 "status": run_status(state),
-                "step": f"{current.get('step', '-')} · {current.get('provider', '')} {current.get('model', '')}".strip(),
+                "progress": progress.bar(state),
+                "step": step,
+                "time": progress.elapsed(state) if state.get("startedAt") else "",
                 "summary": state.get("summary", ""),
                 "labels": state.get("labels", {}),
                 "started": state.get("startedAt", ""),
@@ -152,7 +165,20 @@ def snapshot(root: Path) -> Snapshot:
     return result
 
 
+_changes: dict[Path, tuple[float, str]] = {}
+
+
 def changes(worktree: Path) -> str:
+    # The dashboard refreshes every second; git status per worktree only every ten.
+    cached = _changes.get(worktree)
+    if cached and time.monotonic() - cached[0] < 10:
+        return cached[1]
+    value = _git_changes(worktree)
+    _changes[worktree] = (time.monotonic(), value)
+    return value
+
+
+def _git_changes(worktree: Path) -> str:
     if not worktree.is_dir():
         return "missing"
     try:

@@ -32,7 +32,11 @@ def fixture(base: Path) -> Path:
     # A process id that cannot exist: the run looks alive in its file but nobody is advancing it.
     write(runs / "r2/state.json", {"id": "r2", "council": "debug", "feature": "feat", "repository": "app", "stage": "writing",
                                    "pid": 2_000_000_000, "startedAt": "2026-01-01T11:00:00",
-                                   "calls": [{"step": "write-0", "provider": "claude", "model": "opus"}]})
+                                   "plan": ["reproduce", "propose", "judge", "approval", "write test", "red check", "fix", "verify", "security"],
+                                   "phase": "fix", "phaseStartedAt": "2026-01-01T11:05:00",
+                                   "calls": [{"step": "proposal-a", "provider": "codex", "model": "gpt", "startedAt": "2026-01-01T11:01:00",
+                                              "finishedAt": "2026-01-01T11:02:00"},
+                                             {"step": "write-0", "provider": "claude", "model": "opus", "startedAt": "2026-01-01T11:05:01"}]})
     return root
 
 
@@ -48,6 +52,10 @@ async def check(root: Path) -> None:
         runs = app.query_one("#t-runs", DataTable)
         statuses = {runs.get_row_at(i)[0].plain: runs.get_row_at(i)[3].plain for i in range(runs.row_count)}
         assert statuses == {"r2": "stalled (writing)", "r1": "awaiting-approval"}, statuses
+        r2 = next(runs.get_row_at(i) for i in range(runs.row_count) if runs.get_row_at(i)[0].plain == "r2")
+        assert r2[4].plain == "▰▰▰▰▰▰▱▱▱ 6/9", f"progress bar: {r2[4].plain}"
+        assert r2[5].plain == "fix · claude opus …", f"only the current step's agents, still working: {r2[5].plain}"
+        assert r2[6].plain.startswith("step ") and "total" in r2[6].plain, r2[6].plain
         plans = app.query_one("#t-plans", DataTable)
         assert plans.get_row_at(0)[3].plain == "Ship [the] thing", "markup in data must be shown verbatim"
         for table, rows in (("#t-agents", 1), ("#t-councils", 1), ("#t-repos", 1)):

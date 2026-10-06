@@ -20,6 +20,7 @@ from textual.widgets.option_list import Option
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from state import Snapshot, snapshot  # noqa: E402
+from progress import SPINNER  # noqa: E402  (state.py puts scripts/council on the path)
 
 TABS = ("runs", "plans", "agents", "councils", "repos", "worktrees")
 
@@ -188,7 +189,7 @@ class Dashboard(App):
             yield Static(id="summary")
         with TabbedContent(id="tabs"):
             for tab, columns in (
-                ("Runs", ("run", "council", "feature/repo", "status", "current step", "summary")),
+                ("Runs", ("run", "council", "feature/repo", "status", "progress", "current step · agents", "time", "summary")),
                 ("Plans", ("plan", "lifecycle", "planning", "title")),
                 ("Agents", ("role", "provider", "model", "access")),
                 ("Councils", ("council", "kind", "proposers", "judge", "writer", "approval", "retries")),
@@ -204,7 +205,8 @@ class Dashboard(App):
     def on_mount(self) -> None:
         self.sub_title = str(self.root)
         self.render_state()
-        self.set_interval(3, self.action_refresh)
+        # Every second, so run timers and the spinner move.
+        self.set_interval(1, self.action_refresh)
 
     def action_tab(self, step: int) -> None:
         if isinstance(self.screen, ModalScreen):
@@ -237,9 +239,10 @@ class Dashboard(App):
         active_plans = [plan for plan in state.plans if plan["lifecycle"] == "active"]
         tools = "  ".join(f"{tool} {'✓' if ok else '✗'}" for tool, ok in state.tools.items())
         verified = sum(repo["status"] == "verified" for repo in state.repos)
+        spinner = f"{SPINNER[int(time.time()) % len(SPINNER)]} " if state.active_runs else ""
         summary = (
             f"[b]{escape(state.name)}[/b] · {escape(state.status)}        {tools}\n"
-            f"{len(active_plans)} plan(s) active · {len(state.active_runs)} run(s) working · "
+            f"{len(active_plans)} plan(s) active · {spinner}{len(state.active_runs)} run(s) working · "
             f"[b]{len(state.waiting)} waiting for you[/b] · {verified}/{len(state.repos)} repos verified\n\n"
             f"[i]\"{escape(text)}\"[/i]"
         )
@@ -247,7 +250,7 @@ class Dashboard(App):
             summary += "\n[b red]" + escape(" · ".join(state.problems[:3])) + "[/b red]"
         self.query_one("#summary", Static).update(summary)
 
-        self.fill("runs", [(r["id"], r["council"], r["target"], self.paint(r["status"]), r["step"], r["summary"][:60]) for r in state.runs])
+        self.fill("runs", [(r["id"], r["council"], r["target"], self.paint(r["status"]), r["progress"], r["step"], r["time"], r["summary"][:60]) for r in state.runs])
         self.fill("plans", [(p["id"], p["lifecycle"], p["planning"], p["title"]) for p in state.plans])
         self.fill("agents", [(r["id"], r["provider"], r["model"], r["access"]) for r in state.roles])
         self.fill(
