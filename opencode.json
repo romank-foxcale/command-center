@@ -10,6 +10,7 @@
       "cc-repo": "allow",
       "cc-verify": "allow",
       "cc-council": "allow",
+      "lean-code": "allow",
       "council-*": "deny"
     },
     "external_directory": "ask"

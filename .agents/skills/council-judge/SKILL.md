@@ -10,7 +10,7 @@ You receive the task and anonymous proposals labelled A, B and so on. You do not
 ## Work
 
 1. Verify each proposal's claims against the code: do the referenced functions exist, does the reuse fit, are the listed changes complete?
-2. Compare on: correctness for the task; reuse of existing code and the size of the change; fit with the existing design and conventions; risk; testability.
+2. Compare on: correctness for the task first; then the `lean-code` ladder (between correct proposals, the higher rung and the shorter diff win, and anything `lean-code` says never to cut must be present); fit with the existing design and conventions; risk; testability.
 3. Pick one proposal, or build a hybrid when parts of different proposals are each clearly better. Do not invent a third design unless every proposal is wrong; then say so.
 4. In a testing council, the proposals are test sets: merge them into one set without duplicates, keep the strongest assertions, drop tests that check implementation details instead of behaviour.
 
