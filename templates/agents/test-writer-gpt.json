@@ -6,6 +6,7 @@
   "model": "gpt-6.1-sol",
   "access": "read-only",
   "skills": [
+    "tdd",
     "council-test-propose"
   ]
 }

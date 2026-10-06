@@ -11,6 +11,8 @@
       "cc-verify": "allow",
       "cc-council": "allow",
       "lean-code": "allow",
+      "debug": "allow",
+      "tdd": "allow",
       "council-*": "deny"
     },
     "external_directory": "ask"

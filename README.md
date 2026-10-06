@@ -27,6 +27,31 @@ What the kit includes:
 | Per-repo target platforms with a gate each, including a real Windows host gate | `./cc verify`, `ccLib.mkWindowsHostGate` |
 | Coding and testing councils: Claude and GPT propose, an anonymous judge decides, a writer implements | `./cc council`, `catalog/agents`, `catalog/councils` |
 | `lean-code` skill: the least code that works, adapted from [Ponytail](https://github.com/dietrichgebert/ponytail) (MIT) | `.agents/skills/lean-code/` |
+| `debug` and `tdd` skills: root cause before fixes, test first and honest tests, adapted from [Superpowers](https://github.com/obra/superpowers) (MIT) | `.agents/skills/debug/`, `.agents/skills/tdd/` |
+
+## Tools and sources it builds on
+
+**Adapted skills.** These skills are rewritten for the CC, not copied. Each keeps the upstream license next to it and an Origin section naming the exact upstream commit and what was changed.
+
+| Source | License | Used for | What we took |
+|---|---|---|---|
+| [Ponytail](https://github.com/dietrichgebert/ponytail) by DietrichGebert | MIT | `lean-code` | The "laziest senior dev" ladder: read the problem fully, then stop at the first rung that holds (need it at all, already in the codebase, standard library, native platform feature, installed dependency, one line, minimum new code); root-cause bug fixes; no unrequested abstractions. Dropped: modes, intensity levels, commands. |
+| [Superpowers](https://github.com/obra/superpowers) by Jesse Vincent | MIT | `debug`, `tdd` | Systematic debugging (no fix without a root cause, four phases, stop after three failed fixes, root-cause tracing, defense in depth, condition-based waiting) and test-driven development with its rules for honest tests (name the break, hand-derived expectations, no assertions on mocks, the mutation check). Changed: reproduction and verification through `./cc` on every target platform, tests-after allowed when each test is shown to fail. |
+
+**Tools the kit runs.** The CC orchestrates these; it does not vendor them.
+
+| Tool | Role in the CC |
+|---|---|
+| [Nix](https://nixos.org) with flakes, [nixpkgs](https://github.com/NixOS/nixpkgs) | Every build, test, check and app; pinned inputs; `./cc check`, `./cc verify` |
+| Git | Repository catalog, feature worktrees, input overrides |
+| Python 3 | The `./cc` scripts: catalog, worktrees, plans, validation, councils |
+| WSL2 and PowerShell | Windows host gates (`ccLib.mkWindowsHostGate`) run the real Windows toolchain from WSL |
+| [Claude Code](https://github.com/anthropics/claude-code) CLI (`claude`) | Interactive work, and the Claude roles in councils, under the user's own subscription |
+| [Codex](https://github.com/openai/codex) CLI (`codex`) | Interactive work, and the GPT roles in councils, under the user's own ChatGPT login |
+| Cursor, OpenCode | Supported editors and agents; they read the same `.agents/skills` |
+| Docker or Podman (optional) | Container end-to-end workflows |
+
+Each project repository brings its own test tools through its Nix adapter; the CC prescribes none of them.
 
 ---
 
