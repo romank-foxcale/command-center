@@ -1,0 +1,6 @@
+interface:
+  display_name: "Council Propose"
+  short_description: "Propose an approach for a council"
+  default_prompt: "Run a council with ./cc council; this role skill is loaded by the runner."
+policy:
+  allow_implicit_invocation: false

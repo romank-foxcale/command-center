@@ -14,6 +14,7 @@ usage() {
     '  build <name>   Build .#<name>' \
     '  run <name>     Run .#<name>' \
     '  verify [repo...]  Run every check plus the gate of each catalog target' \
+    '  council <run|approve|reject|status> ...  Multi-model coding/testing councils' \
     '  validate       Validate the Markdown knowledge graph'     '  agents <sync|check>  Mirror .agents/skills into .claude/skills' \
     '  bootstrap install [target]  Materialize a new CC from this clone' \
     '  bootstrap validate          Validate the configured CC contract' \
@@ -59,6 +60,7 @@ case "$command_name" in
     else
       printf '%s\n' 'note: Docker/Podman is absent; container E2E apps will be unavailable'
     fi
+    python3 "$cc_root/scripts/council/providers.py" status
     ;;
   show)
     require_nix
@@ -117,6 +119,9 @@ case "$command_name" in
     ;;
   worktree)
     exec python3 "$cc_root/scripts/worktrees.py" "$cc_root" "$@"
+    ;;
+  council)
+    exec python3 "$cc_root/scripts/council/run.py" "$cc_root" "$@"
     ;;
   plan)
     exec python3 "$cc_root/scripts/plans.py" "$cc_root" "$@"

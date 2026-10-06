@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+"""Run a council: independent proposals, an anonymous judge, user approval, a writer and ./cc verify."""
+
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import datetime
+import json
+import random
+import re
+import subprocess
+import sys
+import threading
+from pathlib import Path
+from typing import Any
+
+import providers
+
+
+TERMINAL = {"done", "rejected", "verify-failed", "blocked-security", "failed"}
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: root must be an object")
+    return data
+
+
+def write_json(path: Path, data: dict[str, Any]) -> None:
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def say(message: str) -> None:
+    print(message, flush=True)
+
+
+def git(worktree: Path, *arguments: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(worktree), *arguments], check=True, capture_output=True, text=True
+    ).stdout
+
+
+def worktrees_root(root: Path) -> Path:
+    return (root / load_json(root / "control-center.json")["layout"]["worktrees"]).resolve()
+
+
+def skill_text(root: Path, name: str) -> str:
+    text = (root / ".agents" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+    # Drop the frontmatter: the CLI only needs the instructions.
+    return re.sub(r"\A---\n.*?\n---\n", "", text, count=1, flags=re.DOTALL).strip()
+
+
+def role_prompt(root: Path, role: dict[str, Any], state: dict[str, Any], body: str) -> str:
+    skills = "\n\n".join(skill_text(root, skill) for skill in role.get("skills", []))
+    context = (
+        f"Council: {state['council']} ({state['kind']}). Feature: {state['feature']}. "
+        f"Repository: {state['repository']}, targets: {', '.join(state['targets']) or 'unknown'}. "
+        "The current directory is the feature worktree."
+    )
+    return f"{skills}\n\n# Context\n\n{context}\n\n{body}"
+
+
+def worktree_diff(worktree: Path) -> str:
+    diff = git(worktree, "diff", "HEAD")
+    for path in git(worktree, "ls-files", "--others", "--exclude-standard").splitlines():
+        result = subprocess.run(
+            ["git", "-C", str(worktree), "diff", "--no-index", "--", "/dev/null", path],
+            capture_output=True,
+            text=True,
+        )
+        diff += result.stdout
+    return diff
+
+
+class Run:
+    def __init__(self, root: Path, directory: Path):
+        self.root = root
+        self.directory = directory
+        self.state_path = directory / "state.json"
+        self.state = load_json(self.state_path)
+        # Proposers run in parallel threads and all record their calls in state.json.
+        self.lock = threading.Lock()
+
+    @property
+    def worktree(self) -> Path:
+        return Path(self.state["worktree"])
+
+    def role(self, identifier: str) -> dict[str, Any]:
+        return load_json(self.root / "catalog" / "agents" / f"{identifier}.json")
+
+    def save(self, **changes: Any) -> None:
+        with self.lock:
+            self.state.update(changes)
+            write_json(self.state_path, self.state)
+
+    def call(self, identifier: str, body: str, name: str) -> str:
+        role = self.role(identifier)
+        say(f"-> {name}: {identifier} ({role['provider']} {role['model']}, {role['access']})")
+        call = {"step": name, "role": identifier, "provider": role["provider"], "model": role["model"]}
+        self.save(calls=[*self.state.get("calls", []), call])
+        reply = providers.run(
+            role, role_prompt(self.root, role, self.state, body), self.worktree, self.directory / "logs" / f"{name}.log"
+        )
+        (self.directory / f"{name}.md").write_text(reply + "\n", encoding="utf-8")
+        return reply
+
+    # Stages -------------------------------------------------------------------------
+
+    def propose_and_judge(self, council: dict[str, Any]) -> None:
+        task = self.state["task"]
+        with concurrent.futures.ThreadPoolExecutor(len(council["proposers"])) as pool:
+            futures = {
+                identifier: pool.submit(self.call, identifier, f"# Task\n\n{task}", f"proposal-{identifier}")
+                for identifier in council["proposers"]
+            }
+            proposals = {identifier: future.result() for identifier, future in futures.items()}
+
+        # The judge sees shuffled labels only; the mapping stays in state.json for the user.
+        order = list(proposals)
+        random.SystemRandom().shuffle(order)
+        labels = {chr(ord("A") + index): identifier for index, identifier in enumerate(order)}
+        self.save(labels=labels)
+        anonymous = "\n\n".join(
+            f"# Proposal {label}\n\n{proposals[identifier]}" for label, identifier in labels.items()
+        )
+        verdict = self.call(council["judge"], f"# Task\n\n{task}\n\n{anonymous}", "verdict")
+        decision = re.match(r"\s*DECISION:\s*([A-Z]+)", verdict)
+        self.save(decision=decision.group(1) if decision else "UNPARSED")
+        if self.state["decision"] == "REJECT":
+            self.finish("rejected", "the judge rejected every proposal; see verdict.md")
+            return
+        if self.state["decision"] == "UNPARSED":
+            self.finish("failed", "the judge reply has no DECISION line; see verdict.md")
+            return
+        if council["approval"]:
+            self.save(stage="awaiting-approval")
+            self.show_verdict()
+            return
+        self.save(instructions=verdict)
+        self.write_and_verify(council)
+
+    def write_and_verify(self, council: dict[str, Any]) -> None:
+        self.save(stage="writing")
+        instructions = self.state["instructions"]
+        attempt = 0
+        failure = ""
+        while True:
+            body = f"# Task\n\n{self.state['task']}\n\n# Approved instructions\n\n{instructions}"
+            if failure:
+                body += (
+                    f"\n\n# Verification failed (retry {attempt} of {council['maxRetries']})\n\n"
+                    f"Fix the cause. Never weaken tests or checks.\n\n```\n{failure}\n```"
+                )
+            self.call(council["writer"], body, f"write-{attempt}")
+            say(f"-> verify (attempt {attempt})")
+            result = subprocess.run(
+                [str(self.root / "cc"), "feature", self.state["feature"], "verify", self.state["repository"]],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+            )
+            output = result.stdout + result.stderr
+            (self.directory / f"verify-{attempt}.log").write_text(output, encoding="utf-8")
+            (self.directory / "changes.diff").write_text(worktree_diff(self.worktree), encoding="utf-8")
+            if result.returncode == 0:
+                break
+            if attempt >= council["maxRetries"]:
+                reason = (
+                    "new tests fail: suspected bugs in the code, see verify log"
+                    if self.state["kind"] == "testing"
+                    else f"verify still fails after {attempt} retries"
+                )
+                self.finish("verify-failed", f"{reason}; see verify-{attempt}.log")
+                return
+            attempt += 1
+            failure = "\n".join(output.splitlines()[-200:])
+
+        if council.get("security"):
+            diff = (self.directory / "changes.diff").read_text(encoding="utf-8")
+            review = self.call(council["security"], f"# Diff\n\n```diff\n{diff}\n```", "security")
+            severity = re.match(r"\s*SEVERITY:\s*(\w+)", review)
+            self.save(security=severity.group(1).lower() if severity else "unparsed")
+            if self.state["security"] in {"high", "unparsed"}:
+                self.finish("blocked-security", "security review blocks the change; see security.md")
+                return
+        self.finish("done", "verify passed; review changes.diff and commit it yourself")
+
+    def finish(self, stage: str, summary: str) -> None:
+        self.save(stage=stage, summary=summary, finishedAt=now())
+        say(f"\nrun {self.state['id']}: {stage} - {summary}")
+        say(f"artifacts: {self.directory}")
+
+    def show_verdict(self) -> None:
+        say("\n" + (self.directory / "verdict.md").read_text(encoding="utf-8"))
+        say("Proposal authors (hidden from the judge):")
+        for label, identifier in self.state["labels"].items():
+            role = self.role(identifier)
+            say(f"  {label}: {identifier} ({role['provider']} {role['model']})")
+        say(f"\nAwaiting approval. Approve: ./cc council approve {self.state['id']} [--pick <label>] [--note <text>]")
+        say(f"Reject: ./cc council reject {self.state['id']}")
+
+
+def now() -> str:
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
+
+def find_run(root: Path, identifier: str) -> Run:
+    matches = list(worktrees_root(root).glob(f"*/.cc-runs/{identifier}/state.json"))
+    if len(matches) != 1:
+        raise ValueError(f"run not found: {identifier}")
+    return Run(root, matches[0].parent)
+
+
+def council_config(root: Path, identifier: str) -> dict[str, Any]:
+    path = root / "catalog" / "councils" / f"{identifier}.json"
+    if not path.is_file():
+        raise ValueError(f"council not found: catalog/councils/{identifier}.json")
+    return load_json(path)
+
+
+def command_run(root: Path, args: argparse.Namespace) -> None:
+    council = council_config(root, args.council)
+    manifest = load_json(worktrees_root(root) / args.feature / ".cc-worktree.json")
+    repositories = manifest.get("repositories", {})
+    repository = args.repo or (next(iter(repositories)) if len(repositories) == 1 else None)
+    if repository not in repositories:
+        raise ValueError(f"choose one of the feature's repositories with --repo: {', '.join(repositories)}")
+    worktree = (root / load_json(root / "control-center.json")["layout"]["projectsRoot"]).resolve() / repositories[
+        repository
+    ]["worktree"]
+    if git(worktree, "status", "--porcelain"):
+        raise ValueError(f"worktree has uncommitted changes; commit or stash them first: {worktree}")
+    task = Path(args.task_file).read_text(encoding="utf-8") if args.task_file else args.task
+    if not task or not task.strip():
+        raise ValueError("give the task with --task or --task-file")
+    for slot in [*council["proposers"], council["judge"], council["writer"], council.get("security")]:
+        if slot:
+            role = load_json(root / "catalog" / "agents" / f"{slot}.json")
+            available, detail = providers.login_status(role["provider"])
+            if not available:
+                raise ValueError(f"role {slot} needs {role['provider']}: {detail}")
+
+    descriptor = root / "catalog" / "repositories" / f"{repository}.json"
+    targets = load_json(descriptor).get("targets", []) if descriptor.is_file() else []
+    identifier = f"{datetime.datetime.now():%Y%m%d-%H%M%S}-{council['id']}"
+    directory = worktrees_root(root) / args.feature / ".cc-runs" / identifier
+    directory.mkdir(parents=True)
+    write_json(
+        directory / "state.json",
+        {
+            "id": identifier,
+            "council": council["id"],
+            "kind": council["kind"],
+            "feature": args.feature,
+            "repository": repository,
+            "worktree": str(worktree),
+            "targets": targets,
+            "task": task.strip(),
+            "stage": "proposing",
+            "startedAt": now(),
+        },
+    )
+    say(f"run {identifier}: {council['kind']} council on {args.feature}/{repository}")
+    Run(root, directory).propose_and_judge(council)
+
+
+def command_approve(root: Path, args: argparse.Namespace) -> None:
+    run = find_run(root, args.run)
+    if run.state["stage"] != "awaiting-approval":
+        raise ValueError(f"run {args.run} is {run.state['stage']}, not awaiting approval")
+    if args.pick:
+        identifier = run.state["labels"].get(args.pick.upper())
+        if not identifier:
+            raise ValueError(f"unknown proposal label: {args.pick}")
+        instructions = (run.directory / f"proposal-{identifier}.md").read_text(encoding="utf-8")
+    else:
+        instructions = (run.directory / "verdict.md").read_text(encoding="utf-8")
+    if args.note:
+        instructions += f"\n\n# User note (overrides the above where they conflict)\n\n{args.note}"
+    run.save(instructions=instructions, approvedAt=now(), pick=args.pick)
+    run.write_and_verify(council_config(root, run.state["council"]))
+
+
+def command_reject(root: Path, args: argparse.Namespace) -> None:
+    run = find_run(root, args.run)
+    if run.state["stage"] != "awaiting-approval":
+        raise ValueError(f"run {args.run} is {run.state['stage']}, not awaiting approval")
+    run.finish("rejected", "rejected by the user")
+
+
+def command_status(root: Path, args: argparse.Namespace) -> None:
+    if args.run:
+        run = find_run(root, args.run)
+        if run.state["stage"] == "awaiting-approval":
+            run.show_verdict()
+        else:
+            say(json.dumps({key: value for key, value in run.state.items() if key != "instructions"}, indent=2))
+        return
+    rows = []
+    for path in sorted(worktrees_root(root).glob("*/.cc-runs/*/state.json")):
+        state = load_json(path)
+        rows.append(f"{state['id']}\t{state['feature']}/{state['repository']}\t{state['stage']}")
+    say("RUN\tFEATURE/REPO\tSTAGE\n" + "\n".join(rows) if rows else "no council runs")
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(prog="./cc council")
+    result.add_argument("root", type=Path)
+    subparsers = result.add_subparsers(dest="command", required=True)
+
+    run = subparsers.add_parser("run", help="start a council on a feature worktree")
+    run.add_argument("council", help="council id in catalog/councils, e.g. coding or testing")
+    run.add_argument("--feature", required=True)
+    run.add_argument("--repo", help="repository in the feature; required when it has several")
+    task = run.add_mutually_exclusive_group(required=True)
+    task.add_argument("--task")
+    task.add_argument("--task-file")
+    run.set_defaults(handler=command_run)
+
+    approve = subparsers.add_parser("approve", help="approve the verdict and let the writer implement it")
+    approve.add_argument("run")
+    approve.add_argument("--pick", help="use this proposal label instead of the judge's instructions")
+    approve.add_argument("--note", help="extra instruction for the writer")
+    approve.set_defaults(handler=command_approve)
+
+    reject = subparsers.add_parser("reject", help="close a run awaiting approval")
+    reject.add_argument("run")
+    reject.set_defaults(handler=command_reject)
+
+    status = subparsers.add_parser("status", help="list runs, or show one")
+    status.add_argument("run", nargs="?")
+    status.set_defaults(handler=command_status)
+    return result
+
+
+def main() -> int:
+    args = parser().parse_args()
+    try:
+        args.handler(args.root.resolve(), args)
+    except (OSError, ValueError, KeyError, json.JSONDecodeError, subprocess.CalledProcessError, providers.ProviderError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

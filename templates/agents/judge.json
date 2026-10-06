@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "judge",
+  "purpose": "Compares anonymous proposals and decides the approach",
+  "provider": "claude",
+  "model": "opus",
+  "access": "read-only",
+  "skills": [
+    "council-judge"
+  ]
+}

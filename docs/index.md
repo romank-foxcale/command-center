@@ -16,6 +16,7 @@ relations:
   - docs/rules/worktrees.md
   - docs/decisions/0005-multi-tool-agent-configs.md
   - docs/decisions/0006-target-platform-gates.md
+  - docs/decisions/0007-agent-councils.md
 ---
 
 # Knowledge map
@@ -41,6 +42,7 @@ relations:
 - [Plan lifecycle](decisions/0004-plan-lifecycle.md)
 - [One set of skills for every AI tool](decisions/0005-multi-tool-agent-configs.md)
 - [Every target platform has its own gate](decisions/0006-target-platform-gates.md)
+- [Agent roles and councils bound to models](decisions/0007-agent-councils.md)
 
 ## Current context
 

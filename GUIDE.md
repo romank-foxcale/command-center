@@ -4,9 +4,10 @@ A **Control Center (CC)** is a git repo that sits next to your project repos and
 
 - **how to build, test and run things**: as Nix code, which fails loudly when something drifts;
 - **why things are the way they are**: short, linked Markdown notes in `docs/`;
-- **how to plan work**: two built-in agent skills that interview you before anything gets changed.
+- **how to plan work**: two built-in agent skills that interview you before anything gets changed;
+- **how to code and test with several models**: councils in which Claude and GPT each propose, an anonymous judge decides, you approve, and a writer implements until `./cc verify` passes.
 
-Everyone creates **their own CC** and uses **their own AI tool and account**. The CC holds no credentials and never picks a model. You sign in to your tool as usual and choose any model your subscription includes.
+Everyone creates **their own CC** and uses **their own AI tool and account**. The CC holds no credentials. You sign in to your tool as usual and choose any model your subscription includes. Councils call the `claude` and `codex` CLIs with your own logins; which model each council role uses is set in `catalog/agents/*.json` (see [Councils](#councils)).
 
 | You use | Your subscription covers |
 |---|---|
@@ -142,7 +143,7 @@ The agent turns it into an agreed plan with work packages and checks, saved in `
 
 ```bash
 ./cc worktree create my-feature repo1 repo2   # task folders under ~/Projects/worktrees/my-feature/
-./cc feature my-feature check                 # build + test against your changed code
+./cc feature my-feature verify                # build + test your changed code on every target platform
 ./cc worktree status my-feature
 ./cc worktree remove my-feature               # refuses if anything is uncommitted or unpushed
 ```
@@ -151,13 +152,31 @@ Other commands, run from the CC folder:
 
 | Command | What it does |
 |---|---|
-| `./cc check` | Run every check: builds, tests, knowledge notes, skill sync |
+| `./cc verify` | Run every check plus each repo's target platform gates (e.g. the real Windows build) |
+| `./cc check` | Run every pure check: builds, tests, knowledge notes, skill sync |
+| `./cc doctor` | Check Nix, Docker and the `claude`/`codex` logins |
 | `./cc show` | List everything that can be built, checked or run |
 | `./cc build <name>` / `./cc run <name>` | Build or run one thing |
 | `./cc repo list` | Connected repos and their status |
 | `./cc plan list` | Plans in progress, archived, completed |
 | `./cc validate` | Check the `docs/` notes only (works without Nix) |
 | `./cc agents sync` | After editing a skill in `.agents/skills/`, copy it to `.claude/skills/` |
+
+### Councils
+
+A council makes Claude and GPT work on the same task. It needs both CLIs installed and logged in inside Ubuntu (`claude auth login`, `codex login`); `./cc doctor` shows their state.
+
+> Run a coding council on my-feature: <what you want>
+
+1. Both models study the worktree and propose an approach, without editing.
+2. A judge compares them as "Proposal A" and "Proposal B", without knowing who wrote which, and picks one or a hybrid.
+3. The run stops and shows you the verdict and who wrote what. Approve it, pick the other proposal, add a note, or reject it.
+4. The writer implements it in the worktree, reusing existing code first; `./cc feature my-feature verify` must pass, with up to 2 retries.
+5. A security reviewer reads the diff. You review `changes.diff` and commit it yourself.
+
+A testing council works the same way: both models write tests, the judge merges them, and a failing new test is reported as a suspected bug.
+
+Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "opus"` in `writer.json`); `catalog/councils/` sets the roles, the approval pause and the retry limit. Ask your agent to change them, or edit the JSON. Run files are kept in `~/Projects/worktrees/<feature>/.cc-runs/`.
 
 ---
 

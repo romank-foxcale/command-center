@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "proposer-claude",
+  "purpose": "Proposes an implementation approach without editing",
+  "provider": "claude",
+  "model": "opus",
+  "access": "read-only",
+  "skills": [
+    "council-propose"
+  ]
+}
