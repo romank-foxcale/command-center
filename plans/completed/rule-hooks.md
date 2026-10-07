@@ -1,6 +1,6 @@
 # rule-hooks: Claude Code hooks enforce the hard rules, and cc-learn turns solved problems into atomic notes
 
-Lifecycle: active
+Lifecycle: completed
 Planning status: accepted
 
 ## Outcome
@@ -103,4 +103,6 @@ WP1, WP3, WP4 and WP5 can run in parallel; WP2 needs only the fixed CLI interfac
 
 ## Lifecycle closure
 
-Not closed.
+- state: completed
+- date: 2026-10-07
+- evidence: PR romank-foxcale/command-center#17 merged as 9c60860; ./cc check and ./cc verify passed; hooks denied live probes on native Windows
