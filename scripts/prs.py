@@ -124,7 +124,7 @@ def checkout(root: Path, identifier: str, number: int) -> str:
     if subprocess.run(["git", "-C", str(base), "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"]).returncode:
         git(base, "branch", "--quiet", "--track", branch, tracking)
     cards = TRELLO_CARD.findall(pr.get("body") or "")
-    command = [sys.executable, str(Path(__file__).resolve().parent / "worktrees.py"), str(root), "create", feature, identifier, "--branch", branch]
+    command = [sys.executable, str(Path(__file__).resolve().parent / "worktrees.py"), str(root), "create", feature, identifier, "--branch", branch, "--review"]
     if cards:
         command += ["--card", cards[0].rstrip(".,;:!?")]
     created = subprocess.run(command, capture_output=True, text=True)
