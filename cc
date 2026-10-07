@@ -15,6 +15,7 @@ usage() {
     '  run <name>     Run .#<name>' \
     '  verify [repo...] [--quality]  Run every check plus each catalog target gate (and quality gates)' \
     '  council <run|approve|reject|status|models|set-role|set> ...  Multi-model councils and their settings' \
+    '  watch [run]    Follow a council or verify run live: steps, agent talk, stalls, result' \
     '  settings [show]  Settings panel: agents and models, councils, repos; show prints them as text' \
     '  validate       Validate the Markdown knowledge graph'     '  agents <sync|check>  Mirror .agents/skills into .claude/skills' \
     '  bootstrap install [target]  Materialize a new CC from this clone' \
@@ -139,6 +140,9 @@ case "$command_name" in
     ;;
   open)
     exec python3 "$cc_root/scripts/worktrees.py" "$cc_root" open "$@"
+    ;;
+  watch)
+    exec python3 "$cc_root/scripts/events.py" "$cc_root" "$@"
     ;;
   council)
     exec python3 "$cc_root/scripts/council/run.py" "$cc_root" "$@"

@@ -30,4 +30,5 @@ First read `../_shared/cc-cli.md` and follow it.
 - `run` executes apps, which may use the network or containers. Confirm before running an app that deploys, publishes or touches production; production actions need a dedicated adapter.
 - Never bypass Nix with `cmake`, `make`, `msbuild`, `dotnet`, `docker build`, `pytest` or similar to make something pass. A direct command is only for diagnosing a failure, and the fix goes into the Nix contract or the project.
 - Output is long; report the final REPO/TARGET/RESULT table and quote the first real failure.
+- Verify takes minutes. When it runs in the background, also run `./cc watch` as a streaming watcher (the Monitor tool where available) and relay each gate start, result and stall (`⚠`, a gate silent for 3 minutes) to the user as it happens; the user must never have to ask how it is going.
 - If the Nix part cannot run, run `./cc validate` and say explicitly that the Nix part was not verified.

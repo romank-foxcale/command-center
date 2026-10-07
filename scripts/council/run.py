@@ -20,6 +20,9 @@ from typing import Any
 import progress
 import providers
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import events  # noqa: E402
+
 
 TERMINAL = {"done", "rejected", "verify-failed", "blocked-security", "failed"}
 
@@ -66,13 +69,20 @@ class Ticker(threading.Thread):
                 print(f"... still {state.get('phase', state.get('stage'))}: {busy} ({waited})", flush=True)
 
     def __enter__(self) -> "Ticker":
+        self.watched.events.emit("start", f"{self.watched.state['council']} on {self.watched.state['feature']}/{self.watched.state['repository']}", pid=os.getpid())
+        self.watchdog = events.Watchdog(self.watched.events, self.watched.activity)
+        self.watchdog.start()
         self.start()
         return self
 
-    def __exit__(self, *_: object) -> None:
+    def __exit__(self, kind: type | None, error: BaseException | None, _: object) -> None:
         self.stopped.set()
+        self.watchdog.stopped.set()
         if sys.stderr.isatty():
             sys.stderr.write("\r\033[K")
+        # A crash must not leave the run looking alive: record it, then let main report the error.
+        if error is not None and self.watched.state.get("stage") not in TERMINAL:
+            self.watched.finish("failed", f"{kind.__name__}: {error}")
 
 
 def git(worktree: Path, *arguments: str) -> str:
@@ -140,6 +150,15 @@ class Run:
         self.state = load_json(self.state_path)
         # Proposers run in parallel threads and all record their calls in state.json.
         self.lock = threading.Lock()
+        self.events = events.Events(directory / "events.jsonl")
+
+    def activity(self) -> dict[str, tuple[float, str]]:
+        """Working agents and their last log activity, for the stall watchdog."""
+        return {
+            f"{call['role']} ({call['provider']} {call['model']})": events.file_activity(self.directory / "logs" / f"{call['step']}.log")
+            for call in self.state.get("calls", [])
+            if call.get("startedAt") and not call.get("finishedAt")
+        }
 
     @property
     def worktree(self) -> Path:
@@ -158,10 +177,17 @@ class Run:
         """Enter a step of the plan: ./cc council status and the ticker show it with its own timer."""
         say(f"-> {name}")
         self.save(phase=name, phaseStartedAt=now())
+        self.events.emit("step", f"{name}  {progress.bar(self.state)}")
+
+    def handoff(self, text: str) -> None:
+        """Record what one agent's output gives to the next: the conversation between agents."""
+        self.events.emit("handoff", text)
 
     def call(self, identifier: str, body: str, name: str) -> str:
         role = self.role(identifier)
         say(f"   {name}: {identifier} ({role['provider']} {role['model']}, {role['access']})")
+        self.events.emit("agent", f"{identifier} ({role['provider']} {role['model']}) started {name}", who=identifier)
+        started = datetime.datetime.now()
         call = {"step": name, "role": identifier, "provider": role["provider"], "model": role["model"], "startedAt": now()}
         with self.lock:
             calls = self.state.setdefault("calls", [])
@@ -170,12 +196,21 @@ class Run:
         self.save()
         try:
             reply = providers.run(
-                role, role_prompt(self.root, role, self.state, body), self.worktree, self.directory / "logs" / f"{name}.log"
+                role,
+                role_prompt(self.root, role, self.state, body),
+                self.worktree,
+                self.directory / "logs" / f"{name}.log",
+                on_say=lambda text: self.events.emit("say", f"{identifier}: {text}", who=identifier),
             )
+        except providers.ProviderError as error:
+            self.events.emit("error", str(error), who=identifier)
+            raise
         finally:
             with self.lock:
                 self.state["calls"][index]["finishedAt"] = now()
             self.save()
+        took = events.clock(int((datetime.datetime.now() - started).total_seconds()))
+        self.events.emit("agent", f"{identifier} finished {name} in {took}", who=identifier)
         (self.directory / f"{name}.md").write_text(reply + "\n", encoding="utf-8")
         return reply
 
@@ -186,6 +221,8 @@ class Run:
             cwd=self.root,
             capture_output=True,
             text=True,
+            # verify reports its gates and stalls into this run's stream.
+            env={**os.environ, "CC_EVENTS": str(self.events.path)},
         )
         output = result.stdout + result.stderr
         (self.directory / f"verify-{name}.log").write_text(output, encoding="utf-8")
@@ -224,6 +261,7 @@ class Run:
             f"# Proposal {label}\n\n{proposals[identifier]}" for label, identifier in labels.items()
         )
         self.step("judge")
+        self.handoff(f"{', '.join(proposals)} → {council['judge']}: proposals as anonymous {', '.join(labels)}")
         verdict = self.call(council["judge"], f"{task}\n\n{anonymous}", "verdict")
         decision = re.match(r"\s*DECISION:\s*([A-Z]+)", verdict)
         self.save(decision=decision.group(1) if decision else "UNPARSED")
@@ -235,6 +273,8 @@ class Run:
             return
         if council["approval"]:
             self.save(stage="awaiting-approval", phase="approval", phaseStartedAt=now())
+            # The process stops here, so the stream ends too; approve starts a new segment of it.
+            self.events.emit(events.END, f"verdict {self.state['decision']}, awaiting approval: ./cc council approve|reject {self.state['id']}", ok=True)
             self.show_verdict()
             return
         self.save(instructions=verdict)
@@ -244,6 +284,8 @@ class Run:
         self.save(stage="writing")
         brief = self.state.get("brief") or f"# Task\n\n{self.state['task']}"
         instructions = f"{brief}\n\n# Approved instructions\n\n{self.state['instructions']}"
+        source = f"proposal {self.state['pick'].upper()}" if self.state.get("pick") else f"{council['judge']} verdict"
+        self.handoff(f"{source}{' + user note' if '# User note' in self.state['instructions'] else ''} → {council['writer']}")
         phase = ""
         guarded: dict[str, bytes] = {}
         if self.state["kind"] == "debug":
@@ -300,10 +342,14 @@ class Run:
                 return
             attempt += 1
             failure = tail(output)
+            failed = ", ".join(f"{repo} {gate}" for repo, gate, result in rows if result.startswith("FAIL")) or "see log"
+            self.events.emit("warn", f"verify failed ({failed}); retry {attempt} of {council['maxRetries']}")
+            self.handoff(f"verify failure → {council['writer']} (retry {attempt})")
 
         if council.get("security"):
             diff = (self.directory / "changes.diff").read_text(encoding="utf-8")
             self.step("security")
+            self.handoff(f"changes.diff → {council['security']}")
             review = self.call(council["security"], f"# Diff\n\n```diff\n{diff}\n```", "security")
             severity = re.match(r"\s*SEVERITY:\s*(\w+)", review)
             self.save(security=severity.group(1).lower() if severity else "unparsed")
@@ -317,6 +363,7 @@ class Run:
 
     def finish(self, stage: str, summary: str) -> None:
         self.save(stage=stage, summary=summary, finishedAt=now())
+        self.events.emit(events.END, f"{stage}: {summary}", ok=stage == "done", stage=stage)
         say(f"\nrun {self.state['id']}: {stage} - {summary}")
         say(f"artifacts: {self.directory}")
 
