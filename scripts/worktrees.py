@@ -158,6 +158,16 @@ def add_repositories(context: Context, manifest: dict[str, Any], identifiers: li
 
 def session_context(context: Context, manifest: dict[str, Any]) -> str:
     """What a coding session on this feature must know; given to the tool by ./cc open."""
+    if manifest.get("review"):
+        lines = [
+            f"Feature '{context.feature}' of the Control Center {context.cc_name} ({context.root}) is a review "
+            "checkout of a pull request: read the code and run its gates only. Never edit, commit or push here; "
+            "review findings go to the chat, through the cc-review skill.",
+        ]
+        for identifier, entry in sorted(manifest.get("repositories", {}).items()):
+            lines.append(f"- {identifier}: {context.resolve_project_path(entry['worktree'])} (branch {entry['branch']})")
+        lines.append(f"Run its gates with `./cc feature {context.feature} verify` from {context.root}.")
+        return "\n".join(lines)
     lines = [
         f"This session works on feature '{context.feature}' of the Control Center {context.cc_name} "
         f"({context.root}); its AGENTS.md rules and skills apply.",
@@ -196,6 +206,8 @@ def command_create(root: Path, args: argparse.Namespace) -> None:
     for identifier in args.repositories:
         repository(root, identifier)  # refuse unknown and reference repos before anything is written
     manifest = context.new_manifest()
+    if args.review:
+        manifest["review"] = True  # a PR head to read and run gates on, never to change
     context.feature_root.mkdir(parents=True, exist_ok=True)
     if args.card:
         manifest["trelloCard"] = args.card  # on-demand updates: ./cc trello comment|move --feature
@@ -335,6 +347,7 @@ def parser() -> argparse.ArgumentParser:
     create.add_argument("repositories", nargs="*")
     create.add_argument("--branch")
     create.add_argument("--card", help="Trello card URL to link to the feature")
+    create.add_argument("--review", action="store_true", help="a pull request checkout to read and run gates on, never to change")
     create.set_defaults(handler=command_create)
 
     add = subparsers.add_parser("add")

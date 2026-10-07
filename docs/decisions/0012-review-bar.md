@@ -37,7 +37,7 @@ Asked to "review", agents read it as "find problems" and pad clean PRs with styl
 ## Consequences
 
 - A PR with no acceptance criteria can only be checked against its title and description; the review says so.
-- For repos with gates, `./cc prs checkout` puts the PR head into a feature worktree and `./cc feature pr-<repo>-<n> verify` turns `[BREAK]` into a failing gate rather than a judgement. The review branch tracks the fetched PR ref, so a re-run follows new pushes and cleanup does not see unpublished commits. For repos without gates, `[BREAK]` stays a judgement from the code.
+- For repos with gates, `./cc prs checkout` puts the PR head into a feature worktree and `./cc feature pr-<repo>-<n> verify` turns `[BREAK]` into a failing gate rather than a judgement. The review branch tracks the fetched PR ref, so a re-run follows new pushes and cleanup does not see unpublished commits. The feature is marked `review`, and its session guard says to read and run gates only, never edit, commit or push, so a CC may allow review checkouts of repos it otherwise keeps read-only. For repos without gates, `[BREAK]` stays a judgement from the code.
 
 ## Revisit when
 

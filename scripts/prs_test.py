@@ -137,6 +137,9 @@ def check_checkout(base: Path, root: Path, env: dict[str, str]) -> None:
     assert git(worktree, "log", "-1", "--format=%s") == "pr 4, first push", "the worktree is at the PR head"
     manifest = json.loads((base / "worktrees/pr-pv-backend-4/.cc-worktree.json").read_text())
     assert manifest["trelloCard"] == "https://trello.com/c/Cd1/7-health", "the PR's card is linked for cc-trello"
+    assert manifest["review"] is True, "a PR checkout is marked as a review checkout"
+    guard = (base / "worktrees/pr-pv-backend-4/CLAUDE.md").read_text()
+    assert "review checkout" in guard and "Never edit, commit or push" in guard, guard
 
     git(author, "commit", "-q", "--allow-empty", "-m", "pr 4, second push")
     git(author, "push", "-q", str(origin), "HEAD:refs/pull/4/head")
