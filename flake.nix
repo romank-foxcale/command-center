@@ -71,6 +71,16 @@
                 ${pkgs.python3}/bin/python ${self}/scripts/events_test.py
                 touch "$out"
               '';
+              repositories = pkgs.runCommand "control-center-repositories" { nativeBuildInputs = [ pkgs.git ]; } ''
+                export HOME=$TMPDIR
+                ${pkgs.python3}/bin/python ${self}/scripts/repositories_test.py
+                touch "$out"
+              '';
+              prs = pkgs.runCommand "control-center-prs" { nativeBuildInputs = [ pkgs.git ]; } ''
+                export HOME=$TMPDIR
+                ${pkgs.python3}/bin/python ${self}/scripts/prs_test.py
+                touch "$out"
+              '';
               settings-smoke = pkgs.runCommand "control-center-settings-smoke" { } ''
                 export HOME=$TMPDIR
                 ${uiPython}/bin/python ${self}/scripts/settings/smoke.py

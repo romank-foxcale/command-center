@@ -88,6 +88,11 @@ def feature_manifest(root: Path, feature: str) -> Path:
 
 
 def linked_card(root: Path, args: argparse.Namespace) -> str:
+    if getattr(args, "card", None):
+        match = CARD_URL.match(args.card)
+        if not match:
+            raise TrelloError("give the card's URL, like https://trello.com/c/AbCd1234/...")
+        return match.group(1)
     if args.plan:
         match = PLAN_FIELD.search(plan_file(root, args.plan).read_text(encoding="utf-8"))
         url = match.group(1) if match else ""
@@ -168,9 +173,17 @@ def command_connect(root: Path, args: argparse.Namespace) -> None:
 
 
 def command_show(root: Path, args: argparse.Namespace) -> None:
-    card = call("GET", f"/cards/{linked_card(root, args)}", fields="name,shortUrl,idList")
+    identifier = linked_card(root, args)
+    card = call("GET", f"/cards/{identifier}", fields="name,desc,shortUrl,idList")
     listing = call("GET", f"/lists/{card['idList']}", fields="name")
     print(f"{card['name']}\n  list: {listing['name']}\n  {card['shortUrl']}")
+    # The description and checklists usually hold the scope and acceptance criteria a review checks against.
+    if card.get("desc", "").strip():
+        print(f"\ndescription:\n{card['desc'].strip()}")
+    for checklist in call("GET", f"/cards/{identifier}/checklists", fields="name") or []:
+        print(f"\nchecklist: {checklist.get('name', '')}")
+        for item in checklist.get("checkItems", []):
+            print(f"  [{'x' if item.get('state') == 'complete' else ' '}] {item.get('name', '')}")
 
 
 def command_comment(root: Path, args: argparse.Namespace) -> None:
@@ -214,16 +227,18 @@ def parser() -> argparse.ArgumentParser:
     connect.add_argument("--completed-list", default="Done")
     connect.set_defaults(handler=command_connect)
 
-    def target(command: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    def target(command: argparse.ArgumentParser, card: bool = False) -> argparse.ArgumentParser:
         group = command.add_mutually_exclusive_group(required=True)
         group.add_argument("--plan")
         group.add_argument("--feature")
+        if card:
+            group.add_argument("--card", help="a card URL, e.g. one linked from a pull request")
         return command
 
     link = target(sub.add_parser("link", help="link a plan or feature to a card"))
     link.add_argument("card", help="card URL")
     link.set_defaults(handler=command_link)
-    target(sub.add_parser("show", help="the linked card")).set_defaults(handler=command_show)
+    target(sub.add_parser("show", help="the linked card, its description and checklists"), card=True).set_defaults(handler=command_show)
     comment = target(sub.add_parser("comment", help="comment on the linked card (preview unless --yes)"))
     comment.add_argument("--text")
     comment.add_argument("--file")

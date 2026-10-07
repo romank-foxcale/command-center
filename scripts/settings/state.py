@@ -55,6 +55,11 @@ class Snapshot:
     trello: dict[str, str] = field(default_factory=dict)
 
     @property
+    def projects(self) -> list[dict[str, Any]]:
+        """Repos that are built and verified; reference repos are read-only guidance."""
+        return [repo for repo in self.repos if repo["kind"] == "project"]
+
+    @property
     def waiting(self) -> list[dict[str, Any]]:
         return [run for run in self.runs if run["status"] == "awaiting-approval"]
 
@@ -124,6 +129,9 @@ def snapshot(root: Path) -> Snapshot:
         result.repos.append(
             {
                 "id": path.stem,
+                "kind": repo.get("kind", "project"),
+                "branch": repo.get("defaultBranch", "?"),
+                "remote": repo.get("remote", "?"),
                 "status": repo.get("status", "?"),
                 "targets": ",".join(repo.get("targets") or []) or "?",
                 "stack": ",".join(repo.get("stack") or []) or "?",

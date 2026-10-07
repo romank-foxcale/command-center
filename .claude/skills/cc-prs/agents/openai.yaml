@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC PRs"
+  short_description: "List this CC's open PRs and pick one to review"
+  default_prompt: "Use $cc-prs to list the open pull requests of this Control Center's repos."
+policy:
+  allow_implicit_invocation: true

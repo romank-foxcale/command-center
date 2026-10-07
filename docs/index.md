@@ -20,6 +20,8 @@ relations:
   - docs/decisions/0008-quality-gates.md
   - docs/decisions/0009-trello-on-demand.md
   - docs/decisions/0010-live-run-events.md
+  - docs/decisions/0011-catalog-is-the-repo-scope.md
+  - docs/decisions/0012-review-bar.md
   - docs/rules/quality-gates.md
 ---
 
@@ -51,6 +53,8 @@ relations:
 - [Language-specific quality gates behind language-neutral skills](decisions/0008-quality-gates.md)
 - [Trello cards are updated on demand](decisions/0009-trello-on-demand.md)
 - [Long runs report progress as a live event stream](decisions/0010-live-run-events.md)
+- [The catalog is the CC's repo scope](decisions/0011-catalog-is-the-repo-scope.md)
+- [Reviews report only BREAK, SCOPE and KNOWLEDGE findings](decisions/0012-review-bar.md)
 
 ## Current context
 

@@ -13,6 +13,7 @@ from typing import Any
 ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 CC_STATUSES = {"discovery", "adapting", "ready"}
 REPOSITORY_STATUSES = {"discovered", "adapted", "verified", "blocked"}
+REPOSITORY_KINDS = {"project", "reference"}
 TARGETS = {"windows", "linux", "macos"}
 # Must match scripts/council/providers.py.
 PROVIDERS = {"claude", "codex"}
@@ -119,6 +120,14 @@ def validate_repository(
     checkout = data.get("checkout")
     if not isinstance(checkout, str) or checkout != identifier:
         errors.append(f"{relative}: checkout must equal id to preserve worktree naming")
+    kind = data.get("kind", "project")
+    if kind not in REPOSITORY_KINDS:
+        errors.append(f"{relative}: unsupported kind '{kind}'; use project or reference")
+    if kind == "reference":
+        # Read-only guidance: never built, verified or committed to, so it needs no adapter, targets or stack.
+        for field in placeholder_paths(data):
+            errors.append(f"{relative}: unresolved placeholder at {field}")
+        return identifier
     if data.get("status") in {"adapted", "verified"}:
         adapter = data.get("adapter")
         if isinstance(adapter, str) and not (root / adapter).is_file():
@@ -327,7 +336,7 @@ def validate(root: Path, adapter_targets: dict[str, Any] | None = None) -> list[
             errors.append("control-center.json: ready CC must contain at least one repository")
         for path in repositories:
             data = load_json(path, errors)
-            if data and data.get("status") != "verified":
+            if data and data.get("kind", "project") == "project" and data.get("status") != "verified":
                 errors.append(f"{path.relative_to(root)}: ready CC requires status 'verified'")
     return errors
 

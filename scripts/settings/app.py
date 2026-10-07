@@ -193,6 +193,8 @@ class Settings(App):
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh"),
         Binding("e", "edit", "Edit selected"),
+        Binding("a", "add", "Add repo"),
+        Binding("d", "remove", "Remove repo"),
         Binding("left", "tab(-1)", "Prev tab", priority=True),
         Binding("right", "tab(1)", "Next tab", priority=True),
     ]
@@ -212,7 +214,7 @@ class Settings(App):
             for tab, columns in (
                 ("Agents", ("role", "provider", "model", "access")),
                 ("Councils", ("council", "kind", "proposers", "judge", "writer", "approval", "retries")),
-                ("Repos", ("repo", "status", "targets", "stack", "role")),
+                ("Repos", ("repo", "kind", "main branch", "status", "targets", "stack", "remote")),
                 ("Trello", ("setting", "value")),
             ):
                 with TabPane(tab, id=tab.lower()):
@@ -249,7 +251,7 @@ class Settings(App):
         face = mood(state)
         options = LINES[face]
         text = options[self.line % len(options)].format(
-            verified=sum(repo["status"] == "verified" for repo in state.repos),
+            verified=sum(repo["status"] == "verified" for repo in state.projects),
             active=len(state.active_runs),
             waiting=len(state.waiting),
             problem=(state.problems or ["?"])[0],
@@ -257,12 +259,12 @@ class Settings(App):
         self.query_one("#mascot", Static).update(mascot(face))
         active_plans = [plan for plan in state.plans if plan["lifecycle"] == "active"]
         tools = "  ".join(f"{tool} {'✓' if ok else '✗'}" for tool, ok in state.tools.items())
-        verified = sum(repo["status"] == "verified" for repo in state.repos)
+        verified = sum(repo["status"] == "verified" for repo in state.projects)
         spinner = f"{SPINNER[int(time.time()) % len(SPINNER)]} " if state.active_runs else ""
         summary = (
             f"[b]{escape(state.name)}[/b] · {escape(state.status)}        {tools}\n"
             f"{len(active_plans)} plan(s) active · {spinner}{len(state.active_runs)} run(s) working · "
-            f"[b]{len(state.waiting)} waiting for you[/b] · {verified}/{len(state.repos)} repos verified\n\n"
+            f"[b]{len(state.waiting)} waiting for you[/b] · {verified}/{len(state.projects)} repos verified\n\n"
             f"[i]\"{escape(text)}\"[/i]"
         )
         if state.problems:
@@ -274,7 +276,7 @@ class Settings(App):
             "councils",
             [(c["id"], c["kind"], c["proposers"], c["judge"], c["writer"], "on" if c["approval"] else "off", str(c["maxRetries"])) for c in state.councils],
         )
-        self.fill("repos", [(r["id"], self.paint(r["status"]), r["targets"], r["stack"], r["role"]) for r in state.repos])
+        self.fill("repos", [(r["id"], r["kind"], r["branch"], self.paint(r["status"]), r["targets"], r["stack"], r["remote"]) for r in state.repos])
         self.fill("trello", list(state.trello.items()))
 
     @staticmethod
@@ -310,6 +312,88 @@ class Settings(App):
         output = (result.stdout + result.stderr).strip() or "done"
         self.notify(output[-400:], severity="information" if result.returncode == 0 else "error", timeout=8)
         self.action_refresh()
+
+    def cc_later(self, *arguments: str) -> None:
+        """./cc in a worker thread, for commands that ask a remote (git ls-remote) and may take a moment."""
+        self.notify("asking the remote...", timeout=2)
+        self.run_worker(lambda: self._cc_thread(arguments), thread=True)
+
+    def _cc_thread(self, arguments: tuple[str, ...]) -> None:
+        result = subprocess.run([str(self.root / "cc"), *arguments], cwd=self.root, capture_output=True, text=True)
+        output = (result.stdout + result.stderr).strip() or "done"
+        self.call_from_thread(self.notify, output[-400:], severity="information" if result.returncode == 0 else "error", timeout=8)
+        self.call_from_thread(self.action_refresh)
+
+    # Repos: paste a link to add, pick what to change, confirm to remove ---------------
+
+    def on_repos_tab(self) -> bool:
+        if self.query_one("#tabs", TabbedContent).active == "repos":
+            return True
+        self.notify("switch to the Repos tab to add or remove repos", severity="warning")
+        return False
+
+    def action_add(self) -> None:
+        if not self.on_repos_tab():
+            return
+
+        def details(answer: list[str] | None) -> None:
+            if not answer or not answer[0]:
+                return
+            url, branch = answer
+            extra = ("--branch", branch) if branch else ()
+
+            def kind_chosen(kind: str | None) -> None:
+                if kind == "reference":
+                    self.cc_later("repo", "add", url, "--kind", "reference", *extra)
+                elif kind == "project":
+                    self.push_screen(Ask("Project repo: target platforms and stack (comma-separated)",
+                        [("windows, linux, macos", ""), ("languages, e.g. java, typescript", "")]),
+                        lambda more: more and self.cc_later("repo", "add", url, *extra,
+                            "--targets", *more[0].replace(",", " ").split(), "--stack", *more[1].replace(",", " ").split()))
+
+            self.push_screen(ChoicePicker("What is this repo?", [
+                ("project", "project · we build, verify and change it"),
+                ("reference", "reference · read-only guidance (PoC, demo), never committed to"),
+            ]), kind_chosen)
+
+        self.push_screen(Ask("Add a repo: paste its link; leave the branch empty to read it from the remote",
+            [("https://github.com/org/repo", ""), ("main branch (empty = detect)", "")]), details)
+
+    def action_remove(self) -> None:
+        if not self.on_repos_tab():
+            return
+        item = self.selected("repos")
+        if item:
+            self.push_screen(Ask(f"Remove {item} from this CC's catalog? Its clone in ../repos is kept.", []),
+                lambda answer: answer is not None and self.cc("repo", "remove", item))
+
+    def edit_repo(self, item: str) -> None:
+        repo = next(repo for repo in self.state.repos if repo["id"] == item)
+
+        def chosen(setting: str | None) -> None:
+            if setting == "branch":
+                self.push_screen(Ask(f"{item}: main branch new feature worktrees start from", [("branch", repo["branch"])]),
+                    lambda answer: answer and answer[0] != repo["branch"] and self.cc_later("repo", "set-branch", item, answer[0]))
+            elif setting == "remote":
+                self.push_screen(Ask(f"{item}: Git URL", [("https://github.com/org/repo", repo["remote"])]),
+                    lambda answer: answer and answer[0] != repo["remote"] and self.cc("repo", "set-remote", item, answer[0]))
+            elif setting == "targets":
+                self.push_screen(Ask(f"{item}: target platforms (comma-separated)", [("windows, linux, macos", repo["targets"])]),
+                    lambda answer: answer and self.cc("repo", "set-targets", item, *answer[0].replace(",", " ").split()))
+            elif setting == "stack":
+                self.push_screen(Ask(f"{item}: languages (comma-separated)", [("languages", repo["stack"])]),
+                    lambda answer: answer and self.cc("repo", "set-stack", item, *answer[0].replace(",", " ").split()))
+            elif setting == "kind":
+                self.push_screen(ChoicePicker(f"{item} is a", [("project", "project"), ("reference", "reference (read-only)")]),
+                    lambda kind: kind and kind != repo["kind"] and self.cc("repo", "set-kind", item, kind))
+
+        self.push_screen(ChoicePicker(f"Change {item}", [
+            ("branch", f"main branch · {repo['branch']}"),
+            ("remote", f"link · {repo['remote']}"),
+            ("targets", f"target platforms · {repo['targets']}"),
+            ("stack", f"stack · {repo['stack']}"),
+            ("kind", f"kind · {repo['kind']}"),
+        ]), chosen)
 
     def pick_model(self, role: str, current: tuple[str, str]) -> None:
         """Runs in a worker thread: listing Codex models takes a moment."""
@@ -376,16 +460,7 @@ class Settings(App):
             self.notify("loading your Trello boards...", timeout=2)
             self.run_worker(self.connect_trello, thread=True)
         elif tab == "repos":
-            repo = next(repo for repo in self.state.repos if repo["id"] == item)
-            def apply(answer: list[str] | None) -> None:
-                if not answer:
-                    return
-                if answer[0] != repo["targets"]:
-                    self.cc("repo", "set-targets", item, *answer[0].replace(",", " ").split())
-                if answer[1] != repo["stack"]:
-                    self.cc("repo", "set-stack", item, *answer[1].replace(",", " ").split())
-            self.push_screen(Ask(f"Repo {item}: target platforms and stack (comma-separated)",
-                [("windows, linux, macos", repo["targets"]), ("languages", repo["stack"])]), apply)
+            self.edit_repo(item)
         else:
             self.notify("nothing to edit here", severity="warning")
 
@@ -394,11 +469,11 @@ def show(state: Snapshot) -> str:
     """The settings as text, for sessions (the cc-settings skill) and terminals without the panel."""
     tools = "  ".join(f"{tool} {'ok' if ok else 'MISSING'}" for tool, ok in state.tools.items())
     active_plans = sum(plan["lifecycle"] == "active" for plan in state.plans)
-    verified = sum(repo["status"] == "verified" for repo in state.repos)
+    verified = sum(repo["status"] == "verified" for repo in state.projects)
     lines = [
         f"{state.name} · {state.status} · {tools}",
         f"{active_plans} plan(s) active · {len(state.active_runs)} run(s) working · {len(state.waiting)} waiting for you · "
-        f"{verified}/{len(state.repos)} repos verified",
+        f"{verified}/{len(state.projects)} repos verified",
         "",
         "AGENTS (role · provider · model · access)",
         *(f"  {r['id']:<22} {r['provider']:<7} {r['model']:<26} {r['access']}" for r in state.roles),
@@ -410,8 +485,9 @@ def show(state: Snapshot) -> str:
         "TRELLO",
         *(f"  {name:<15} {value}" for name, value in state.trello.items()),
         "",
-        "REPOS (repo · status · targets · stack)",
-        *(f"  {r['id']:<14} {r['status']:<11} {r['targets']:<15} {r['stack']}" for r in state.repos),
+        "REPOS (repo · kind · main branch · status · targets · stack · remote)",
+        *(f"  {r['id']:<20} {r['kind']:<9} {r['branch']:<10} {r['status']:<11} {r['targets']:<15} {r['stack']:<12} {r['remote']}"
+          for r in state.repos),
     ]
     return "\n".join(lines)
 

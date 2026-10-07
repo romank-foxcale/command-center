@@ -162,12 +162,13 @@ Other commands, run from the CC folder:
 | `./cc verify` | Run every check plus each repo's target platform gates (e.g. the real Windows build) |
 | `./cc verify --quality` | Also run each repo's mutation gate: do the tests catch injected bugs? Warns for repos without one |
 | `./cc check` | Run every pure check: builds, tests, knowledge notes, skill sync |
-| `./cc settings` | Settings panel: agents and their models, councils, repos, with a status line (logins, plans, runs). ←/→ switch tabs, ↑/↓ pick a row, `e` edits it (a role gets a model list of your logged-in subscriptions). `./cc settings show` prints the same as text; in a Claude Code or Codex session, `/cc-settings` does it with pick lists |
+| `./cc settings` | Settings panel: agents and their models, councils, repos, with a status line (logins, plans, runs). ←/→ switch tabs, ↑/↓ pick a row, `e` edits it (a role gets a model list of your logged-in subscriptions; a repo its main branch, link, kind, platforms, stack), `a` adds a repo by pasting its link, `d` removes one. `/cc-settings` opens this panel in the desktop app's Terminal panel; `./cc settings show` prints the same as text |
 | `./cc council status [run]` | Progress of council runs; for one run also what each working agent is doing right now |
 | `./cc doctor` | Check Nix, Docker and the `claude`/`codex` logins |
 | `./cc show` | List everything that can be built, checked or run |
 | `./cc build <name>` / `./cc run <name>` | Build or run one thing |
-| `./cc repo list` | Connected repos and their status |
+| `./cc repo list` | Connected repos: kind, main branch, status |
+| `./cc prs` | Open PRs of the connected repos, new ones marked (or ask "any new PRs?") |
 | `./cc plan list` | Plans in progress, archived, completed |
 | `./cc validate` | Check the `docs/` notes only (works without Nix) |
 | `./cc agents sync` | After editing a skill in `.agents/skills/`, copy it to `.claude/skills/` |
