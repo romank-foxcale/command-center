@@ -3,7 +3,7 @@ id: decision.0005-multi-tool-agent-configs
 title: One set of skills for every AI tool
 status: accepted
 summary: Skills live in .agents/skills, Claude Code gets a checked copy in .claude/skills, and instructions stay in AGENTS.md.
-verified_at: 2026-09-28
+verified_at: 2026-10-07
 evidence:
   - scripts/agent-configs.py
   - CLAUDE.md
@@ -14,6 +14,7 @@ relations:
   - docs/index.md
   - docs/decisions/0003-template-as-seed.md
   - docs/rules/bootstrap.md
+  - docs/decisions/0013-rule-hooks.md
 ---
 
 # One set of skills for every AI tool
@@ -34,3 +35,4 @@ People open the CC in Claude Code, Cursor, Codex and OpenCode. Codex reads proje
 - Cursor and OpenCode see the same skills twice; the contents are identical.
 - Editing the copy in `.claude/skills/` without editing the source breaks the check.
 - `.opencode/skills` is not used: OpenCode reads `.agents/skills`.
+- `./cc agents sync` also writes the `hooks` key of `.claude/settings.json`; hooks are Claude Code only ([0013](0013-rule-hooks.md)).

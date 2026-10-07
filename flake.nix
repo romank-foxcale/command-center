@@ -61,6 +61,12 @@
               '';
               agent-configs = pkgs.runCommand "control-center-agent-configs" { } ''
                 ${pkgs.python3}/bin/python ${self}/scripts/agent-configs.py ${self} check
+                ${pkgs.python3}/bin/python ${self}/scripts/agent_configs_test.py
+                touch "$out"
+              '';
+              rule-hooks = pkgs.runCommand "control-center-rule-hooks" { nativeBuildInputs = [ pkgs.git ]; } ''
+                export HOME=$TMPDIR
+                ${pkgs.python3}/bin/python ${self}/scripts/rule_hooks_test.py
                 touch "$out"
               '';
               trello = pkgs.runCommand "control-center-trello" { } ''

@@ -37,7 +37,8 @@ Work through the four phases in order. A later phase never starts before the ear
 2. **One fix, at the root cause.** No "while I'm here" changes, no bundled refactoring. When the root cause sits in a shared function, fix it there once for every caller (`lean-code`).
 3. **Guard where it pays.** When bad data caused the bug, add validation where it enters the system and a guard at the dangerous operation it reached; see `defense-in-depth.md`.
 4. **Verify.** The new test passes, the whole suite passes, and `./cc feature <feature> verify` passes on every target platform. Report any failure you saw, including ones you did not cause.
-5. **Fix did not work: stop.** Fewer than three attempts: return to phase 1 with the new evidence. **Three failed fixes: stop fixing.** When every fix exposes a new problem somewhere else, the design is wrong, not the hypothesis. Report what you learned and discuss the architecture with the user before attempting a fourth fix.
+5. **Offer to record it.** When the fix is verified and the root cause took real investigation or needed a workaround, offer `cc-learn` in one line. Do not record anything without the user's yes.
+6. **Fix did not work: stop.** Fewer than three attempts: return to phase 1 with the new evidence. **Three failed fixes: stop fixing.** When every fix exposes a new problem somewhere else, the design is wrong, not the hypothesis. Report what you learned and discuss the architecture with the user before attempting a fourth fix.
 
 ## Stop signals
 

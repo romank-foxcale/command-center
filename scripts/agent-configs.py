@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import filecmp
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -16,6 +17,23 @@ SOURCE = Path(".agents/skills")
 TARGETS = (Path(".claude/skills"),)
 INSTRUCTION_STUBS = {
     Path("CLAUDE.md"): "@AGENTS.md",
+}
+# Claude Code hooks that enforce the hard rules (docs/decisions/0013-rule-hooks.md). This script owns
+# the "hooks" key of the shared settings; every other key, such as permissions, is left alone.
+SETTINGS = Path(".claude/settings.json")
+
+
+def hook(event: str) -> list[dict[str, object]]:
+    return [{"type": "command", "command": f'"$CLAUDE_PROJECT_DIR"/scripts/hook {event}', "timeout": 15}]
+
+
+HOOKS = {
+    "PreToolUse": [
+        {"matcher": "Bash|PowerShell", "hooks": hook("pre-bash")},
+        {"matcher": "Edit|MultiEdit|Write", "hooks": hook("pre-edit")},
+    ],
+    "PostToolUse": [{"matcher": "Edit|MultiEdit|Write", "hooks": hook("post-edit")}],
+    "Stop": [{"hooks": hook("stop")}],
 }
 
 
@@ -44,6 +62,11 @@ def drift(root: Path) -> list[str]:
         path = root / stub
         if not path.is_file() or marker not in path.read_text(encoding="utf-8"):
             problems.append(f"{stub}: must exist and contain '{marker}'")
+    try:
+        if json.loads((root / SETTINGS).read_text(encoding="utf-8")).get("hooks") != HOOKS:
+            problems.append(f"{SETTINGS}: hooks differ from scripts/agent-configs.py")
+    except (OSError, ValueError) as error:
+        problems.append(f"{SETTINGS}: {error}")
     return problems
 
 
@@ -57,6 +80,12 @@ def sync(root: Path) -> None:
             shutil.rmtree(destination)
         shutil.copytree(source, destination)
         print(f"synced {SOURCE} -> {target}")
+    path = root / SETTINGS
+    settings = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    settings["hooks"] = HOOKS
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8", newline="\n")
+    print(f"synced rule hooks -> {SETTINGS}")
 
 
 def main() -> int:

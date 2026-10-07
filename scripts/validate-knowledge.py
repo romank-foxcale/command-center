@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
+
+from rule_hooks import markdown_allowed
 
 
 REQUIRED_FILES = ("README.md", "AGENTS.md", "flake.nix", "docs/index.md")
@@ -49,6 +52,27 @@ def local_target(root: Path, note: Path, raw: str, from_root: bool) -> Path | No
         return None
     base = root if from_root else note.parent
     return (base / target).resolve()
+
+
+def repository_files(root: Path) -> list[str]:
+    """Files Git would commit: tracked and untracked, never ignored. A Nix source copy has no .git
+    and holds only tracked files, so a plain walk is exact there."""
+    if (root / ".git").exists():
+        listed = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard"],
+            capture_output=True, text=True,
+        )
+        if listed.returncode == 0:
+            return listed.stdout.splitlines()
+    return [path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()]
+
+
+def stray_markdown(root: Path) -> list[str]:
+    return [
+        f"{name}: Markdown outside docs/, plans/ and the skills; store it as a note under docs/"
+        for name in repository_files(root)
+        if name.lower().endswith(".md") and not markdown_allowed(name)
+    ]
 
 
 def validate(root: Path) -> list[str]:
@@ -110,6 +134,7 @@ def validate(root: Path) -> list[str]:
 
     if not notes:
         errors.append("docs/: no Markdown notes found")
+    errors.extend(stray_markdown(root))
     return errors
 
 

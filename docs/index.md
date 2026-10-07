@@ -3,7 +3,7 @@ id: index
 title: Control Center knowledge map
 status: active
 summary: Minimal entry point into the rules, architecture and decision history.
-verified_at: 2026-07-21
+verified_at: 2026-10-07
 evidence:
   - AGENTS.md
 relations:
@@ -22,6 +22,7 @@ relations:
   - docs/decisions/0010-live-run-events.md
   - docs/decisions/0011-catalog-is-the-repo-scope.md
   - docs/decisions/0012-review-bar.md
+  - docs/decisions/0013-rule-hooks.md
   - docs/rules/quality-gates.md
 ---
 
@@ -55,6 +56,7 @@ relations:
 - [Long runs report progress as a live event stream](decisions/0010-live-run-events.md)
 - [The catalog is the CC's repo scope](decisions/0011-catalog-is-the-repo-scope.md)
 - [Reviews report only BREAK, SCOPE and KNOWLEDGE findings](decisions/0012-review-bar.md)
+- [Claude Code hooks enforce the hard rules early; the gates still decide](decisions/0013-rule-hooks.md)
 
 ## Current context
 
