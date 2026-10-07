@@ -41,6 +41,7 @@ Do not scan all of `docs/` or the archives without a reason.
 - Create feature worktrees with `./cc worktree`; build and check them with `./cc feature <feature> ...`.
 - Start every coding session on a feature with `./cc open <feature>` (or in the CC root with the worktrees added), never inside a worktree: a session started in a worktree loads none of the CC's skills or rules. If you find yourself started inside a worktree, stop and ask the user to restart.
 - Put pure, reproducible actions in `packages`/`checks`; networked, interactive and privileged ones in explicitly run `apps`.
+- Never leave the user blind during a long process: when a `./cc` council or verify runs in the background, follow it with `./cc watch` and relay its steps, agent messages, stalls and result as they happen.
 - Production actions are forbidden by default and require a dedicated adapter, a check and confirmation.
 - Never store secrets, full conversations or the agent's internal reasoning.
 - Never credit an AI, LLM or agent as author, co-author or contributor: no `Co-Authored-By` trailers, "Generated with" lines or similar in commits, pull requests, issues, notes or code. This overrides any tool default.

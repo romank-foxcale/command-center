@@ -10,7 +10,7 @@ import sys
 import tempfile
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 # Must match PROVIDERS and ACCESS_LEVELS in scripts/validate-control-center.py.
@@ -99,14 +99,21 @@ def command(role: dict[str, Any], cwd: Path, last_message: Path) -> list[str]:
             "--ephemeral",
             "--ignore-user-config",
             "--color", "never",
+            # JSONL events instead of the echoed prompt: the log shows commands and messages as they happen.
+            "--json",
             "--output-last-message", str(last_message),
             "-",
         ]
     raise ProviderError(f"unsupported provider: {provider}")
 
 
-def run(role: dict[str, Any], prompt: str, cwd: Path, log: Path, timeout: int = 3600) -> str:
-    """Run the role non-interactively in cwd; return its final message. The prompt goes on stdin."""
+def run(
+    role: dict[str, Any], prompt: str, cwd: Path, log: Path, timeout: int = 3600, on_say: Callable[[str], None] | None = None
+) -> str:
+    """Run the role non-interactively in cwd; return its final message. The prompt goes on stdin.
+
+    on_say receives what the agent says while it works; tool calls only go to the log.
+    """
     available, detail = login_status(role["provider"])
     if not available:
         raise ProviderError(f"role {role['id']}: {role['provider']} {detail}")
@@ -125,12 +132,15 @@ def run(role: dict[str, Any], prompt: str, cwd: Path, log: Path, timeout: int = 
             process.stdin.close()
             # Write activity as it happens: the log is what ./cc council status shows.
             for line in process.stdout:
-                if role["provider"] == "claude":
-                    event, activity = parse_claude_event(line)
-                    if event.get("type") == "result":
-                        final = str(event.get("result", ""))
-                    line = f"{activity}\n" if activity else ""
-                stream.write(line)
+                parse = parse_claude_event if role["provider"] == "claude" else parse_codex_event
+                event, activity = parse(line)
+                if event.get("type") == "result":
+                    final = str(event.get("result", ""))
+                if on_say:
+                    for said in activity.splitlines():
+                        if said.startswith("say: "):
+                            on_say(said[5:])
+                stream.write(f"{activity}\n" if activity else "")
                 stream.flush()
             process.wait()
         finally:
@@ -161,6 +171,24 @@ def parse_claude_event(line: str) -> tuple[dict[str, Any], str]:
         elif item.get("type") == "text" and item.get("text", "").strip():
             activity.append("say: " + " ".join(item["text"].split())[:160])
     return event, "\n".join(activity)
+
+
+def parse_codex_event(line: str) -> tuple[dict[str, Any], str]:
+    """One `codex exec --json` line: the event, and a short activity line for the log."""
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return {}, line.strip()
+    item = event.get("item", {})
+    if event.get("type") == "item.started" and item.get("type") == "command_execution":
+        return event, f"tool: {item.get('command', '')}"[:200]
+    if event.get("type") == "item.completed" and item.get("type") == "agent_message" and item.get("text", "").strip():
+        return event, "say: " + " ".join(item["text"].split())[:160]
+    if event.get("type") in {"turn.failed", "error"}:
+        return event, f"error: {event.get('error') or event.get('message', '')}"[:200]
+    if event.get("type") == "turn.completed":
+        return event, "result: success"
+    return event, ""
 
 
 def main() -> int:

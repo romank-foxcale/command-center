@@ -67,6 +67,10 @@
                 ${pkgs.python3}/bin/python ${self}/scripts/trello_test.py
                 touch "$out"
               '';
+              events = pkgs.runCommand "control-center-events" { } ''
+                ${pkgs.python3}/bin/python ${self}/scripts/events_test.py
+                touch "$out"
+              '';
               settings-smoke = pkgs.runCommand "control-center-settings-smoke" { } ''
                 export HOME=$TMPDIR
                 ${uiPython}/bin/python ${self}/scripts/settings/smoke.py

@@ -8,8 +8,11 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
+
+import events
 
 
 # Must match supportedQualityGates in nix/lib/default.nix.
@@ -57,6 +60,32 @@ def nix(*arguments: str, capture: bool = False) -> subprocess.CompletedProcess[s
     return subprocess.run(["nix", *arguments], capture_output=capture, text=True)
 
 
+class Gates:
+    """Run gates with their output streamed through, reporting each gate and any silence to the event stream."""
+
+    def __init__(self, root: Path):
+        self.events, self.owned = events.own_stream(root, "verify")
+        self.current: dict[str, tuple[float, str]] = {}
+        self.watchdog = events.Watchdog(self.events, lambda: dict(self.current))
+
+    def run(self, label: str, argv: list[str], env: dict[str, str] | None = None) -> int:
+        self.events.emit("step", f"verify: {label}")
+        started = time.time()
+        self.current = {f"verify {label}": (started, "")}
+        process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+        for line in process.stdout:
+            sys.stdout.write(line)
+            self.current = {f"verify {label}": (time.time(), line.strip()[:120])}
+        process.wait()
+        self.current = {}
+        took = events.clock(int(time.time() - started))
+        if process.returncode:
+            self.events.emit("error", f"verify: {label} FAIL after {took}")
+        else:
+            self.events.emit("gate", f"verify: {label} pass in {took}")
+        return process.returncode
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("root", type=Path)
@@ -66,6 +95,18 @@ def main() -> int:
     root = args.root.resolve()
     # Keep section headers in order with the output of the nix subprocesses.
     sys.stdout.reconfigure(line_buffering=True)
+    gates = Gates(root)
+    if gates.owned:
+        gates.events.emit("start", f"verify {' '.join(args.repositories) or 'all'}", pid=os.getpid())
+    gates.watchdog.start()
+    code = run_verify(root, args, gates)
+    gates.watchdog.stopped.set()
+    if gates.owned:
+        gates.events.emit(events.END, "verify passed" if code == 0 else "verify FAILED", ok=code == 0)
+    return code
+
+
+def run_verify(root: Path, args: argparse.Namespace, live: Gates) -> int:
     feature = os.environ.get("CC_FEATURE") or None
 
     try:
@@ -77,8 +118,8 @@ def main() -> int:
 
     results: list[tuple[str, str, str]] = []
     print("== flake checks")
-    flake_check = nix("flake", "check", *overrides, str(root), "--keep-going")
-    results.append(("cc", "all checks", "pass" if flake_check.returncode == 0 else "FAIL"))
+    flake_check = live.run("flake checks", ["nix", "flake", "check", *overrides, str(root), "--keep-going"])
+    results.append(("cc", "all checks", "pass" if flake_check == 0 else "FAIL"))
 
     system = nix("eval", "--impure", "--raw", "--expr", "builtins.currentSystem", capture=True).stdout.strip()
     evaluated = nix("eval", "--json", *overrides, f"{root}#legacyPackages.{system}.ccTargets", capture=True)
@@ -102,14 +143,12 @@ def main() -> int:
                 results.append((identifier, target, f"FAIL: no targets.{target} gate in {repository.get('adapter')}"))
                 continue
             print(f"== {identifier} on {target} ({kind})")
-            if kind == "check":
-                outcome = nix("build", "--no-link", "-L", *overrides, attribute)
-            else:
-                outcome = nix("run", *overrides, attribute)
-            results.append((identifier, target, "pass" if outcome.returncode == 0 else "FAIL"))
+            verb = ["build", "--no-link", "-L"] if kind == "check" else ["run"]
+            outcome = live.run(f"{identifier} on {target}", ["nix", *verb, *overrides, attribute])
+            results.append((identifier, target, "pass" if outcome == 0 else "FAIL"))
 
     if args.quality:
-        results.extend(run_quality(root, feature, overrides, system, repositories))
+        results.extend(run_quality(root, feature, overrides, system, repositories, live))
 
     if not repositories:
         print("note: no catalog repositories selected; only the flake checks ran")
@@ -120,7 +159,7 @@ def main() -> int:
 
 
 def run_quality(
-    root: Path, feature: str | None, overrides: list[str], system: str, repositories: list[dict[str, Any]]
+    root: Path, feature: str | None, overrides: list[str], system: str, repositories: list[dict[str, Any]], live: Gates
 ) -> list[tuple[str, str, str]]:
     """Run each repository's quality gates; a missing gate is a warning, never a failure."""
     evaluated = nix("eval", "--json", *overrides, f"{root}#legacyPackages.{system}.ccQuality", capture=True)
@@ -136,19 +175,20 @@ def run_quality(
             kind = gates.get(identifier, {}).get(gate)
             if kind is None:
                 print(f"warning: {identifier} has no quality.{gate} gate: tests were NOT checked against injected bugs")
+                live.events.emit("warn", f"verify: {identifier} has no quality.{gate} gate")
                 results.append((identifier, gate, WARN))
                 continue
             print(f"== {identifier} quality {gate} ({kind})")
             if kind == "check":
                 attribute = f"{root}#legacyPackages.{system}.ccQualityChecks.{identifier}.{gate}"
-                outcome = nix("build", "--no-link", "-L", *overrides, attribute)
+                outcome = live.run(f"{identifier} quality {gate}", ["nix", "build", "--no-link", "-L", *overrides, attribute])
             else:
                 # App gates may scope themselves to the feature's changes, e.g. mutating changed lines only.
                 environment = {**os.environ, "CC_REPO": identifier, **worktrees.get(identifier, {})}
-                outcome = subprocess.run(
-                    ["nix", "run", *overrides, f"{root}#{identifier}-quality-{gate}"], text=True, env=environment
+                outcome = live.run(
+                    f"{identifier} quality {gate}", ["nix", "run", *overrides, f"{root}#{identifier}-quality-{gate}"], env=environment
                 )
-            results.append((identifier, gate, "pass" if outcome.returncode == 0 else "FAIL"))
+            results.append((identifier, gate, "pass" if outcome == 0 else "FAIL"))
     return results
 
 

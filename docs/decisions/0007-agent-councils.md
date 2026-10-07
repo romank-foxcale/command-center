@@ -17,6 +17,7 @@ relations:
   - docs/decisions/0005-multi-tool-agent-configs.md
   - docs/decisions/0006-target-platform-gates.md
   - docs/rules/task-planning.md
+  - docs/decisions/0010-live-run-events.md
 ---
 
 # Agent roles and councils bound to models

@@ -19,6 +19,7 @@ relations:
   - docs/decisions/0007-agent-councils.md
   - docs/decisions/0008-quality-gates.md
   - docs/decisions/0009-trello-on-demand.md
+  - docs/decisions/0010-live-run-events.md
   - docs/rules/quality-gates.md
 ---
 
@@ -49,6 +50,7 @@ relations:
 - [Agent roles and councils bound to models](decisions/0007-agent-councils.md)
 - [Language-specific quality gates behind language-neutral skills](decisions/0008-quality-gates.md)
 - [Trello cards are updated on demand](decisions/0009-trello-on-demand.md)
+- [Long runs report progress as a live event stream](decisions/0010-live-run-events.md)
 
 ## Current context
 
