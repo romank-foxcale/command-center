@@ -97,6 +97,8 @@ def repository(root: Path, identifier: str) -> dict[str, Any]:
     data = load_json(root / "catalog" / "repositories" / f"{identifier}.json")
     if data.get("id") != identifier or data.get("checkout") != identifier:
         raise ValueError(f"invalid repository descriptor: {identifier}")
+    if data.get("kind") == "reference":
+        raise ValueError(f"{identifier} is a reference repo: read it in its base clone, never commit to it")
     return data
 
 
@@ -191,6 +193,8 @@ def command_create(root: Path, args: argparse.Namespace) -> None:
     context = Context(root, args.feature)
     if context.manifest_path.exists():
         raise ValueError(f"feature already exists: {args.feature}")
+    for identifier in args.repositories:
+        repository(root, identifier)  # refuse unknown and reference repos before anything is written
     manifest = context.new_manifest()
     context.feature_root.mkdir(parents=True, exist_ok=True)
     if args.card:

@@ -20,7 +20,9 @@ usage() {
     '  validate       Validate the Markdown knowledge graph'     '  agents <sync|check>  Mirror .agents/skills into .claude/skills' \
     '  bootstrap install [target]  Materialize a new CC from this clone' \
     '  bootstrap validate          Validate the configured CC contract' \
-    '  repo <add|list|show|set-status|set-targets|set-stack> ...' \
+    '  repo <add|list|show|remove|set-branch|set-remote|set-kind|set-status|set-targets|set-stack> ...' \
+    '  prs [repo...] [--json]  Open pull requests of the catalog repos, newest first, new ones marked' \
+    '  prs show <repo> <n> [--diff] | prs checkout <repo> <n>  One PR for review; its head as feature pr-<repo>-<n>' \
     '  worktree <create|add|status|remove> ...' \
     '  trello <status|boards|lists|connect|link|show|comment|move> ...  Trello cards, on demand only' \
     '  open <feature> [--tool claude|codex]  Start a coding session in the CC with the feature'"'"'s worktrees' \
@@ -69,6 +71,11 @@ case "$command_name" in
       podman --version
     else
       printf '%s\n' 'note: Docker/Podman is absent; container E2E apps will be unavailable'
+    fi
+    if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+      printf '%s\n' 'gh: logged in'
+    else
+      printf '%s\n' 'note: gh is missing or not logged in; ./cc prs will be unavailable'
     fi
     python3 "$cc_root/scripts/council/providers.py" status
     ;;
@@ -131,6 +138,9 @@ case "$command_name" in
     ;;
   repo)
     exec python3 "$cc_root/scripts/repositories.py" "$cc_root" "$@"
+    ;;
+  prs)
+    exec python3 "$cc_root/scripts/prs.py" "$cc_root" "$@"
     ;;
   worktree)
     exec python3 "$cc_root/scripts/worktrees.py" "$cc_root" "$@"

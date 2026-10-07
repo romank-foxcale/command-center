@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Review"
+  short_description: "Review a PR for BREAK, SCOPE and KNOWLEDGE issues only"
+  default_prompt: "Use $cc-review to review this pull request."
+policy:
+  allow_implicit_invocation: true

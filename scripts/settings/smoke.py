@@ -11,10 +11,10 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from app import ChoicePicker, ModelPicker, Settings, show  # noqa: E402
+from app import Ask, ChoicePicker, ModelPicker, Settings, show  # noqa: E402
 from state import snapshot  # noqa: E402
 import progress  # noqa: E402  (app.py puts scripts/council on the path)
-from textual.widgets import DataTable, OptionList, Static  # noqa: E402
+from textual.widgets import DataTable, Input, OptionList, Static  # noqa: E402
 
 
 def write(path: Path, data: object) -> None:
@@ -27,7 +27,11 @@ def fixture(base: Path) -> Path:
     write(root / "control-center.json", {"name": "x_CC", "status": "ready", "layout": {"projectsRoot": "..", "worktrees": "../worktrees"}})
     write(root / "catalog/agents/judge.json", {"provider": "claude", "model": "opus", "access": "read-only"})
     write(root / "catalog/councils/coding.json", {"kind": "coding", "proposers": ["a", "b"], "judge": "judge", "writer": "w", "approval": True, "maxRetries": 2})
-    write(root / "catalog/repositories/app.json", {"status": "verified", "targets": ["windows"], "stack": ["csharp"], "role": "client"})
+    write(root / "catalog/repositories/app.json", {"status": "verified", "targets": ["windows"], "stack": ["csharp"], "role": "client",
+                                                    "kind": "project", "defaultBranch": "develop", "remote": "https://github.com/o/app"})
+    # A reference repo is never verified, so it must not count against "repos verified".
+    write(root / "catalog/repositories/demo.json", {"status": "discovered", "targets": [], "stack": [], "kind": "reference",
+                                                     "defaultBranch": "main", "remote": "https://github.com/o/demo"})
     write(root / "plans/active/ship-it.md", "# ship-it: Ship [the] thing\n\nLifecycle: active\nPlanning status: accepted\n")
     runs = base / "worktrees/feat/.cc-runs"
     write(runs / "r1/state.json", {"id": "r1", "council": "coding", "feature": "feat", "repository": "app", "stage": "awaiting-approval",
@@ -53,7 +57,7 @@ async def check(root: Path) -> None:
         assert "1 waiting for you" in summary and "1/1 repos verified" in summary, summary
         assert "stalled" in summary, summary
         assert [pane.id for pane in app.query("TabPane")] == ["agents", "councils", "repos", "trello"], "settings only"
-        for table, rows in (("#t-agents", 1), ("#t-councils", 1), ("#t-repos", 1)):
+        for table, rows in (("#t-agents", 1), ("#t-councils", 1), ("#t-repos", 2)):
             assert app.query_one(table, DataTable).row_count == rows, table
 
         # Navigation: the rows have focus from the start, and the arrow keys switch tabs.
@@ -105,8 +109,51 @@ async def check(root: Path) -> None:
             await pilot.pause()
         assert sent == [("trello", "connect", "--board", "Bd1", "--active-list", "In progress", "--completed-list", "Done")], sent
 
+        # Repos: add by pasting a link, edit the main branch, remove after confirmation; all through ./cc repo.
+        sent.clear()
+        app.cc_later = lambda *arguments: sent.append(arguments)
+        await pilot.press("left")
+        await pilot.pause()
+        assert app.query_one("#tabs").active == "repos"
+        repos = app.query_one("#t-repos", DataTable)
+        assert [cell.plain for cell in repos.get_row_at(0)][:3] == ["app", "project", "develop"], "kind and main branch are shown"
+
+        async def screen(kind: type) -> None:
+            for _ in range(20):
+                await pilot.pause(0.05)
+                if isinstance(app.screen, kind):
+                    return
+            raise AssertionError(f"expected {kind.__name__}, got {app.screen}")
+
+        await pilot.press("a")
+        await screen(Ask)
+        app.screen.query(Input).first().value = "https://github.com/o/new-thing"
+        await pilot.click("#ok")
+        await screen(ChoicePicker)
+        app.screen.query_one("#models", OptionList).highlighted = 1  # reference
+        await pilot.press("enter")
+        await pilot.pause()
+        assert sent == [("repo", "add", "https://github.com/o/new-thing", "--kind", "reference")], sent
+
+        sent.clear()
+        await pilot.press("e")
+        await screen(ChoicePicker)
+        await pilot.press("enter")  # main branch: the first choice
+        await screen(Ask)
+        app.screen.query(Input).first().value = "main"
+        await pilot.click("#ok")
+        await pilot.pause()
+        assert sent == [("repo", "set-branch", "app", "main")], sent
+
+        sent.clear()
+        await pilot.press("d")
+        await screen(Ask)
+        await pilot.click("#ok")
+        await pilot.pause()
+        assert sent == [("repo", "remove", "app")], sent
+
     text = show(snapshot(root))
-    for expected in ("x_CC · ready", "1 waiting for you", "AGENTS", "judge", "COUNCILS", "approval on", "REPOS", "csharp", "TRELLO", "not connected"):
+    for expected in ("x_CC · ready", "1 waiting for you", "AGENTS", "judge", "COUNCILS", "approval on", "REPOS", "csharp", "develop", "reference", "TRELLO", "not connected"):
         assert expected in text, f"show must contain {expected!r}:\n{text}"
 
     # Run progress, as ./cc council status prints it.

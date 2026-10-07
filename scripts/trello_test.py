@@ -43,7 +43,11 @@ class FakeTrello(BaseHTTPRequestHandler):
         if path == "/boards/Bd1/lists":
             return self.answer(200, LISTS)
         if path == "/cards/Cd1" and method == "GET":
-            return self.answer(200, {"name": "Agent health API", "shortUrl": "https://trello.com/c/Cd1", "idList": "L2"})
+            return self.answer(200, {"name": "Agent health API", "shortUrl": "https://trello.com/c/Cd1", "idList": "L2",
+                                     "desc": "Agents report health every 30 s."})
+        if path == "/cards/Cd1/checklists":
+            return self.answer(200, [{"name": "Acceptance", "checkItems": [
+                {"name": "Returns 200 with status per device", "state": "complete"}, {"name": "Rejects unknown agents", "state": "incomplete"}]}])
         if path == "/lists/L2":
             return self.answer(200, {"name": "In progress"})
         if path in {"/cards/Cd1/actions/comments", "/cards/Cd1"}:
@@ -95,6 +99,9 @@ def main() -> int:
         assert "Planning status: accepted\nTrello: https://trello.com/c/Cd1/7-agent-health\n" in plan, plan
         assert cc("link", "--feature", "feat", "https://trello.com/c/Cd1/7").returncode == 0
         assert "In progress" in cc("show", "--feature", "feat").stdout
+        # A card linked from a PR: its description and checklists are the review's acceptance criteria.
+        card = cc("show", "--card", "https://trello.com/c/Cd1/7-agent-health").stdout
+        assert "every 30 s" in card and "[x] Returns 200" in card and "[ ] Rejects unknown agents" in card, card
 
         preview = cc("comment", "--plan", "health", "--text", "Verify passed on windows.")
         assert "PREVIEW, nothing sent" in preview.stdout and not SENT, (preview.stdout, SENT)

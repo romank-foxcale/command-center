@@ -11,6 +11,10 @@ Run every command from the CC root.
 
 `./cc` needs bash, Python 3 and, for `check|build|run|show|doctor`, Nix. Never fall back to a Windows-native Python or Git when WSL fails: worktree manifests and Nix overrides must be produced by the same environment that uses them. If WSL or Nix is missing, stop and report it.
 
+## Scope
+
+This CC's repositories are exactly those in `./cc repo list`. `../repos/` and `../worktrees/` are shared with every other CC in the same parent folder: never enumerate them, or loop over their clones, to answer a question about this CC's repos, PRs or branches. Use `./cc prs` for pull requests.
+
 ## Behaviour
 
 1. Map the request to the exact `./cc` command; infer arguments from the conversation, the active plans and `./cc ... list|status` output before asking.

@@ -22,7 +22,7 @@ relations:
 
 ## Project contract
 
-`catalog/repositories/<id>.json` records the remote, default branch, role, target platforms, stack (languages), flake input, adapter and onboarding status. The descriptor is created by `./cc repo add`; build commands never go into it.
+`catalog/repositories/<id>.json` records the remote, default branch, kind (`project`, or `reference` for read-only guidance that needs no adapter), role, target platforms, stack (languages), flake input, adapter and onboarding status. The descriptor is created by `./cc repo add`; build commands never go into it.
 
 The adapter is created with `ccLib.mkProject` and declares:
 

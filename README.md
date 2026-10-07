@@ -121,7 +121,8 @@ Requires Nix with flakes. Docker/Podman is only needed for container workflows. 
 ## Repository onboarding and feature worktrees
 
 ```bash
-./cc repo add repo1 --remote <git-url> --role service --clone
+./cc repo add <git-url> --targets linux --stack java --clone   # id and main branch come from the link
+./cc prs                                                     # open PRs of the catalog repos
 ./cc worktree create feature1 repo1
 ./cc feature feature1 check
 ./cc worktree status feature1

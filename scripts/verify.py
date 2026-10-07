@@ -49,7 +49,8 @@ def selected_repositories(root: Path, feature: str | None, requested: list[str])
         manifest = load_json(manifest_root / feature / ".cc-worktree.json")
         identifiers = sorted(manifest.get("repositories", {}))
     else:
-        identifiers = sorted(catalog)
+        # Reference repos are read-only guidance: there is nothing of theirs to verify.
+        identifiers = sorted(identifier for identifier, data in catalog.items() if data.get("kind") != "reference")
     missing = [identifier for identifier in identifiers if identifier not in catalog]
     if missing:
         raise ValueError(f"not in the catalog: {', '.join(missing)}")
