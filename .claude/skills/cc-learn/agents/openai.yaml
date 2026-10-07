@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Learn"
+  short_description: "Record what was learned as an atomic note"
+  default_prompt: "Use $cc-learn to record the root cause or workaround we just found as a Control Center note."
+policy:
+  allow_implicit_invocation: true

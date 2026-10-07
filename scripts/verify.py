@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import events
+from rule_hooks import attributed_commits
 
 
 # Must match supportedQualityGates in nix/lib/default.nix.
@@ -148,6 +149,8 @@ def run_verify(root: Path, args: argparse.Namespace, live: Gates) -> int:
             outcome = live.run(f"{identifier} on {target}", ["nix", *verb, *overrides, attribute])
             results.append((identifier, target, "pass" if outcome == 0 else "FAIL"))
 
+    results.extend(attribution_results(root, feature))
+
     if args.quality:
         results.extend(run_quality(root, feature, overrides, system, repositories, live))
 
@@ -191,6 +194,35 @@ def run_quality(
                 )
             results.append((identifier, gate, "pass" if outcome == 0 else "FAIL"))
     return results
+
+
+def attribution_results(root: Path, feature: str | None) -> list[tuple[str, str, str]]:
+    """No commit on this branch, in the CC or a feature worktree, may credit an AI (AGENTS.md)."""
+    print("== no AI attribution in branch commits")
+    repositories = [("cc", root, cc_base(root))]
+    repositories += [(identifier, Path(entry["CC_WORKTREE"]), entry["CC_BASE_REF"])
+                     for identifier, entry in feature_worktrees(root, feature).items() if entry["CC_BASE_REF"]]
+    results = []
+    for identifier, path, base in repositories:
+        if not base:
+            results.append((identifier, "no AI attribution", "FAIL: cannot resolve the base branch"))
+            continue
+        try:
+            found = attributed_commits(path, base)
+        except (OSError, subprocess.CalledProcessError) as error:
+            results.append((identifier, "no AI attribution", f"FAIL: {error}"))
+            continue
+        results.append((identifier, "no AI attribution", f"FAIL: {', '.join(found)}" if found else "pass"))
+    return results
+
+
+def cc_base(root: Path) -> str:
+    """Where the CC's current branch left its default branch; empty when that is unknown."""
+    for reference in ("origin/HEAD", "main", "master"):
+        merge_base = subprocess.run(["git", "-C", str(root), "merge-base", "HEAD", reference], capture_output=True, text=True)
+        if merge_base.returncode == 0:
+            return merge_base.stdout.strip()
+    return ""
 
 
 def feature_worktrees(root: Path, feature: str | None) -> dict[str, dict[str, str]]:
