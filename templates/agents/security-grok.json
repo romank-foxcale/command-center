@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "security-grok",
+  "purpose": "Reviews the final diff for security issues without editing",
+  "provider": "cursor",
+  "model": "grok-4.7-high",
+  "access": "read-only",
+  "skills": [
+    "council-security"
+  ]
+}

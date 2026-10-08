@@ -3,7 +3,7 @@ id: index
 title: Control Center knowledge map
 status: active
 summary: Minimal entry point into the rules, architecture and decision history.
-verified_at: 2026-10-07
+verified_at: 2026-10-08
 evidence:
   - AGENTS.md
 relations:
@@ -23,6 +23,7 @@ relations:
   - docs/decisions/0011-catalog-is-the-repo-scope.md
   - docs/decisions/0012-review-bar.md
   - docs/decisions/0013-rule-hooks.md
+  - docs/decisions/0014-cursor-provider-and-security-council.md
   - docs/rules/quality-gates.md
 ---
 
@@ -57,6 +58,7 @@ relations:
 - [The catalog is the CC's repo scope](decisions/0011-catalog-is-the-repo-scope.md)
 - [Reviews report only BREAK, SCOPE and KNOWLEDGE findings](decisions/0012-review-bar.md)
 - [Claude Code hooks enforce the hard rules early; the gates still decide](decisions/0013-rule-hooks.md)
+- [Cursor is a read-only provider, and security review is a three-model council](decisions/0014-cursor-provider-and-security-council.md)
 
 ## Current context
 

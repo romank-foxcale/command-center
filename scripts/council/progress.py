@@ -10,16 +10,27 @@ SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 
 # The steps a council walks through; retries repeat a step without moving the bar.
 STEPS = {
-    "coding": ["propose", "judge", "approval", "write", "verify", "security"],
-    "testing": ["propose", "judge", "approval", "write", "verify", "security"],
-    "debug": ["reproduce", "propose", "judge", "approval", "write test", "red check", "fix", "verify", "security"],
+    "coding": ["propose", "judge", "approval", "write", "verify", "security", "security summary"],
+    "testing": ["propose", "judge", "approval", "write", "verify", "security", "security summary"],
+    "debug": ["reproduce", "propose", "judge", "approval", "write test", "red check", "fix", "verify", "security", "security summary"],
 }
+
+
+def security_roles(council: dict[str, Any]) -> list[str]:
+    """The council's security reviewers: a list, or one role id in catalogs older than the list."""
+    value = council.get("security")
+    if not value:
+        return []
+    return [value] if isinstance(value, str) else list(value)
 
 
 def plan(kind: str, council: dict[str, Any]) -> list[str]:
     skipped = {"approval"} if not council.get("approval") else set()
-    if not council.get("security"):
+    reviewers = security_roles(council)
+    if not reviewers:
         skipped.add("security")
+    if len(reviewers) < 2:
+        skipped.add("security summary")  # one reviewer's review is the result
     return [step for step in STEPS.get(kind, []) if step not in skipped]
 
 

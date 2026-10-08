@@ -25,6 +25,12 @@ import events  # noqa: E402
 
 
 TERMINAL = {"done", "rejected", "verify-failed", "blocked-security", "failed"}
+BLOCKING = {"high", "unparsed"}
+
+
+def parse_severity(review: str) -> str:
+    match = re.match(r"\s*SEVERITY:\s*(\w+)", review)
+    return match.group(1).lower() if match else "unparsed"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -346,20 +352,52 @@ class Run:
             self.events.emit("warn", f"verify failed ({failed}); retry {attempt} of {council['maxRetries']}")
             self.handoff(f"verify failure → {council['writer']} (retry {attempt})")
 
-        if council.get("security"):
+        reviewers = progress.security_roles(council)
+        if reviewers:
             diff = (self.directory / "changes.diff").read_text(encoding="utf-8")
-            self.step("security")
-            self.handoff(f"changes.diff → {council['security']}")
-            review = self.call(council["security"], f"# Diff\n\n```diff\n{diff}\n```", "security")
-            severity = re.match(r"\s*SEVERITY:\s*(\w+)", review)
-            self.save(security=severity.group(1).lower() if severity else "unparsed")
-            if self.state["security"] in {"high", "unparsed"}:
-                self.finish("blocked-security", "security review blocks the change; see security.md")
+            reason = self.review_security(council, reviewers, f"# Diff\n\n```diff\n{diff}\n```")
+            if reason:
+                self.finish("blocked-security", reason)
                 return
         summary = "verify passed; review changes.diff and commit it yourself"
         if self.state.get("qualityWarnings"):
             summary += f"; WARNING: {'; '.join(self.state['qualityWarnings'])}"
         self.finish("done", summary)
+
+    def review_security(self, council: dict[str, Any], reviewers: list[str], diff: str) -> str:
+        """Run the reviewers in parallel and, with several, the judge's summary; return why it blocks, or ''.
+
+        A high (or unreadable) severity from the summary or from any single reviewer blocks: the judge
+        verifies and explains findings but never overrules a reviewer's high one; the user decides.
+        """
+        self.step("security")
+        self.handoff(f"changes.diff → {', '.join(reviewers)}")
+        if len(reviewers) == 1:
+            severity = parse_severity(self.call(reviewers[0], diff, "security"))
+            self.save(security=severity)
+            return "security review blocks the change; see security.md" if severity in BLOCKING else ""
+        with concurrent.futures.ThreadPoolExecutor(len(reviewers)) as pool:
+            futures = {identifier: pool.submit(self.call, identifier, diff, f"review-{identifier}") for identifier in reviewers}
+            reviews = {identifier: future.result() for identifier, future in futures.items()}
+        severities = {identifier: parse_severity(review) for identifier, review in reviews.items()}
+        order = list(reviews)
+        random.SystemRandom().shuffle(order)
+        labels = {chr(ord("A") + index): identifier for index, identifier in enumerate(order)}
+        self.save(securityLabels=labels, securityReviews=severities)
+        anonymous = "\n\n".join(f"# Review {label}\n\n{reviews[identifier]}" for label, identifier in labels.items())
+        self.step("security summary")
+        self.handoff(f"{', '.join(reviewers)} → {council['judge']}: reviews as anonymous {', '.join(labels)}")
+        summary = self.call(council["judge"], f"# Security summary\n\n{diff}\n\n{anonymous}", "security")
+        severity = parse_severity(summary)
+        flagged = [identifier for identifier, value in severities.items() if value in BLOCKING]
+        self.save(security=severity, securityFlagged=flagged)
+        say("Review authors (hidden from the judge): " + ", ".join(f"{label}: {identifier}" for label, identifier in labels.items()))
+        if severity in BLOCKING:
+            return f"the security summary says {severity}; see security.md"
+        if flagged:
+            return (f"{', '.join(flagged)} reported high or an unreadable review, which the judge rated {severity}; "
+                    "the judge cannot overrule it: read security.md and " + ", ".join(f"review-{role}.md" for role in flagged))
+        return ""
 
     def finish(self, stage: str, summary: str) -> None:
         self.save(stage=stage, summary=summary, finishedAt=now())
@@ -410,7 +448,7 @@ def command_run(root: Path, args: argparse.Namespace) -> None:
     task = Path(args.task_file).read_text(encoding="utf-8") if args.task_file else args.task
     if not task or not task.strip():
         raise ValueError("give the task with --task or --task-file")
-    for slot in [*council["proposers"], council["judge"], council["writer"], council.get("security")]:
+    for slot in [*council["proposers"], council["judge"], council["writer"], *progress.security_roles(council)]:
         if slot:
             role = load_json(root / "catalog" / "agents" / f"{slot}.json")
             available, detail = providers.login_status(role["provider"])
@@ -574,7 +612,7 @@ def parser() -> argparse.ArgumentParser:
 
     set_role = subparsers.add_parser("set-role", help="change which provider and model a role uses")
     set_role.add_argument("role")
-    set_role.add_argument("--provider", help="claude or codex")
+    set_role.add_argument("--provider", help="claude, codex or cursor (cursor: read-only roles only)")
     set_role.add_argument("--model")
     set_role.set_defaults(handler=command_set_role)
 

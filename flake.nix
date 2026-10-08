@@ -64,6 +64,13 @@
                 ${pkgs.python3}/bin/python ${self}/scripts/agent_configs_test.py
                 touch "$out"
               '';
+              council = pkgs.runCommand "control-center-council" { nativeBuildInputs = [ pkgs.git ]; } ''
+                export HOME=$TMPDIR
+                cd ${self}/scripts/council
+                ${pkgs.python3}/bin/python -B providers_test.py
+                ${pkgs.python3}/bin/python -B council_test.py
+                touch "$out"
+              '';
               rule-hooks = pkgs.runCommand "control-center-rule-hooks" { nativeBuildInputs = [ pkgs.git ]; } ''
                 export HOME=$TMPDIR
                 ${pkgs.python3}/bin/python ${self}/scripts/rule_hooks_test.py

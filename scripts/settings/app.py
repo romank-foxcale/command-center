@@ -146,7 +146,7 @@ class ModelPicker(ModalScreen[tuple[str, str] | None]):
                 picker.highlighted = highlight
                 yield picker
             else:
-                yield Label("No provider is logged in: run claude auth login or codex login.")
+                yield Label("No provider is logged in: run claude auth login, codex login or cursor-agent login.")
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         provider, name = event.option.id.split("\t", 1)

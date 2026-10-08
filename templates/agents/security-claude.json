@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "security",
+  "id": "security-claude",
   "purpose": "Reviews the final diff for security issues without editing",
   "provider": "claude",
   "model": "opus",

@@ -16,7 +16,7 @@ REPOSITORY_STATUSES = {"discovered", "adapted", "verified", "blocked"}
 REPOSITORY_KINDS = {"project", "reference"}
 TARGETS = {"windows", "linux", "macos"}
 # Must match scripts/council/providers.py.
-PROVIDERS = {"claude", "codex"}
+PROVIDERS = {"claude", "codex", "cursor"}
 ACCESS_LEVELS = {"read-only", "write-worktree"}
 COUNCIL_KINDS = {"coding", "testing", "debug"}
 EXPECTED_LAYOUT = {
@@ -191,6 +191,9 @@ def validate_agents(root: Path, errors: list[str]) -> dict[str, dict[str, Any]]:
             errors.append(f"{relative}: 'model' must be a non-empty string")
         if data.get("access") not in ACCESS_LEVELS:
             errors.append(f"{relative}: access must be one of {', '.join(sorted(ACCESS_LEVELS))}")
+        elif data.get("provider") == "cursor" and data["access"] != "read-only":
+            # Cursor's write limits are not enforced by the CC (scripts/council/providers.py).
+            errors.append(f"{relative}: cursor roles must be read-only")
         skills = data.get("skills")
         if not isinstance(skills, list) or not all(isinstance(skill, str) for skill in skills):
             errors.append(f"{relative}: 'skills' must be a list of skill names")
@@ -255,8 +258,13 @@ def validate_councils(root: Path, roles: dict[str, dict[str, Any]], errors: list
                 require_role("proposer", proposer, "read-only")
         require_role("judge", data.get("judge"), "read-only")
         require_role("writer", data.get("writer"), "write-worktree")
-        if data.get("security") is not None:
-            require_role("security", data.get("security"), "read-only")
+        # null or [] for none, one role id (catalogs older than the list), or a list of distinct reviewers.
+        security = data.get("security")
+        reviewers = [security] if isinstance(security, str) else security if isinstance(security, list) else []
+        if (security is not None and not isinstance(security, (str, list))) or len(set(map(str, reviewers))) != len(reviewers):
+            errors.append(f"{relative}: 'security' must be null, a role or a list of distinct roles")
+        for reviewer in reviewers:
+            require_role("security", reviewer, "read-only")
 
 
 def validate_plans(root: Path, errors: list[str]) -> None:

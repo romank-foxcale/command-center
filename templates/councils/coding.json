@@ -11,5 +11,9 @@
   "approval": true,
   "writer": "writer",
   "maxRetries": 2,
-  "security": "security"
+  "security": [
+    "security-claude",
+    "security-gpt",
+    "security-grok"
+  ]
 }

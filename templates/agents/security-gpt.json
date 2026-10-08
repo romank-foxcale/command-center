@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "security-gpt",
+  "purpose": "Reviews the final diff for security issues without editing",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "access": "read-only",
+  "skills": [
+    "council-security"
+  ]
+}
