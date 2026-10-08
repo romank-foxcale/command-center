@@ -138,7 +138,7 @@ def snapshot(root: Path) -> Snapshot:
                 "role": repo.get("role", "?"),
             }
         )
-    result.tools = {tool: shutil.which(tool) is not None for tool in ("nix", "git", "claude", "codex")}
+    result.tools = {tool: shutil.which(tool) is not None for tool in ("nix", "git", "claude", "codex", "cursor-agent")}
     result.trello = trello(root)
     return result
 
