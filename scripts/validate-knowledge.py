@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from rule_hooks import markdown_allowed
+from rule_hooks import extra_markdown_dirs, markdown_allowed
 
 
 REQUIRED_FILES = ("README.md", "AGENTS.md", "flake.nix", "docs/index.md")
@@ -68,10 +68,12 @@ def repository_files(root: Path) -> list[str]:
 
 
 def stray_markdown(root: Path) -> list[str]:
+    extra = extra_markdown_dirs(root)
     return [
-        f"{name}: Markdown outside docs/, plans/ and the skills; store it as a note under docs/"
+        f"{name}: Markdown outside docs/, plans/, the skills and control-center.json markdownDirs; "
+        "store it as a note under docs/"
         for name in repository_files(root)
-        if name.lower().endswith(".md") and not markdown_allowed(name)
+        if name.lower().endswith(".md") and not markdown_allowed(name, extra)
     ]
 
 

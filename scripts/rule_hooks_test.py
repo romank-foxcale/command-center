@@ -58,6 +58,8 @@ def check_markdown_allowlist() -> None:
         assert markdown_allowed(path), path
     for path in ("NOTES.md", "scripts/README.md", "templates/sub/x.md", "docs.md", "nix/projects/api.md"):
         assert not markdown_allowed(path), path
+    assert markdown_allowed("research/plan/01.md", ("research/",))
+    assert not markdown_allowed("research-old/01.md", ("research/",)), "a declared folder is a folder, not a prefix"
 
 
 def edit(root: Path, path: str, tool: str = "Write") -> dict:
@@ -77,6 +79,12 @@ def check_edits(root: Path) -> None:
     assert pre_edit(edit(root, ".notes/scratch.md"), root) is None, "ignored local notes are not tracked"
     assert pre_edit(edit(root, "scripts/OLD.md"), root) is None, "an existing file is the gate's business"
     assert pre_edit(edit(root, "scripts/x.py"), root) is None
+    assert decision(pre_edit(edit(root, "research/a.md"), root)) == "deny", "undeclared folder"
+    (root / "control-center.json").write_text(json.dumps({"markdownDirs": ["research"]}))
+    assert pre_edit(edit(root, "research/a.md"), root) is None, "a folder the CC declares in markdownDirs"
+    assert decision(pre_edit(edit(root, "NOTES.md"), root)) == "deny", "declaring one folder allows only that folder"
+    (root / "control-center.json").write_text("not json")
+    assert decision(pre_edit(edit(root, "research/a.md"), root)) == "deny", "a broken manifest declares nothing"
     assert pre_edit({"tool_name": "Write", "tool_input": {"file_path": str(root.parent / "elsewhere.md")}}, root) is None, \
         "outside the CC: worktrees, scratchpad, memory"
 

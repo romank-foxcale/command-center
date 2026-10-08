@@ -310,6 +310,12 @@ def validate(root: Path, adapter_targets: dict[str, Any] | None = None) -> list[
         errors.append("control-center.json: layout does not match the Projects/repos/worktrees contract")
     for field in placeholder_paths(manifest):
         errors.append(f"control-center.json: unresolved placeholder at {field}")
+    markdown_dirs = manifest.get("markdownDirs", [])
+    if not isinstance(markdown_dirs, list) or not all(
+        isinstance(folder, str) and folder.strip("/") and not folder.startswith("/") and ".." not in folder.split("/")
+        for folder in markdown_dirs
+    ):
+        errors.append("control-center.json: markdownDirs must be a list of folders relative to the CC root")
 
     repositories_dir = root / "catalog" / "repositories"
     if not repositories_dir.is_dir():
