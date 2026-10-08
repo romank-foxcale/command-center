@@ -35,7 +35,7 @@ The hard rules in `AGENTS.md` were instruction text only. Agents break them when
   | No AI credit in commits or PRs | deny `git commit`, `gh pr create/edit` with an AI `Co-Authored-By` or "Generated with" line | `./cc verify` scans branch commits in the CC and each feature worktree |
   | No direct build or test tools | `ask`: the user approves a diagnosis run | none: a command leaves no artifact |
   | Skills only in `.agents/skills` | deny edits under `.claude/skills` | `agent-configs` check |
-  | No stray Markdown | deny creating `.md` outside `docs/`, `plans/`, the skills, `templates/` and the root files | `knowledge` check |
+  | No stray Markdown | deny creating `.md` outside `docs/`, `plans/`, the skills, `templates/`, the root files and the folders the CC declares in `control-center.json` `markdownDirs` | `knowledge` check |
   | Notes follow the knowledge rules | after an edit in `docs/`, return that note's validation errors | `knowledge` check |
   | Skill copies in sync | at stop, report drift once | `agent-configs` check |
 
@@ -49,6 +49,7 @@ The hard rules in `AGENTS.md` were instruction text only. Agents break them when
 
 ## Consequences
 
+- A CC that keeps other committed Markdown, such as a `research/` folder of source material, lists it in `markdownDirs` (validated by the `bootstrap` check). The exception is per CC and visible, so the template's default stays strict.
 - Hooks exist only in Claude Code. Codex, Cursor and OpenCode rely on the gates.
 - Hooks match shell text, so a command hidden in a script or another shell (`wsl.exe bash -lc ...`) passes the hook; only the gates are complete where a gate exists.
 - New CCs get the hooks through `./cc bootstrap install`; existing CCs only through a migration.

@@ -29,7 +29,8 @@ ATTRIBUTION = re.compile(
 COMMIT_OR_PR = re.compile(r"\bgit\b[^;&|\n]*\bcommit\b|\bgh\s+pr\s+(?:create|edit)\b")
 MESSAGE_FILE = re.compile(r"(?:\s-F|--file|--body-file)[=\s]+(['\"]?)([^\s'\"]+)\1")
 
-# Markdown the CC may track outside the knowledge folders. Everything else belongs in a note.
+# Markdown the CC may track outside the knowledge folders. Everything else belongs in a note, unless
+# the CC declares more folders in control-center.json "markdownDirs" (for example research/).
 MARKDOWN_ROOT_FILES = {"AGENTS.md", "BOOTSTRAP.md", "CLAUDE.md", "GUIDE.md", "README.md"}
 MARKDOWN_DIRS = ("docs/", "plans/", ".agents/skills/", ".claude/skills/")
 
@@ -56,9 +57,18 @@ def ai_attribution(text: str) -> str | None:
     return match.group("line").strip() if match else None
 
 
-def markdown_allowed(relative: str) -> bool:
+def extra_markdown_dirs(root: Path) -> tuple[str, ...]:
+    """The folders this CC declares in control-center.json "markdownDirs"; none without the file."""
+    try:
+        declared = json.loads((root / "control-center.json").read_text(encoding="utf-8")).get("markdownDirs", [])
+    except (OSError, ValueError):
+        return ()
+    return tuple(f"{folder.strip('/')}/" for folder in declared if isinstance(folder, str) and folder.strip("/"))
+
+
+def markdown_allowed(relative: str, extra_dirs: tuple[str, ...] = ()) -> bool:
     relative = relative.replace("\\", "/")
-    if relative in MARKDOWN_ROOT_FILES or relative.startswith(MARKDOWN_DIRS):
+    if relative in MARKDOWN_ROOT_FILES or relative.startswith(MARKDOWN_DIRS + extra_dirs):
         return True
     parts = relative.split("/")
     return len(parts) == 2 and parts[0] == "templates"
@@ -160,10 +170,10 @@ def pre_edit(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
         source = Path(".agents", *relative.parts[1:]).as_posix()
         return pre_tool("deny", f".claude/skills is a generated copy: edit {source} instead, then run ./cc agents sync.")
     creating = event.get("tool_name") == "Write" and not (root / relative).exists()
-    if creating and relative.suffix.lower() == ".md" and not markdown_allowed(relative.as_posix()) \
+    if creating and relative.suffix.lower() == ".md" and not markdown_allowed(relative.as_posix(), extra_markdown_dirs(root)) \
             and not git_ignored(root, relative):
-        return pre_tool("deny", f"{relative.as_posix()}: Markdown outside docs/, plans/ and the skills fails ./cc check. "
-                                "Store one durable fact as a note under docs/ (templates/note.md) or a plan via ./cc plan.")
+        return pre_tool("deny", f"{relative.as_posix()}: Markdown outside docs/, plans/, the skills and the "
+                                "control-center.json markdownDirs fails ./cc check. Store one durable fact as a note under docs/ (templates/note.md) or a plan via ./cc plan.")
     return None
 
 
