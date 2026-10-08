@@ -1,6 +1,6 @@
 # grok-council: Cursor provider for Grok roles, and a three-model security review summarized by the judge
 
-Lifecycle: active
+Lifecycle: completed
 Planning status: accepted
 
 ## Outcome
@@ -97,4 +97,6 @@ WP1 and WP2 change different files except `validate-control-center.py`; WP1 owns
 
 ## Lifecycle closure
 
-Not closed.
+- state: completed
+- date: 2026-10-08
+- evidence: PR romank-foxcale/command-center#20 merged as 76c8866; ./cc check 9 of 9 passed; Cursor probe no writes; real three-reviewer security run blocked an injected command injection
