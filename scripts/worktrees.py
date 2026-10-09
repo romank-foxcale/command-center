@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Manage feature worktrees shared under Projects/worktrees."""
+"""Manage this CC's feature worktrees under <cc>/worktrees."""
 
 from __future__ import annotations
 
@@ -171,7 +171,7 @@ def session_context(context: Context, manifest: dict[str, Any]) -> str:
     lines = [
         f"This session works on feature '{context.feature}' of the Control Center {context.cc_name} "
         f"({context.root}); its AGENTS.md rules and skills apply.",
-        "Edit project code only in the feature's worktrees, never in the base clones under ../repos:",
+        "Edit project code only in the feature's worktrees, never in the base clones under repos/:",
     ]
     for identifier, entry in sorted(manifest.get("repositories", {}).items()):
         worktree = context.resolve_project_path(entry["worktree"])

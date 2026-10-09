@@ -17,14 +17,16 @@ usage() {
     '  council <run|approve|reject|status|models|set-role|set> ...  Multi-model councils and their settings' \
     '  watch [run]    Follow a council or verify run live: steps, agent talk, stalls, result' \
     '  settings [show]  Settings panel: agents and models, councils, repos; show prints them as text' \
-    '  validate       Validate the Markdown knowledge graph'     '  agents <sync|check>  Mirror .agents/skills into .claude/skills' \
+    '  validate       Validate the Markdown knowledge graph' \
+    '  agents <sync|check>  Mirror .agents/skills into .claude/skills' \
     '  bootstrap install [target]  Materialize a new CC from this clone' \
     '  bootstrap validate          Validate the configured CC contract' \
-    '  repo <add|list|show|remove|set-branch|set-remote|set-kind|set-status|set-targets|set-stack> ...' \
+    '  repo <add|list|show|remove|set-branch|set-remote|set-kind|set-status|set-targets|set-stack|strays> ...' \
     '  prs [repo...] [--json]  Open pull requests of the catalog repos, newest first, new ones and waiting threads marked' \
     '  prs show <repo> <n> [--diff] | prs checkout <repo> <n>  One PR for review; its head as feature pr-<repo>-<n>' \
     '  prs threads|judge <repo> <n> [--all] [--json]  Review threads waiting on you; judge them with anonymous sceptics' \
     '  worktree <create|add|status|remove> ...' \
+    '  migrate-layout [--dry-run]  Move this CC'"'"'s clones and worktrees from ../repos and ../worktrees into repos/ and worktrees/' \
     '  trello <status|boards|lists|connect|link|show|comment|move> ...  Trello cards, on demand only' \
     '  open <feature> [--tool claude|codex]  Start a coding session in the CC with the feature'"'"'s worktrees' \
     '  plan <create|list|show|accept|archive|complete> ...' \
@@ -79,6 +81,7 @@ case "$command_name" in
       printf '%s\n' 'note: gh is missing or not logged in; ./cc prs will be unavailable'
     fi
     python3 "$cc_root/scripts/council/providers.py" status
+    python3 "$cc_root/scripts/repositories.py" "$cc_root" strays || true
     ;;
   show)
     require_nix
@@ -145,6 +148,9 @@ case "$command_name" in
     ;;
   worktree)
     exec python3 "$cc_root/scripts/worktrees.py" "$cc_root" "$@"
+    ;;
+  migrate-layout)
+    exec python3 "$cc_root/scripts/migrate_layout.py" "$cc_root" "$@"
     ;;
   trello)
     exec python3 "$cc_root/scripts/trello.py" "$cc_root" "$@"

@@ -29,22 +29,22 @@ If the mode is unclear, do not write to the target folder until it is clarified.
 ```text
 Projects/
 ├── project1_CC/
-├── project2_CC/
-├── repos/
-│   ├── repo1/
-│   └── repo2/
-└── worktrees/
-    ├── feature1/
-    │   ├── repo1_wt/
-    │   └── repo2_wt/
-    └── feature2/
-        └── ...
+│   ├── repos/                (git-ignored base clones of this CC's catalog)
+│   │   ├── repo1/
+│   │   └── repo2/
+│   └── worktrees/            (git-ignored feature worktrees)
+│       ├── feature1/
+│       │   ├── repo1_wt/
+│       │   └── repo2_wt/
+│       └── feature2/
+└── project2_CC/              (its own repos/ and worktrees/, never shared)
 ```
 
-Relative to any `<project>_CC`:
+Relative to any `<project>_CC` (docs/decisions/0016-per-cc-repos-and-worktrees.md):
 
-- base checkouts: `../repos/<repo>`;
-- worktrees: `../worktrees/<feature>/<repo>_wt`;
+- base checkouts: `repos/<repo>`;
+- worktrees: `worktrees/<feature>/<repo>_wt`;
+- nothing outside the CC folder belongs to it; a CC on the old shared `../repos` and `../worktrees` moves with `./cc migrate-layout`;
 - the CC is never copied into a feature folder;
 - local absolute paths never end up in Git;
 - Nix receives feature sources through `--override-input` from the worktree manifest.

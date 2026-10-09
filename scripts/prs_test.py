@@ -53,8 +53,8 @@ def main() -> int:
             path = root / "catalog" / "repositories" / f"{identifier}.json"
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps({"id": identifier, "remote": remote}))
-        # A sibling CC's clone in the shared ../repos/ folder: it must never be queried.
-        (base / "repos" / "di-backend" / ".git").mkdir(parents=True)
+        # A clone that is not in the catalog: it must never be queried.
+        (root / "repos" / "di-backend" / ".git").mkdir(parents=True)
 
         bin_dir = base / "bin"
         bin_dir.mkdir()
@@ -122,7 +122,7 @@ def git(path: Path, *arguments: str) -> str:
 def check_checkout(base: Path, root: Path, env: dict[str, str]) -> None:
     """checkout puts the PR head into a feature worktree, follows later pushes, and cleans up without complaint."""
     (root / "control-center.json").write_text(json.dumps(
-        {"name": "pv_CC", "layout": {"projectsRoot": "..", "repositories": "../repos", "worktrees": "../worktrees"}}))
+        {"name": "pv_CC", "layout": {"projectsRoot": ".", "repositories": "repos", "worktrees": "worktrees"}}))
     descriptor = root / "catalog/repositories/pv-backend.json"
     descriptor.write_text(json.dumps({**json.loads(descriptor.read_text()), "checkout": "pv-backend", "defaultBranch": "develop",
                                       "sourceInput": "pv-backend"}))
@@ -134,19 +134,19 @@ def check_checkout(base: Path, root: Path, env: dict[str, str]) -> None:
     git(base, "clone", "-q", "--bare", str(author), str(origin))
     git(author, "commit", "-q", "--allow-empty", "-m", "pr 4, first push")
     git(author, "push", "-q", str(origin), "HEAD:refs/pull/4/head")
-    git(base, "clone", "-q", str(origin), str(base / "repos" / "pv-backend"))
+    git(base, "clone", "-q", str(origin), str(root / "repos" / "pv-backend"))
 
     def checkout() -> subprocess.CompletedProcess[str]:
         return subprocess.run([sys.executable, str(SCRIPT), str(root), "checkout", "pv-backend", "4"], capture_output=True, text=True, env=env)
 
     first = checkout()
     assert first.returncode == 0, first.stderr
-    worktree = base / "worktrees" / "pr-pv-backend-4" / "pv-backend_wt"
+    worktree = root / "worktrees" / "pr-pv-backend-4" / "pv-backend_wt"
     assert git(worktree, "log", "-1", "--format=%s") == "pr 4, first push", "the worktree is at the PR head"
-    manifest = json.loads((base / "worktrees/pr-pv-backend-4/.cc-worktree.json").read_text())
+    manifest = json.loads((root / "worktrees/pr-pv-backend-4/.cc-worktree.json").read_text())
     assert manifest["trelloCard"] == "https://trello.com/c/Cd1/7-health", "the PR's card is linked for cc-trello"
     assert manifest["review"] is True, "a PR checkout is marked as a review checkout"
-    guard = (base / "worktrees/pr-pv-backend-4/CLAUDE.md").read_text()
+    guard = (root / "worktrees/pr-pv-backend-4/CLAUDE.md").read_text()
     assert "review checkout" in guard and "Never edit, commit or push" in guard, guard
 
     git(author, "commit", "-q", "--allow-empty", "-m", "pr 4, second push")

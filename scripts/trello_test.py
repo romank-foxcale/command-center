@@ -71,10 +71,10 @@ def main() -> int:
         base = Path(directory)
         root = base / "x_CC"
         (root / "plans/active").mkdir(parents=True)
-        (root / "control-center.json").write_text(json.dumps({"layout": {"worktrees": "../worktrees"}}))
+        (root / "control-center.json").write_text(json.dumps({"layout": {"worktrees": "worktrees"}}))
         (root / "plans/active/health.md").write_text("# health: Health\n\nLifecycle: active\nPlanning status: accepted\n\n## Outcome\n")
-        (base / "worktrees/feat").mkdir(parents=True)
-        (base / "worktrees/feat/.cc-worktree.json").write_text(json.dumps({"feature": "feat", "repositories": {}}))
+        (root / "worktrees/feat").mkdir(parents=True)
+        (root / "worktrees/feat/.cc-worktree.json").write_text(json.dumps({"feature": "feat", "repositories": {}}))
         credentials = base / "trello.env"
         environment = {**os.environ, "TRELLO_API_BASE": f"http://127.0.0.1:{server.server_port}/1", "CC_TRELLO_ENV": str(credentials)}
         environment.pop("TRELLO_API_KEY", None)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """./cc prs: open pull requests of this CC's catalog repositories, newest first, marking the ones not seen before.
 
-Only catalog repos are queried: ../repos/ is shared with other CCs and is never scanned."""
+Only catalog repos are queried: repos/ is never scanned, so a stray clone there is never listed."""
 
 from __future__ import annotations
 

@@ -199,6 +199,25 @@ def command_add(root: Path, args: argparse.Namespace) -> None:
     print(f"added {args.id} ({args.kind}, branch {args.branch}): base checkout {state} at {checkout}")
 
 
+def stray_clones(root: Path) -> list[str]:
+    """Folders in this CC's repos/ that its catalog does not list: a clone nobody declared is out of scope
+    (docs/decisions/0016-per-cc-repos-and-worktrees.md). Nix checks cannot see the ignored folder, so verify
+    and doctor ask this instead."""
+    _, repositories_root = layout(root)
+    if not repositories_root.is_dir():
+        return []
+    known = {path.stem for path in (root / "catalog" / "repositories").glob("*.json")}
+    return sorted(entry.name for entry in repositories_root.iterdir() if entry.is_dir() and entry.name not in known)
+
+
+def command_strays(root: Path, _: argparse.Namespace) -> None:
+    strays = stray_clones(root)
+    if strays:
+        raise ValueError(f"repos/ holds clones the catalog does not list: {', '.join(strays)}; "
+                         "add them with ./cc repo add <url> or delete them")
+    print("repos/ matches the catalog")
+
+
 def command_list(root: Path, _: argparse.Namespace) -> None:
     _, repositories_root = layout(root)
     directory = root / "catalog" / "repositories"
@@ -272,7 +291,7 @@ def command_remove(root: Path, args: argparse.Namespace) -> None:
     print(f"removed {args.id} from the catalog")
     _, repositories_root = layout(root)
     if is_git_checkout(repositories_root / args.id):
-        print(f"note: the base clone {repositories_root / args.id} is kept; other CCs may share it")
+        print(f"note: the base clone {repositories_root / args.id} is kept; delete it yourself if the repo is gone for good")
     adapter = data.get("adapter")
     if adapter and (root / adapter).is_file():
         print(f"note: {adapter} and its flake input still exist; remove them if the repo is gone for good")
@@ -375,6 +394,8 @@ def parser() -> argparse.ArgumentParser:
     kind.add_argument("id")
     kind.add_argument("kind", choices=KINDS)
     kind.set_defaults(handler=command_kind)
+    strays = subparsers.add_parser("strays", help="fail when repos/ holds a clone the catalog does not list")
+    strays.set_defaults(handler=command_strays)
     return result
 
 

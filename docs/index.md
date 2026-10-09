@@ -25,6 +25,7 @@ relations:
   - docs/decisions/0013-rule-hooks.md
   - docs/decisions/0014-cursor-provider-and-security-council.md
   - docs/decisions/0015-thread-sceptics.md
+  - docs/decisions/0016-per-cc-repos-and-worktrees.md
   - docs/rules/quality-gates.md
 ---
 
@@ -61,6 +62,7 @@ relations:
 - [Claude Code hooks enforce the hard rules early; the gates still decide](decisions/0013-rule-hooks.md)
 - [Cursor is a read-only provider, and security review is a three-model council](decisions/0014-cursor-provider-and-security-council.md)
 - [Review conversations are judged by two anonymous sceptics, and a judge settles only their splits](decisions/0015-thread-sceptics.md)
+- [Every CC keeps its own repos and worktrees inside its folder](decisions/0016-per-cc-repos-and-worktrees.md)
 
 ## Current context
 

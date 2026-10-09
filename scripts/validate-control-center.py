@@ -20,9 +20,9 @@ PROVIDERS = {"claude", "codex", "cursor"}
 ACCESS_LEVELS = {"read-only", "write-worktree"}
 COUNCIL_KINDS = {"coding", "testing", "debug", "threads"}
 EXPECTED_LAYOUT = {
-    "projectsRoot": "..",
-    "repositories": "../repos",
-    "worktrees": "../worktrees",
+    "projectsRoot": ".",
+    "repositories": "repos",
+    "worktrees": "worktrees",
     "worktreePattern": "{feature}/{repository}_wt",
 }
 PLAN_LIFECYCLES = ("active", "archived", "completed")
@@ -327,7 +327,10 @@ def validate(root: Path, adapter_targets: dict[str, Any] | None = None) -> list[
     if status not in CC_STATUSES:
         errors.append(f"control-center.json: unsupported status '{status}'")
     if manifest.get("layout") != EXPECTED_LAYOUT:
-        errors.append("control-center.json: layout does not match the Projects/repos/worktrees contract")
+        if (manifest.get("layout") or {}).get("repositories", "").startswith(".."):
+            errors.append("control-center.json: layout is the old shared ../repos and ../worktrees one; run ./cc migrate-layout")
+        else:
+            errors.append("control-center.json: layout does not match the per-CC repos/ and worktrees/ contract")
     for field in placeholder_paths(manifest):
         errors.append(f"control-center.json: unresolved placeholder at {field}")
     markdown_dirs = manifest.get("markdownDirs", [])

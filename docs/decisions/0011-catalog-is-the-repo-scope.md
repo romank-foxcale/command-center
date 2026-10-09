@@ -2,7 +2,7 @@
 id: decision.0011-catalog-is-the-repo-scope
 title: The catalog is the CC's repo scope, managed by link
 status: accepted
-summary: A CC's repositories are exactly its catalog; ../repos/ is shared between CCs and is never scanned. Repos are added by pasting a link (main branch read from the remote), removed, re-branched and marked project or reference through ./cc repo and the settings panel; ./cc prs lists open PRs of catalog repos only.
+summary: A CC's repositories are exactly its catalog; its clones live in its own repos/ (0016) and are never scanned. Repos are added by pasting a link (main branch read from the remote), removed, re-branched and marked project or reference through ./cc repo and the settings panel; ./cc prs lists open PRs of catalog repos only.
 verified_at: 2026-10-07
 evidence:
   - scripts/repositories.py
@@ -14,6 +14,7 @@ evidence:
   - .agents/skills/_shared/cc-cli.md
 relations:
   - docs/index.md
+  - docs/decisions/0016-per-cc-repos-and-worktrees.md
   - docs/rules/worktrees.md
   - docs/rules/project-adapters.md
 ---
@@ -26,7 +27,7 @@ Several CCs (for example pv_CC and di_CC) sit in one parent folder and share `..
 
 ## Decision
 
-- The catalog (`catalog/repositories/*.json`, `./cc repo list`) is the only list of a CC's repos. Agents never enumerate `../repos/` or `../worktrees/`; the rule is in `AGENTS.md` and the shared skill note.
+- The catalog (`catalog/repositories/*.json`, `./cc repo list`) is the only list of a CC's repos. Agents never enumerate clone folders; the rule is in `AGENTS.md` and the shared skill note. Since [0016](0016-per-cc-repos-and-worktrees.md) each CC also keeps its clones in its own `repos/`, so the shared folder this note started from is gone.
 - `./cc prs` lists open PRs of catalog repos only, newest first, marking PRs not seen or changed since the last listing (`.cc-local/prs-seen.json`, per machine). The `cc-prs` skill shows them and lets the user pick one from a choice list.
 - `./cc repo add <url>` derives the id from the link and reads the main branch from the remote's HEAD; `remove`, `set-branch` (checked against the remote), `set-remote` and `set-kind` complete the set. The settings panel's Repos tab runs the same commands.
 - `kind: reference` marks read-only guidance: no targets, stack or adapter, skipped by `./cc verify`, refused by `./cc worktree`.

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -35,7 +36,7 @@ def main() -> int:
         root = base / "x_CC"
         (root / "catalog" / "repositories").mkdir(parents=True)
         (root / "control-center.json").write_text(json.dumps(
-            {"name": "x_CC", "layout": {"projectsRoot": "..", "repositories": "../repos", "worktrees": "../worktrees"}}))
+            {"name": "x_CC", "layout": {"projectsRoot": ".", "repositories": "repos", "worktrees": "worktrees"}}))
         repo = lambda *arguments, check=True: run(sys.executable, str(SCRIPTS / "repositories.py"), str(root), *arguments, check=check)
         backend = bare_remote(base, "Foxcope-PV-Backend", "develop")
         poc = bare_remote(base, "foxcope-PV-PoC", "main")
@@ -59,20 +60,26 @@ def main() -> int:
         repo("set-branch", "foxcope-pv-backend", "develop")
 
         # Reference repos are never checked out as feature worktrees.
-        (base / "repos").mkdir()
-        run("git", "clone", "-q", poc, str(base / "repos" / "foxcope-pv-poc"))
+        (root / "repos").mkdir()
+        run("git", "clone", "-q", poc, str(root / "repos" / "foxcope-pv-poc"))
         refused = run(sys.executable, str(SCRIPTS / "worktrees.py"), str(root), "create", "demo", "foxcope-pv-poc", check=False)
         assert refused.returncode != 0 and "reference repo" in refused.stderr, refused.stderr
 
         # remove keeps the clone and refuses while a feature still uses the repo.
-        feature = base / "worktrees" / "demo"
+        feature = root / "worktrees" / "demo"
         feature.mkdir(parents=True)
         (feature / ".cc-worktree.json").write_text(json.dumps({"repositories": {"foxcope-pv-backend": {}}}))
         blocked = repo("remove", "foxcope-pv-backend", check=False)
         assert blocked.returncode != 0 and "demo" in blocked.stderr, blocked.stderr
         repo("remove", "foxcope-pv-poc")
         assert not (root / "catalog/repositories/foxcope-pv-poc.json").exists()
-        assert (base / "repos" / "foxcope-pv-poc" / ".git").exists(), "remove never deletes the shared base clone"
+        assert (root / "repos" / "foxcope-pv-poc" / ".git").exists(), "remove never deletes the base clone"
+
+        # The kept clone is now outside the catalog: verify and doctor must say so.
+        strays = repo("strays", check=False)
+        assert strays.returncode != 0 and "foxcope-pv-poc" in strays.stderr, strays.stderr
+        shutil.rmtree(root / "repos" / "foxcope-pv-poc")
+        assert repo("strays").returncode == 0, "repos/ matches the catalog again"
     print("repositories test passed")
     return 0
 

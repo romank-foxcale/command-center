@@ -30,9 +30,9 @@ First read `../_shared/cc-cli.md` and follow it.
 - Targets are the platforms a project repo ships on: `windows`, `linux`, `macos`. Always ask the user; never infer them from CI or the build setup. `set-targets` replaces the whole set.
 - After `set-targets`, every target needs a gate in the repo's Nix adapter (`targets.<platform>`); if one is missing, say so and add it through the adapter, then run `./cc verify <id>`. Changing the targets of a verified repo resets it to `adapted`.
 - The stack is the repo's languages in lowercase (`java`, `python`, `typescript`, `csharp`, `cpp`, `rust`, ...). Read it from the code when it is unambiguous and confirm it with the user.
-- `remove` is **destructive** for this CC's catalog: confirm first. It refuses while a feature worktree uses the repo, and never deletes the base clone in `../repos/`, which other CCs may share.
+- `remove` is **destructive** for this CC's catalog: confirm first. It refuses while a feature worktree uses the repo, and never deletes the base clone in `repos/`; `./cc repo strays` then reports it until it is deleted.
 - `set-branch` checks that the remote has the branch; new feature worktrees start from it.
-- `--clone` also clones into `../repos/<id>`. Ask before cloning.
+- `--clone` also clones into `repos/<id>`. Ask before cloning.
 - Status flow: `discovered` → `adapted` once it has a Nix adapter → `verified` once `./cc verify <id>` passed on every target in this conversation. Otherwise set `blocked` and report the reason.
 - Writing the Nix adapter and onboarding a whole CC belong to `grill-cc-bootstrap`; this skill only runs catalog commands.
 - In an unbootstrapped template clone, `repo` commands fail on a missing `control-center.json`; point the user to `grill-cc-bootstrap`.

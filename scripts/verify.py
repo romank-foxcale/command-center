@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import events
+import repositories as repositories_catalog
 from rule_hooks import attributed_commits
 
 
@@ -114,6 +115,10 @@ def run_verify(root: Path, args: argparse.Namespace, live: Gates) -> int:
     try:
         overrides = override_args(root, feature)
         repositories = selected_repositories(root, feature, args.repositories)
+        strays = repositories_catalog.stray_clones(root)
+        if strays:
+            raise ValueError(f"repos/ holds clones the catalog does not list: {', '.join(strays)}; "
+                             "add them with ./cc repo add <url> or delete them (./cc repo strays)")
     except (OSError, ValueError, KeyError, json.JSONDecodeError, subprocess.CalledProcessError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

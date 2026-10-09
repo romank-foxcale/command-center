@@ -13,7 +13,7 @@ Run every command from the CC root.
 
 ## Scope
 
-This CC's repositories are exactly those in `./cc repo list`. `../repos/` and `../worktrees/` are shared with every other CC in the same parent folder: never enumerate them, or loop over their clones, to answer a question about this CC's repos, PRs or branches. Use `./cc prs` for pull requests.
+This CC's repositories are exactly those in `./cc repo list`. Its clones are in `repos/` and its feature worktrees in `worktrees/`, inside the CC; the folders next to the CC are other projects. Never enumerate clone folders, or loop over them, to answer a question about this CC's repos, PRs or branches. Use `./cc prs` for pull requests.
 
 ## Behaviour
 

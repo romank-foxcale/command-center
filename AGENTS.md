@@ -11,7 +11,7 @@ If the user asks to create, configure or migrate a CC:
 3. determine the mode: `new` or `migration`;
 4. keep grilling until the state is verifiable, not until you get the first answer.
 
-Do not invent a new topology for the CC: base clones live in `../repos/`, feature worktrees in `../worktrees/<feature>/<repo>_wt/`. The CC itself stays in its own root. `../repos/` is shared with other CCs: this CC's repositories are exactly `./cc repo list`.
+Do not invent a new topology for the CC: base clones live in `repos/`, feature worktrees in `worktrees/<feature>/<repo>_wt/`, both inside the CC and git-ignored. This CC's repositories are exactly `./cc repo list`; nothing outside the CC folder belongs to it.
 
 If the user asks to plan a complex or agentic task, load `grill-task-planning`. Keep current plans in `plans/active/`, cancelled ones in `plans/archived/` and finished ones in `plans/completed/`; make transitions with `./cc plan`.
 
@@ -38,7 +38,7 @@ Do not scan all of `docs/` or the archives without a reason.
 - Never fix drift by updating a description: fix the Nix contract or the project.
 - Never bypass Nix with direct `cmake`, `make`, `docker build` or test commands, except for diagnosis; move any working command you find into a derivation, check or app.
 - Pin remote sources through flake inputs. For local development use an input override, not absolute paths committed to Git.
-- Never scan `../repos/` or `../worktrees/` to find this CC's repos: they hold other CCs' clones too. Ask the catalog (`./cc repo list`, `./cc prs`).
+- Never reach outside the CC folder for code: the folders next to it are other projects. A hook asks before any tool does. Ask the catalog (`./cc repo list`, `./cc prs`) for this CC's repos.
 - Create feature worktrees with `./cc worktree`; build and check them with `./cc feature <feature> ...`.
 - Start every coding session on a feature with `./cc open <feature>` (or in the CC root with the worktrees added), never inside a worktree: a session started in a worktree loads none of the CC's skills or rules. If you find yourself started inside a worktree, stop and ask the user to restart.
 - Put pure, reproducible actions in `packages`/`checks`; networked, interactive and privileged ones in explicitly run `apps`.

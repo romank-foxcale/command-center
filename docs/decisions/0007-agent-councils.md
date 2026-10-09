@@ -35,7 +35,7 @@ One model's blind spots go unchallenged when it designs, writes and judges its o
 - Proposers, judge and writer share the `lean-code` skill, adapted from Ponytail (MIT): read fully, then stop at the first rung of the reuse ladder that holds. It also applies to interactive coding. Test writers and the judge share the `tdd` skill, and failures are investigated with the `debug` skill, both adapted from Superpowers (MIT).
 - The debug council gives every role the CC's own verify output as evidence, and the runner enforces red before green: the writer's reproduction test must fail on the unfixed code, must stay unchanged during the fix, and three failed fixes stop the run.
 - The CC still holds no credentials and never falls back to another provider or model when one is logged out.
-- Run artifacts live in `../worktrees/<feature>/.cc-runs/`, outside Git. Councils never commit or push.
+- Run artifacts live in `worktrees/<feature>/.cc-runs/`, outside Git. Councils never commit or push.
 
 ## Options considered
 

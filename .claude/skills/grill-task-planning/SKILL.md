@@ -27,7 +27,7 @@ Once the plan is explicitly agreed, run `./cc plan accept <task-id>`. An unagree
 
 ## Worktree scope
 
-Choose a stable `task-id`; it maps to `../worktrees/<task-id>/<repo>_wt`. Include only the repos that will change; a read-only dependency needs no worktree.
+Choose a stable `task-id`; it maps to `worktrees/<task-id>/<repo>_wt`. Include only the repos that will change; a read-only dependency needs no worktree.
 
 When moving to implementation, use `./cc worktree create <task-id> <repo>...` and `./cc feature <task-id> ...`.
 
