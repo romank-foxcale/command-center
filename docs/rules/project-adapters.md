@@ -3,12 +3,11 @@ id: rules.project-adapters
 title: Connecting sibling projects
 status: active
 summary: Every external repository is connected through a catalog descriptor, a pinned source and a Nix adapter with packages, checks and apps.
-verified_at: 2026-07-21
+verified_at: 2026-10-09
 evidence:
   - scripts/repositories.py
   - nix/projects/default.nix
   - templates/project.nix
-  - examples/cpp-docker-e2e/projects.nix
   - nix/lib/default.nix
 relations:
   - docs/architecture/control-center.md

@@ -16,7 +16,7 @@ First read `../_shared/grilling-core.md` in full, then `BOOTSTRAP.md`. Apply bot
 5. Build the repository inventory. Do not write adapters until names, roles and relationships are agreed.
 6. Onboard one repo at a time: `./cc repo add --targets ... --stack ...` → inspect → flake input/adapter → package/check, one gate per target and, where feasible, `quality.mutation` → `./cc verify <id> --quality` → `./cc repo set-status <id> verified`.
 7. Only then assemble workflows and benchmarks.
-8. Replace the template README and project map with real data; remove the examples and placeholders. Keep `GUIDE.md`, `install/`, `CLAUDE.md` and `.claude/skills`: they are the entry point for people and AI tools.
+8. Replace the template README and project map with real data; remove the placeholders. Keep `GUIDE.md`, `install/`, `CLAUDE.md` and `.claude/skills`: they are the entry point for people and AI tools.
 
 ## Migration
 
