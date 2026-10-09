@@ -11,7 +11,7 @@ First read `../_shared/cc-cli.md` and follow it.
 
 Run `./cc prs --json`. It queries only the repos in this CC's catalog; never list PRs any other way (no `gh` over `../repos/`, which other CCs share).
 
-Show one compact table, newest first: a `new` or `updated` mark (since the last listing), repo, `#number`, title, author, age, review state. Add a short English gloss in parentheses after a title in another language. When `base` differs from the repo's main branch (`./cc repo list`), note "stacked on `<base>`". Repeat any `warning:` lines from stderr. If the list is empty, say so and stop.
+Show one compact table, newest first: a `new` or `updated` mark (since the last listing), repo, `#number`, title, author, age, review state, and the `threads` field when it is set. `N to judge` means comments by others on the user's PR; `author replied` means replies to the user's comments on someone else's PR. Add a short English gloss in parentheses after a title in another language. When `base` differs from the repo's main branch (`./cc repo list`), note "stacked on `<base>`". Repeat any `warning:` lines from stderr. If the list is empty, say so and stop.
 
 ## 2. Choose
 
@@ -28,6 +28,7 @@ Ask what to do, again as a choice question:
 | Choice | What happens |
 |---|---|
 | Review it | Follow `cc-review`: only `[BREAK]`, `[SCOPE]` and `[KNOWLEDGE]` findings, or a CLEAN verdict with what was checked. Findings stay in the chat. |
+| Judge the comments | Follow `cc-threads`: two anonymous sceptics judge each comment waiting on the user, or each reply to the user's comments, against the code. Verdicts and drafted replies stay in the chat. Offer this first when the PR's `threads` field is set. |
 | Summarize it | Run `./cc prs show <repo> <number> --diff` and explain what changes and why, in a few lines. |
 | Check it out | `./cc prs checkout <repo> <number>`: the PR head as feature `pr-<repo>-<number>`, to run its gates or try it. Running it again follows the PR's latest push. |
 | Nothing now | Stop. |

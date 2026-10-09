@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "sceptic-judge",
+  "purpose": "Settles a review thread on which the sceptics split, from their anonymous verdicts and the code",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "access": "read-only",
+  "skills": [
+    "thread-sceptic"
+  ]
+}

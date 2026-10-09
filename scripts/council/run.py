@@ -433,8 +433,17 @@ def council_config(root: Path, identifier: str) -> dict[str, Any]:
     return load_json(path)
 
 
+def pipeline_council(root: Path, identifier: str) -> dict[str, Any]:
+    """A council that runs on a feature; the threads council judges PR threads instead, through ./cc prs judge."""
+    council = council_config(root, identifier)
+    if council.get("kind") == "threads":
+        raise ValueError(f"council {identifier} judges review threads: run ./cc prs judge <repo> <n>; "
+                         "change its roles with ./cc council set-role")
+    return council
+
+
 def command_run(root: Path, args: argparse.Namespace) -> None:
-    council = council_config(root, args.council)
+    council = pipeline_council(root, args.council)
     manifest = load_json(worktrees_root(root) / args.feature / ".cc-worktree.json")
     repositories = manifest.get("repositories", {})
     repository = args.repo or (next(iter(repositories)) if len(repositories) == 1 else None)
@@ -567,8 +576,7 @@ def command_models(root: Path, args: argparse.Namespace) -> None:
 
 def command_set_council(root: Path, args: argparse.Namespace) -> None:
     path = root / "catalog" / "councils" / f"{args.council}.json"
-    if not path.is_file():
-        raise ValueError(f"council not found: catalog/councils/{args.council}.json")
+    pipeline_council(root, args.council)
     changes: dict[str, Any] = {}
     if args.approval:
         changes["approval"] = args.approval == "on"

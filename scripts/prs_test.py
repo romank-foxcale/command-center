@@ -15,6 +15,12 @@ SCRIPT = Path(__file__).resolve().parent / "prs.py"
 # The fake gh logs which repo it was asked about and answers from PULLS (a JSON file the test rewrites).
 FAKE_GH = f"""#!{sys.executable}
 import json, os, sys
+if sys.argv[1:3] == ["api", "user"]:
+    print("me")
+    sys.exit(0)
+if sys.argv[1:3] == ["api", "graphql"]:  # review threads: none here; threads_test.py covers them
+    print(json.dumps({{"data": {{"repository": {{"pullRequest": {{"number": 1, "title": "t", "author": {{"login": "dev"}}}}}}}}}}))
+    sys.exit(0)
 repo = sys.argv[sys.argv.index("--repo") + 1]
 if sys.argv[1:3] == ["pr", "view"]:
     print(json.dumps(json.load(open(os.environ["FAKE_GH_PULLS"]))["view"]))
@@ -70,6 +76,8 @@ def main() -> int:
         assert sorted(set(log.read_text().split())) == ["foxcale/foxcope-PV-backend", "foxcale/foxcope-PV-frontend"], \
             f"only the catalog's GitHub repos are queried: {log.read_text()}"
         assert "pv-internal: not a GitHub remote" in warnings, warnings
+        assert "review threads not checked" not in warnings, warnings
+        assert all(row["threads"] == "" for row in rows), "no review threads, nothing waits"
         assert [(row["repo"], row["number"]) for row in rows] == [("pv-backend", 4), ("pv-backend", 3), ("pv-frontend", 7)], \
             "newest first across repos"
         assert all(row["seen"] == "new" for row in rows), "everything is new on the first listing"

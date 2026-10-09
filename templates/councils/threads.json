@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "threads",
+  "kind": "threads",
+  "purpose": "Two models judge each review thread of a pull request alone and anonymously; a third settles the threads they split on (./cc prs judge)",
+  "sceptics": [
+    "sceptic-claude",
+    "sceptic-grok"
+  ],
+  "judge": "sceptic-judge"
+}

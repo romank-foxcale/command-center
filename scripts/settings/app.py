@@ -453,6 +453,9 @@ class Settings(App):
             self.run_worker(lambda: self.pick_model(item, (role["provider"], role["model"])), thread=True)
         elif tab == "councils":
             council = next(council for council in self.state.councils if council["id"] == item)
+            if council["kind"] == "threads":
+                self.notify("the threads council has no approval or retries; change its roles' models in the agents tab")
+                return
             self.push_screen(Ask(f"Council {item}: approval pause (on/off) and max retries (0-5)",
                 [("on or off", "on" if council["approval"] else "off"), ("max retries", str(council["maxRetries"]))]),
                 lambda answer: answer and self.cc("council", "set", item, "--approval", answer[0], "--max-retries", answer[1]))

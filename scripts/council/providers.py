@@ -170,17 +170,22 @@ def fingerprint(directory: Path) -> dict[str, tuple[int, int]]:
 
 
 def run(
-    role: dict[str, Any], prompt: str, cwd: Path, log: Path, timeout: int = 3600, on_say: Callable[[str], None] | None = None
+    role: dict[str, Any], prompt: str, cwd: Path, log: Path, timeout: int = 3600, on_say: Callable[[str], None] | None = None,
+    shared: Path | None = None,
 ) -> str:
     """Run the role non-interactively in cwd; return its final message. The prompt goes on stdin.
 
     on_say receives what the agent says while it works; tool calls only go to the log.
+    shared: a snapshot() of cwd owned by the caller, for many Cursor calls on one worktree. The caller
+    then compares its fingerprint once after the last call and removes it.
     """
     available, detail = login_status(role["provider"])
     if not available:
         raise ProviderError(f"role {role['id']}: {role['provider']} {detail}")
     if role["provider"] != "cursor":
         return stream_call(role, prompt, cwd, log, timeout, on_say)
+    if shared is not None:
+        return stream_call(role, prompt, shared, log, timeout, on_say)
     workspace, before = snapshot(cwd)
     try:
         reply = stream_call(role, prompt, workspace, log, timeout, on_say)

@@ -117,7 +117,8 @@ def snapshot(root: Path) -> Snapshot:
             {
                 "id": path.stem,
                 "kind": council.get("kind", "?"),
-                "proposers": ", ".join(council.get("proposers", [])),
+                # A threads council has sceptics where the others have proposers.
+                "proposers": ", ".join(council.get("proposers") or council.get("sceptics") or []),
                 "judge": council.get("judge", "?"),
                 "writer": council.get("writer", "?"),
                 "approval": council.get("approval"),

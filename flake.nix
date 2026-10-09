@@ -92,6 +92,7 @@
               prs = pkgs.runCommand "control-center-prs" { nativeBuildInputs = [ pkgs.git ]; } ''
                 export HOME=$TMPDIR
                 ${pkgs.python3}/bin/python ${self}/scripts/prs_test.py
+                ${pkgs.python3}/bin/python -B ${self}/scripts/threads_test.py
                 touch "$out"
               '';
               settings-smoke = pkgs.runCommand "control-center-settings-smoke" { } ''

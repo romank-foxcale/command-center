@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -103,6 +104,19 @@ def main() -> int:
             assert "changed its read-only snapshot" in str(error), error
         assert (worktree / "app.py").read_text() == "print('changed by the writer')\n", "the worktree is untouched"
         assert not Path(json.loads(seen.read_text())["cwd"]).exists(), "the snapshot is deleted after a failure too"
+
+        # A caller-owned snapshot: every call runs in it, none copies again, and the caller sees a write afterwards.
+        os.environ["FAKE_CURSOR_ACT"] = "reply"
+        shared, before = providers.snapshot(worktree)
+        for _ in range(2):
+            providers.run(role, "Judge.", worktree, log, shared=shared)
+            assert Path(json.loads(seen.read_text())["cwd"]) == shared, "the call runs in the shared snapshot"
+        assert shared.exists() and providers.fingerprint(shared) == before, "the caller owns the snapshot; no write"
+        os.environ["FAKE_CURSOR_ACT"] = "write"
+        providers.run(role, "Judge.", worktree, log, shared=shared)
+        assert providers.fingerprint(shared) != before, "a write in the shared snapshot shows in its fingerprint"
+        assert (worktree / "app.py").read_text() == "print('changed by the writer')\n", "the worktree is untouched"
+        shutil.rmtree(shared)
     print("providers test passed")
     return 0
 
