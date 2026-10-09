@@ -1,6 +1,6 @@
 # thread-sceptic: Judge review conversations on catalog PRs with a fresh, anonymous sceptic
 
-Lifecycle: active
+Lifecycle: completed
 Planning status: accepted
 
 ## Outcome
@@ -145,4 +145,6 @@ WP1, WP2a and WP2b change different files and can run in parallel. WP2c touches 
 
 ## Lifecycle closure
 
-Not closed.
+- state: completed
+- date: 2026-10-09
+- evidence: PR romank-foxcale/command-center#22 merged as 8603141; ./cc check 9 of 9 passed; 8 of 8 mutations caught; Cursor probe no writes; real judge run on foxcale/foxcope-PV-backend#3 judged 3 of 3 threads, GPT only on the split, re-run judged nothing
