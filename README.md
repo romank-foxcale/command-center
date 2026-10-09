@@ -116,7 +116,6 @@ Requires Nix with flakes. Docker/Podman is only needed for container workflows. 
 - [Connecting projects](docs/rules/project-adapters.md): the contract for a sibling repository.
 - `nix/projects/`: build adapters for individual projects.
 - `nix/workflows/`: cross-project pipelines.
-- `examples/cpp-docker-e2e/`: two C++ artifacts → HTTP service image → E2E.
 
 ## Repository onboarding and feature worktrees
 

@@ -3,11 +3,12 @@ id: rules.executable-processes
 title: Executable processes
 status: active
 summary: All knowledge about building, testing, packaging and running is expressed as Nix outputs.
-verified_at: 2026-07-20
+verified_at: 2026-10-09
 evidence:
   - flake.nix
   - nix/lib/default.nix
-  - examples/cpp-docker-e2e/workflow.nix
+  - nix/workflows/default.nix
+  - templates/project.nix
 relations:
   - docs/architecture/control-center.md
   - docs/rules/project-adapters.md
@@ -36,12 +37,12 @@ relations:
 
 ## Example
 
-`examples/cpp-docker-e2e/` expresses this chain:
+A cross-project end-to-end test is a chain of outputs, not a script that finds its inputs on disk:
 
 ```text
-cpp-a derivation ─┐
-                  ├→ dockerTools image → HTTP service → E2E app
-cpp-b derivation ─┘
+project A package ─┐
+                   ├→ dockerTools image → HTTP service → E2E app
+project B package ─┘
 ```
 
-Building the C++ programs and the image is part of the checks. Running Docker stays an app, because it needs an external daemon.
+Each project's adapter (`nix/projects/`) builds its package as a check. The workflow (`nix/workflows/`, `ccLib.mkWorkflow`) builds the image from those packages, which is also a check. Running Docker stays an app, because it needs an external daemon.
