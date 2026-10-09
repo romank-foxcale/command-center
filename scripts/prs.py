@@ -6,6 +6,7 @@ Only catalog repos are queried: ../repos/ is shared with other CCs and is never 
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import re
 import subprocess
@@ -177,7 +178,35 @@ def collect(root: Path, requested: list[str]) -> tuple[list[dict[str, Any]], lis
     return rows, problems
 
 
+def mark_threads(root: Path, rows: list[dict[str, Any]], problems: list[str]) -> None:
+    """Fill each row's threads field: what in the PR's review conversation waits on the user."""
+    import threads  # imports this module, so it is loaded only when needed
+
+    for row in rows:
+        row["threads"] = ""
+    if not rows:
+        return
+    try:
+        me = threads.login()
+    except (ValueError, OSError, subprocess.TimeoutExpired) as error:
+        problems.append(f"review threads not checked: {error}")
+        return
+
+    def mark(row: dict[str, Any]) -> None:
+        try:
+            row["threads"] = threads.waiting_mark(root, row["repo"], slug(root, row["repo"]), row["number"], me)
+        except (ValueError, OSError, KeyError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
+            problems.append(f"{row['repo']} #{row['number']}: review threads not checked: {error}")
+
+    with concurrent.futures.ThreadPoolExecutor(8) as pool:
+        list(pool.map(mark, rows))
+
+
 def main() -> int:
+    if sys.argv[2:3] in (["threads"], ["judge"]):
+        import threads
+
+        return threads.main(sys.argv[1:])
     if sys.argv[2:3] in (["show"], ["checkout"]):
         detail = argparse.ArgumentParser(prog=f"./cc prs {sys.argv[2]}")
         detail.add_argument("root", type=Path)
@@ -205,6 +234,7 @@ def main() -> int:
     except (ValueError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
+    mark_threads(args.root.resolve(), rows, problems)
     for problem in problems:
         print(f"warning: {problem}", file=sys.stderr)
     if args.json:
@@ -212,9 +242,10 @@ def main() -> int:
     elif not rows:
         print("no open pull requests")
     else:
-        print("SEEN\tREPO\tPR\tTITLE\tAUTHOR\tAGE\tREVIEW\tURL")
+        print("SEEN\tREPO\tPR\tTITLE\tAUTHOR\tAGE\tREVIEW\tTHREADS\tURL")
         for row in rows:
-            print("\t".join([row["seen"] or "-", row["repo"], f"#{row['number']}", row["title"], row["author"], row["age"], row["review"], row["url"]]))
+            print("\t".join([row["seen"] or "-", row["repo"], f"#{row['number']}", row["title"], row["author"], row["age"], row["review"],
+                             row["threads"] or "-", row["url"]]))
     # Every repo failing means the listing is empty for the wrong reason.
     return 1 if problems and not rows and len(problems) == len(args.repositories or catalog(args.root.resolve())) else 0
 

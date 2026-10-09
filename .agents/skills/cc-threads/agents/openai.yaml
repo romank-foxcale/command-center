@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Threads"
+  short_description: "Judge the review comments on a PR, or the replies to yours"
+  default_prompt: "Use $cc-threads to judge the review comments waiting on me in this Control Center's PRs."
+policy:
+  allow_implicit_invocation: true

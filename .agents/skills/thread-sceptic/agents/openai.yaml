@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thread Sceptic"
+  short_description: "Judge one PR review thread against the code"
+  default_prompt: "Judge PR threads with ./cc prs judge; this role skill is loaded by the runner."
+policy:
+  allow_implicit_invocation: false

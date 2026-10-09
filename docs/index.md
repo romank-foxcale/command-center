@@ -3,7 +3,7 @@ id: index
 title: Control Center knowledge map
 status: active
 summary: Minimal entry point into the rules, architecture and decision history.
-verified_at: 2026-10-08
+verified_at: 2026-10-09
 evidence:
   - AGENTS.md
 relations:
@@ -24,6 +24,7 @@ relations:
   - docs/decisions/0012-review-bar.md
   - docs/decisions/0013-rule-hooks.md
   - docs/decisions/0014-cursor-provider-and-security-council.md
+  - docs/decisions/0015-thread-sceptics.md
   - docs/rules/quality-gates.md
 ---
 
@@ -59,6 +60,7 @@ relations:
 - [Reviews report only BREAK, SCOPE and KNOWLEDGE findings](decisions/0012-review-bar.md)
 - [Claude Code hooks enforce the hard rules early; the gates still decide](decisions/0013-rule-hooks.md)
 - [Cursor is a read-only provider, and security review is a three-model council](decisions/0014-cursor-provider-and-security-council.md)
+- [Review conversations are judged by two anonymous sceptics, and a judge settles only their splits](decisions/0015-thread-sceptics.md)
 
 ## Current context
 

@@ -18,7 +18,7 @@ TARGETS = {"windows", "linux", "macos"}
 # Must match scripts/council/providers.py.
 PROVIDERS = {"claude", "codex", "cursor"}
 ACCESS_LEVELS = {"read-only", "write-worktree"}
-COUNCIL_KINDS = {"coding", "testing", "debug"}
+COUNCIL_KINDS = {"coding", "testing", "debug", "threads"}
 EXPECTED_LAYOUT = {
     "projectsRoot": "..",
     "repositories": "../repos",
@@ -238,17 +238,29 @@ def validate_councils(root: Path, roles: dict[str, dict[str, Any]], errors: list
             errors.append(f"{relative}: schemaVersion must be 1")
         if data.get("kind") not in COUNCIL_KINDS:
             errors.append(f"{relative}: kind must be one of {', '.join(sorted(COUNCIL_KINDS))}")
-        if not isinstance(data.get("approval"), bool):
-            errors.append(f"{relative}: 'approval' must be true or false")
-        retries = data.get("maxRetries")
-        if not isinstance(retries, int) or isinstance(retries, bool) or not 0 <= retries <= 5:
-            errors.append(f"{relative}: 'maxRetries' must be an integer from 0 to 5")
 
         def require_role(slot: str, value: Any, access: str) -> None:
             if value not in roles:
                 errors.append(f"{relative}: {slot} '{value}' is not a role in catalog/agents")
             elif roles[value].get("access") != access:
                 errors.append(f"{relative}: {slot} '{value}' must have access '{access}'")
+
+        if data.get("kind") == "threads":
+            # Sceptics judge review threads (./cc prs judge); the judge settles their splits. No writer, approval or retries.
+            sceptics = data.get("sceptics")
+            if not isinstance(sceptics, list) or not sceptics or len(set(map(str, sceptics))) != len(sceptics):
+                errors.append(f"{relative}: 'sceptics' must list one or more distinct roles")
+                continue
+            for sceptic in sceptics:
+                require_role("sceptic", sceptic, "read-only")
+            if len(sceptics) > 1 or data.get("judge") is not None:
+                require_role("judge", data.get("judge"), "read-only")
+            continue
+        if not isinstance(data.get("approval"), bool):
+            errors.append(f"{relative}: 'approval' must be true or false")
+        retries = data.get("maxRetries")
+        if not isinstance(retries, int) or isinstance(retries, bool) or not 0 <= retries <= 5:
+            errors.append(f"{relative}: 'maxRetries' must be an integer from 0 to 5")
 
         proposers = data.get("proposers")
         if not isinstance(proposers, list) or len(proposers) < 2 or len(set(map(str, proposers))) != len(proposers):

@@ -86,6 +86,20 @@ def check_catalog_rules() -> None:
                                 (["writer"], False), (["nobody"], False), ({"a": 1}, False)):
             coding.write_text(json.dumps({**data, "security": security}))
             assert (errors() == []) == valid, (security, errors())
+        coding.write_text(json.dumps(data))
+
+        # The threads council: read-only sceptics, and a judge whenever there are several of them.
+        threads = root / "catalog" / "councils" / "threads.json"
+        data = json.loads(threads.read_text())
+        assert data["sceptics"] == ["sceptic-claude", "sceptic-grok"] and data["judge"] == "sceptic-judge", data
+        assert {json.loads((root / "catalog" / "agents" / f"{role}.json").read_text())["provider"]
+                for role in (*data["sceptics"], data["judge"])} == {"claude", "cursor", "codex"}, "three model families"
+        for changes, valid in (({}, True), ({"sceptics": ["sceptic-claude"], "judge": None}, True),
+                               ({"judge": None}, False), ({"sceptics": ["sceptic-claude", "sceptic-claude"]}, False),
+                               ({"sceptics": ["writer", "sceptic-grok"]}, False), ({"sceptics": []}, False),
+                               ({"judge": "writer"}, False)):
+            threads.write_text(json.dumps({**data, **changes}))
+            assert (errors() == []) == valid, (changes, errors())
 
 
 def main() -> int:

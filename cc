@@ -21,8 +21,9 @@ usage() {
     '  bootstrap install [target]  Materialize a new CC from this clone' \
     '  bootstrap validate          Validate the configured CC contract' \
     '  repo <add|list|show|remove|set-branch|set-remote|set-kind|set-status|set-targets|set-stack> ...' \
-    '  prs [repo...] [--json]  Open pull requests of the catalog repos, newest first, new ones marked' \
+    '  prs [repo...] [--json]  Open pull requests of the catalog repos, newest first, new ones and waiting threads marked' \
     '  prs show <repo> <n> [--diff] | prs checkout <repo> <n>  One PR for review; its head as feature pr-<repo>-<n>' \
+    '  prs threads|judge <repo> <n> [--all] [--json]  Review threads waiting on you; judge them with anonymous sceptics' \
     '  worktree <create|add|status|remove> ...' \
     '  trello <status|boards|lists|connect|link|show|comment|move> ...  Trello cards, on demand only' \
     '  open <feature> [--tool claude|codex]  Start a coding session in the CC with the feature'"'"'s worktrees' \

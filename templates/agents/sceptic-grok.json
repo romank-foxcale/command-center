@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "sceptic-grok",
+  "purpose": "Judges one review thread of a pull request against the code, trying to disprove the claim first",
+  "provider": "cursor",
+  "model": "grok-4.7-high",
+  "access": "read-only",
+  "skills": [
+    "lean-code",
+    "thread-sceptic"
+  ]
+}
