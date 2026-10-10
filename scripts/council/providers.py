@@ -40,9 +40,69 @@ CURSOR_MODEL = re.compile(r"^(\S+) - ")
 # of each tier, full ids pin one. Update when Anthropic releases models.
 CLAUDE_MODELS = ["opus", "sonnet", "haiku", "claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-haiku-4-5-20251001"]
 
+# A call that keeps reading and editing fills its own context window, and its work degrades long
+# before it fails. Codex and Cursor have no turn limit, so the runner counts the tool lines it writes
+# to the log, the same for every provider, and stops the process past the role's maxToolCalls.
+DEFAULT_MAX_TOOL_CALLS = 100
+
 
 class ProviderError(RuntimeError):
     pass
+
+
+class ToolCapError(ProviderError):
+    """The call reached its role's tool-call cap and was stopped before it replied."""
+
+
+def max_tool_calls(role: dict[str, Any]) -> int:
+    return role.get("maxToolCalls", DEFAULT_MAX_TOOL_CALLS)
+
+
+def call_usage(provider: str, event: dict[str, Any]) -> dict[str, int] | None:
+    """The tokens a CLI reports for a call, as new input, cached input and output. Claude and Cursor report
+    a call's total in its result; Codex reports each turn, and its input includes the cached part."""
+    if provider == "claude" and event.get("type") == "result":
+        used = event.get("usage", {})
+        return {"input": used.get("input_tokens", 0) + used.get("cache_creation_input_tokens", 0),
+                "cached": used.get("cache_read_input_tokens", 0), "output": used.get("output_tokens", 0)}
+    if provider == "codex" and event.get("type") == "turn.completed":
+        used = event.get("usage", {})
+        cached = used.get("cached_input_tokens", 0)
+        return {"input": used.get("input_tokens", 0) - cached, "cached": cached, "output": used.get("output_tokens", 0)}
+    if provider == "cursor" and event.get("type") == "result":
+        used = event.get("usage", {})
+        return {"input": used.get("inputTokens", 0) + used.get("cacheWriteTokens", 0),
+                "cached": used.get("cacheReadTokens", 0), "output": used.get("outputTokens", 0)}
+    return None
+
+
+USAGE_LINE = re.compile(r"^usage: (\d+) new input, (\d+) cached input, (\d+) output tokens$")
+
+
+def usage(log: Path) -> dict[str, int] | None:
+    """The tokens a call used, read from its log; None when the call ended before its CLI reported them."""
+    lines = log.read_text(encoding="utf-8", errors="replace").splitlines() if log.is_file() else []
+    match = next((match for line in lines if (match := USAGE_LINE.match(line))), None)
+    return dict(zip(("input", "cached", "output"), map(int, match.groups()))) if match else None
+
+
+def count(tokens: int) -> str:
+    return f"{tokens / 1e6:.1f}M" if tokens >= 1e6 else f"{tokens / 1e3:.1f}k" if tokens >= 1e3 else str(tokens)
+
+
+def describe(used: dict[str, int] | None) -> str:
+    """'41.2k tokens (12.0k new input, 27.1k cached, 2.1k output)', for people reading a run."""
+    if used is None:
+        return "tokens not reported"
+    return (f"{count(sum(used.values()))} tokens ({count(used['input'])} new input, "
+            f"{count(used['cached'])} cached, {count(used['output'])} output)")
+
+
+def tool_calls(log: Path) -> int:
+    """How many tool calls a call made, read from its log: the number a person sees there."""
+    if not log.is_file():
+        return 0
+    return sum(line.startswith("tool: ") for line in log.read_text(encoding="utf-8", errors="replace").splitlines())
 
 
 def models(provider: str) -> list[str]:
@@ -207,6 +267,8 @@ def stream_call(
     parse = {"claude": parse_claude_event, "codex": parse_codex_event, "cursor": parse_cursor_event}[role["provider"]]
     # Cursor's result joins every message, preambles included; the reply is what it said after its last tool call.
     closing: list[str] = []
+    cap, calls = max_tool_calls(role), 0
+    used: dict[str, int] | None = None
     with log.open("w", encoding="utf-8") as stream:
         stream.write(f"$ {' '.join(argv)}\n\n")
         stream.flush()
@@ -219,6 +281,8 @@ def stream_call(
             # Write activity as it happens: the log is what ./cc council status shows.
             for line in process.stdout:
                 event, activity = parse(line)
+                if (reported := call_usage(role["provider"], event)) is not None:
+                    used = {key: (used or {}).get(key, 0) + value for key, value in reported.items()}
                 if event.get("type") == "result":
                     final = str(event.get("result", ""))
                 elif event.get("type") == "tool_call":
@@ -231,9 +295,20 @@ def stream_call(
                             on_say(said[5:])
                 stream.write(f"{activity}\n" if activity else "")
                 stream.flush()
+                calls += sum(said.startswith("tool: ") for said in activity.splitlines())
+                if calls > cap:
+                    stream.write(f"stopped: reached the cap of {cap} tool calls\n")
+                    process.kill()
+                    break
             process.wait()
+            # The last line of every log: what the call cost, or that its CLI never said.
+            stream.write(f"usage: {used['input']} new input, {used['cached']} cached input, {used['output']} output tokens\n"
+                         if used else "usage: not reported (the call ended before its CLI reported tokens)\n")
         finally:
             timer.cancel()
+    if calls > cap:
+        raise ToolCapError(f"role {role['id']} ({role['provider']} {role['model']}) reached its cap of {cap} tool calls "
+                           f"and was stopped; see {log}")
     if process.returncode != 0:
         raise ProviderError(f"role {role['id']} ({role['provider']} {role['model']}) failed; see {log}")
     if role["provider"] == "codex":
@@ -297,6 +372,11 @@ def parse_codex_event(line: str) -> tuple[dict[str, Any], str]:
     item = event.get("item", {})
     if event.get("type") == "item.started" and item.get("type") == "command_execution":
         return event, f"tool: {item.get('command', '')}"[:200]
+    # Edits and searches are tool calls too: they show in the log and count toward the cap.
+    if event.get("type") == "item.completed" and item.get("type") == "file_change":
+        return event, f"tool: edit {', '.join(change.get('path', '?') for change in item.get('changes', []))}"[:200]
+    if event.get("type") == "item.completed" and item.get("type") == "web_search":
+        return event, f"tool: web search {item.get('query', '')}"[:200]
     if event.get("type") == "item.completed" and item.get("type") == "agent_message" and item.get("text", "").strip():
         return event, "say: " + " ".join(item["text"].split())[:160]
     if event.get("type") in {"turn.failed", "error"}:

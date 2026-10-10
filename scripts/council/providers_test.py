@@ -36,10 +36,12 @@ def emit(event): print(json.dumps(event), flush=True)
 text = lambda words: {{"type": "assistant", "message": {{"content": [{{"type": "text", "text": words}}]}}}}
 emit({{"type": "system", "subtype": "init"}})
 emit(text("I'll check the code first."))
-emit({{"type": "tool_call", "subtype": "started", "tool_call": {{"readToolCall": {{"args": {{"path": str(workspace / "app.py")}}}}}}}})
+for _ in range(int(os.environ.get("FAKE_CURSOR_TOOLS", "1"))):
+    emit({{"type": "tool_call", "subtype": "started", "tool_call": {{"readToolCall": {{"args": {{"path": str(workspace / "app.py")}}}}}}}})
 emit(text("DECISION: A"))
 emit(text("## Reasoning\\nA reuses the parser."))
-emit({{"type": "result", "subtype": "success", "result": "I'll check the code first.DECISION: A## Reasoning"}})
+emit({{"type": "result", "subtype": "success", "result": "I'll check the code first.DECISION: A## Reasoning",
+       "usage": {{"inputTokens": 11273, "outputTokens": 18, "cacheReadTokens": 500, "cacheWriteTokens": 7}}}})
 """
 
 
@@ -94,6 +96,8 @@ def main() -> int:
         assert call["files"] == [".cursor/cli.json", ".gitignore", "app.py", "new.py"], call["files"]
         assert not Path(call["cwd"]).exists(), "the snapshot is deleted"
         assert "tool: read" in log.read_text()
+        assert providers.usage(log) == {"input": 11280, "cached": 500, "output": 18}, "cache writes are new input"
+        assert log.read_text().splitlines()[-1] == "usage: 11280 new input, 500 cached input, 18 output tokens"
         assert (worktree / ".cursor" / "cli.json").read_text().startswith('{"permissions": {"allow"'), "the worktree is untouched"
 
         os.environ["FAKE_CURSOR_ACT"] = "write"
@@ -117,6 +121,44 @@ def main() -> int:
         assert providers.fingerprint(shared) != before, "a write in the shared snapshot shows in its fingerprint"
         assert (worktree / "app.py").read_text() == "print('changed by the writer')\n", "the worktree is untouched"
         shutil.rmtree(shared)
+
+        # The tool-call cap: the count is what the log shows, the cap itself is allowed, one past it stops the call.
+        os.environ["FAKE_CURSOR_ACT"] = "reply"
+        os.environ["FAKE_CURSOR_TOOLS"] = "3"
+        assert providers.run({**role, "maxToolCalls": 3}, "Judge.", worktree, log).startswith("DECISION: A")
+        assert providers.tool_calls(log) == 3, log.read_text()
+        try:
+            providers.run({**role, "maxToolCalls": 2}, "Judge.", worktree, log)
+            raise AssertionError("a call past its cap must be stopped")
+        except providers.ToolCapError as error:
+            assert "reached its cap of 2 tool calls" in str(error), error
+        assert log.read_text().splitlines()[-2:] == [
+            "stopped: reached the cap of 2 tool calls", "usage: not reported (the call ended before its CLI reported tokens)",
+        ], log.read_text()
+        assert providers.usage(log) is None, "a call stopped before its result has no usage, not zero"
+        assert providers.max_tool_calls(role) == providers.DEFAULT_MAX_TOOL_CALLS
+
+    # Codex edits and searches count as tool calls, like its commands.
+    change = json.dumps({"type": "item.completed", "item": {"type": "file_change", "changes": [{"path": "a.py"}, {"path": "b.py"}]}})
+    assert providers.parse_codex_event(change)[1] == "tool: edit a.py, b.py"
+    search = json.dumps({"type": "item.completed", "item": {"type": "web_search", "query": "pytest fixtures"}})
+    assert providers.parse_codex_event(search)[1] == "tool: web search pytest fixtures"
+
+    # Usage as each CLI reported it in a real call (2026-10): Claude splits cache tokens out, Codex counts
+    # its cached tokens inside input_tokens, and its output_tokens already include reasoning.
+    claude = {"type": "result", "usage": {"input_tokens": 2, "cache_creation_input_tokens": 2793,
+                                          "cache_read_input_tokens": 1556, "output_tokens": 4}}
+    assert providers.call_usage("claude", claude) == {"input": 2795, "cached": 1556, "output": 4}
+    assert providers.call_usage("claude", {"type": "assistant", "message": {"usage": {"input_tokens": 9}}}) is None, \
+        "per-message usage would count the call twice"
+    codex = {"type": "turn.completed", "usage": {"input_tokens": 13869, "cached_input_tokens": 1408,
+                                                 "output_tokens": 23, "reasoning_output_tokens": 16}}
+    assert providers.call_usage("codex", codex) == {"input": 12461, "cached": 1408, "output": 23}
+    assert providers.describe({"input": 12000, "cached": 27100, "output": 2100}) == \
+        "41.2k tokens (12.0k new input, 27.1k cached, 2.1k output)"
+    assert providers.describe({"input": 1_250_000, "cached": 0, "output": 900}) == \
+        "1.3M tokens (1.2M new input, 0 cached, 900 output)"
+    assert providers.describe(None) == "tokens not reported"
     print("providers test passed")
     return 0
 

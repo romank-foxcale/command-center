@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -52,6 +53,66 @@ def review(base: Path, name: str, answers: dict[str, str], reviewers: list[str])
     return run, fake, reason
 
 
+VERIFY_FAILS = "running tests\nFAILED test_app.py::test_parse - AssertionError: 1 != 2\n\nREPO\tGATE\tRESULT\napi\ttests\tFAIL (exit 1)\n"
+
+
+def check_writer_history(base: Path) -> None:
+    """Every retry gets one readable section per earlier attempt; a capped attempt is recorded, not fatal."""
+    worktree = base / "history-worktree"
+    worktree.mkdir()
+    git = ["git", "-C", str(worktree), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run(["git", "init", "-q", str(worktree)], check=True)
+    (worktree / "app.py").write_text("base\n")
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "base"], check=True)
+
+    def fake_writer(attempts: list):
+        prompts: list[str] = []
+
+        def call(role, prompt, cwd, log, timeout=3600, on_say=None):
+            prompts.append(prompt)
+            content, reply = attempts[len(prompts) - 1]
+            (worktree / "app.py").write_text(content)
+            if reply is None:
+                raise providers.ToolCapError("writer reached its cap of 100 tool calls")
+            return reply
+        return call, prompts
+
+    def write(name: str, attempts: list) -> tuple[council_run.Run, list[str], str]:
+        (worktree / "app.py").write_text("base\n")
+        run = make_run(base, name)
+        writer = run.root / "catalog" / "agents" / "writer.json"
+        writer.write_text(json.dumps({"id": "writer", "provider": "claude", "model": "opus", "access": "write-worktree", "skills": []}))
+        run.save(worktree=str(worktree), instructions="Make parse return 2.")
+        providers.run, prompts = fake_writer(attempts)
+        run.verify = lambda name: ((worktree / "app.py").read_text() == "fixed\n", VERIFY_FAILS, council_run.verify_rows(VERIFY_FAILS))
+        run.write_and_verify({"writer": "writer", "maxRetries": 2, "judge": "judge", "security": None})
+        return run, prompts, (run.directory / "attempts.md").read_text()
+
+    run, prompts, history = write("history", [
+        ("wrong\n", "Changed parse in app.py to return 1."), ("half\n", None), ("fixed\n", "Return 2 from parse."),
+    ])
+    assert run.state["stage"] == "done", run.state
+    assert "Earlier attempts" not in prompts[0], "the first attempt has no history"
+    assert "## Attempt 1 of 3: verify failed" in prompts[1] and "## Attempt 2" not in prompts[1]
+    third = prompts[2]
+    assert "## Attempt 1 of 3: verify failed" in third and "## Attempt 2 of 3: stopped at its cap of 100 tool calls, then verify failed" in third
+    assert third.index("# Earlier attempts") < third.index("# Verification failed (retry 2 of 2)"), "history, then the latest output"
+    assert "## Attempt 3 of 3: verify passed" in history, history
+    for expected in ("- Writer: writer (claude opus), 0 tool calls, tokens not reported,","- Files it changed: app.py", "- Failed gates: api tests",
+                     "  - FAILED test_app.py::test_parse - AssertionError: 1 != 2",
+                     "- What the writer said: Changed parse in app.py to return 1.",
+                     "- What the writer said: nothing; it was stopped before it replied",
+                     "- Full output: verify-0.log, logs/write-0.log"):
+        assert expected in history, (expected, history)
+    assert "running tests" not in history, "only error lines are quoted; the rest stays in the log"
+    assert "Failed gates" not in history.split("## Attempt 3")[1], "a passing attempt lists no failures"
+
+    run, _, history = write("history-exhausted", [("wrong\n", "One."), ("wrong\n", "Two."), ("wrong\n", "Three.")])
+    assert run.state["stage"] == "verify-failed" and run.state["summary"].endswith("see attempts.md"), run.state
+    assert "- Files it changed: none" in history.split("## Attempt 2")[1], "an attempt that changed nothing says so"
+
+
 def check_catalog_rules() -> None:
     """The shipped templates validate, a writing Cursor role does not, and security takes a list or one role."""
     template = Path(__file__).resolve().parent.parent.parent
@@ -80,6 +141,11 @@ def check_catalog_rules() -> None:
         writer.write_text(json.dumps({**json.loads(writer.read_text()), "provider": "cursor"}))
         assert any("cursor roles must be read-only" in error for error in errors()), errors()
         writer.write_text(json.dumps({**json.loads(writer.read_text()), "provider": "claude"}))
+        data = json.loads(writer.read_text())
+        for cap, valid in ((50, True), (1000, True), (0, False), (1001, False), ("80", False), (True, False)):
+            writer.write_text(json.dumps({**data, "maxToolCalls": cap}))
+            assert (errors() == []) == valid, (cap, errors())
+        writer.write_text(json.dumps(data))
 
         data = json.loads(coding.read_text())
         for security, valid in (("security-claude", True), (None, True), ([], True), (["security-grok", "security-grok"], False),
@@ -140,7 +206,17 @@ def main() -> int:
         _, _, reason = review(base, "single-high", {"security-claude": "SEVERITY: high"}, ["security-claude"])
         assert reason == "security review blocks the change; see security.md"
 
+        check_writer_history(base)
+
     check_catalog_rules()
+    used = {"input": 10_000, "cached": 30_000, "output": 2_000}
+    calls = [{"finishedAt": "t", "usage": used}, {"finishedAt": "t", "usage": used}, {"startedAt": "t"}]
+    assert council_run.run_tokens({"calls": calls}) == "84.0k tokens (20.0k new input, 60.0k cached, 4.0k output) in 2 calls", \
+        "a call still working is not counted yet"
+    calls.append({"finishedAt": "t", "usage": None})
+    assert council_run.run_tokens({"calls": calls}).startswith("at least 84.0k tokens") and \
+        council_run.run_tokens({"calls": calls}).endswith("in 3 calls; 1 did not report tokens"), "a missing report makes a lower bound"
+    assert council_run.run_tokens({}) == "0 tokens (0 new input, 0 cached, 0 output) in 0 calls"
     council = {"approval": True}
     assert progress.security_roles({**council, "security": None}) == []
     assert progress.security_roles({**council, "security": "security"}) == ["security"], "catalogs older than the list"
