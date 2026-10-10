@@ -1,6 +1,6 @@
 # per-cc-layout: every CC keeps its own repos and worktrees inside its folder, isolated from other CCs
 
-Lifecycle: active
+Lifecycle: completed
 Planning status: accepted
 
 ## Outcome
@@ -75,4 +75,6 @@ A CC's base clones live in `<cc>/repos/<repo>` and its feature worktrees in `<cc
 
 ## Lifecycle closure
 
-Not closed.
+- state: completed
+- date: 2026-10-10
+- evidence: Template: ./cc check passes with migrate_layout_test (real git worktrees) and rule_hooks isolation cases. pv_CC (750c9ab) and di_CC (980bf64) migrated: 8 clones and 10 features moved, every worktree kept branch, HEAD and local changes (before/after snapshot identical), git worktree list shows no prunable entries, ./cc repo strays clean, ./cc check passes in both; ~/Projects/repos and ~/Projects/worktrees removed
