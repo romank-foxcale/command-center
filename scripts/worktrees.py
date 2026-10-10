@@ -120,7 +120,7 @@ def add_repositories(context: Context, manifest: dict[str, Any], identifiers: li
         if identifier in entries:
             raise ValueError(f"repository already belongs to feature: {identifier}")
         descriptor = repository(context.root, identifier)
-        base = context.repositories_root / identifier
+        base = context.repositories_root / descriptor.get("kind", "project") / identifier
         git(base, "rev-parse", "--is-inside-work-tree")
         destination = context.feature_root / f"{identifier}_wt"
         if destination.exists():

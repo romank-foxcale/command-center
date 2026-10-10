@@ -73,7 +73,8 @@ This creates the standard layout:
 ```
 ~/Projects/
 ├── my-project_CC/        ← your Control Center (its own git repo)
-│   ├── repos/            ← base clones of this CC's repos (git-ignored, only this CC's)
+│   ├── repos/project/    ← base clones of the repos this CC changes (git-ignored)
+│   ├── repos/reference/  ← read-only reference repos, such as a PoC: guidance, never the truth
 │   └── worktrees/<feature>/ ← one folder per task, with a git worktree per changed repo
 ```
 
@@ -168,6 +169,7 @@ Other commands, run from the CC folder:
 | `./cc show` | List everything that can be built, checked or run |
 | `./cc build <name>` / `./cc run <name>` | Build or run one thing |
 | `./cc repo list` | Connected repos: kind, main branch, status |
+| `./cc repo update` | Fetch the base clones; fast-forward the read-only reference clones |
 | `./cc prs` | Open PRs of the connected repos, new ones marked (or ask "any new PRs?") |
 | `./cc plan list` | Plans in progress, archived, completed |
 | `./cc validate` | Check the `docs/` notes only (works without Nix) |

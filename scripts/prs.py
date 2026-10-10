@@ -110,7 +110,8 @@ def checkout(root: Path, identifier: str, number: int) -> str:
     and ./cc worktree remove sees nothing unpublished."""
     repository = slug(root, identifier)
     manifest = load_json(root / "control-center.json")
-    base = (root / manifest["layout"]["repositories"]).resolve() / identifier
+    kind = load_json(root / "catalog" / "repositories" / f"{identifier}.json").get("kind", "project")
+    base = (root / manifest["layout"]["repositories"]).resolve() / kind / identifier
     if not (base / ".git").exists():
         raise ValueError(f"no base clone at {base}; clone it first: git clone <remote> {base}")
     pr = json.loads(gh("pr", "view", str(number), "--repo", repository, "--json", "number,body,headRefName"))

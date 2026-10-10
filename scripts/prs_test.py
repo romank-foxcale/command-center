@@ -134,7 +134,7 @@ def check_checkout(base: Path, root: Path, env: dict[str, str]) -> None:
     git(base, "clone", "-q", "--bare", str(author), str(origin))
     git(author, "commit", "-q", "--allow-empty", "-m", "pr 4, first push")
     git(author, "push", "-q", str(origin), "HEAD:refs/pull/4/head")
-    git(base, "clone", "-q", str(origin), str(root / "repos" / "pv-backend"))
+    git(base, "clone", "-q", str(origin), str(root / "repos" / "project" / "pv-backend"))
 
     def checkout() -> subprocess.CompletedProcess[str]:
         return subprocess.run([sys.executable, str(SCRIPT), str(root), "checkout", "pv-backend", "4"], capture_output=True, text=True, env=env)

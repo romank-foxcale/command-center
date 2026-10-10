@@ -27,7 +27,8 @@ relations:
 ```text
 Projects/
 ├── <project>_CC/
-│   ├── repos/<repo>/                    (git-ignored base clones)
+│   ├── repos/project/<repo>/            (git-ignored base clones of the repos this CC changes)
+│   ├── repos/reference/<repo>/          (git-ignored, read-only on disk: guidance, never the truth)
 │   └── worktrees/<feature>/<repo>_wt/   (git-ignored feature worktrees)
 └── <other>_CC/
     └── ...                              (its own repos and worktrees, never this CC's)

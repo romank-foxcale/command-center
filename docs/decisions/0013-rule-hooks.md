@@ -39,6 +39,8 @@ The hard rules in `AGENTS.md` were instruction text only. Agents break them when
   | Notes follow the knowledge rules | after an edit in `docs/`, return that note's validation errors | `knowledge` check |
   | Skill copies in sync | at stop, report drift once | `agent-configs` check |
   | Stay inside the CC ([0016](0016-per-cc-repos-and-worktrees.md)) | `ask` when a Read, Grep, Glob, edit or shell path resolves into a folder next to the CC | `./cc verify` fails on clones in `repos/` outside the catalog |
+  | Base clones are never edited | deny edits under `repos/`, naming the feature worktree instead | reference clones are read-only on disk |
+  | A reference repo is guidance, not truth | after the first read of `repos/reference/<id>` in a session, add a note to check it against the project repos | none: it is judgement |
 
 - A hook that fails warns and never blocks (exit 1, not 2): a broken hook must not stop work, and the gate is still there.
 

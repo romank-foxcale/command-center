@@ -33,7 +33,10 @@ HOOKS = {
         {"matcher": "Read|Grep|Glob", "hooks": hook("pre-read")},
         {"matcher": "Edit|MultiEdit|Write", "hooks": hook("pre-edit")},
     ],
-    "PostToolUse": [{"matcher": "Edit|MultiEdit|Write", "hooks": hook("post-edit")}],
+    "PostToolUse": [
+        {"matcher": "Edit|MultiEdit|Write", "hooks": hook("post-edit")},
+        {"matcher": "Read|Grep|Glob", "hooks": hook("post-read")},
+    ],
     "Stop": [{"hooks": hook("stop")}],
 }
 

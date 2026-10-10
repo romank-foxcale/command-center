@@ -30,8 +30,11 @@ If the mode is unclear, do not write to the target folder until it is clarified.
 Projects/
 ├── project1_CC/
 │   ├── repos/                (git-ignored base clones of this CC's catalog)
-│   │   ├── repo1/
-│   │   └── repo2/
+│   │   ├── project/          (repos this CC changes)
+│   │   │   ├── repo1/
+│   │   │   └── repo2/
+│   │   └── reference/        (read-only guidance, read-only on disk)
+│   │       └── poc/
 │   └── worktrees/            (git-ignored feature worktrees)
 │       ├── feature1/
 │       │   ├── repo1_wt/
@@ -42,7 +45,7 @@ Projects/
 
 Relative to any `<project>_CC` (docs/decisions/0016-per-cc-repos-and-worktrees.md):
 
-- base checkouts: `repos/<repo>`;
+- base checkouts: `repos/project/<repo>` and, read-only, `repos/reference/<repo>`;
 - worktrees: `worktrees/<feature>/<repo>_wt`;
 - nothing outside the CC folder belongs to it; a CC on the old shared `../repos` and `../worktrees` moves with `./cc migrate-layout`;
 - the CC is never copied into a feature folder;

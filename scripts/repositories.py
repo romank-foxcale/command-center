@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Manage tracked repository descriptors and optional shared base clones."""
+"""Manage tracked repository descriptors and this CC's base clones in repos/<kind>/<id>."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -32,6 +33,33 @@ def layout(root: Path) -> tuple[Path, Path]:
     projects_root = (root / manifest["layout"]["projectsRoot"]).resolve()
     repositories_root = (root / manifest["layout"]["repositories"]).resolve()
     return projects_root, repositories_root
+
+
+def base_clone(root: Path, identifier: str, kind: str | None = None) -> Path:
+    """repos/<kind>/<id>: the folder says what a clone is, in every path an agent reads
+    (docs/decisions/0016-per-cc-repos-and-worktrees.md)."""
+    if kind is None:
+        path = descriptor_path(root, identifier)
+        kind = load_json(path).get("kind", "project") if path.is_file() else "project"
+    if kind not in KINDS:
+        raise ValueError(f"unknown repository kind: {kind}")
+    return layout(root)[1] / kind / identifier
+
+
+def protect(checkout: Path, read_only: bool) -> None:
+    """Make a reference clone's files and folders read-only on disk, or writable again for an update.
+
+    The OS then refuses every writer (Claude, Codex, Cursor, a person), not only the ones that follow rules.
+    .git stays writable, so fetching still works."""
+    for directory, folders, files in os.walk(checkout):
+        folders[:] = [name for name in folders if not (directory == str(checkout) and name == ".git")]
+        for name in [*files, *folders]:
+            path = Path(directory) / name
+            if not path.is_symlink():
+                mode = path.stat().st_mode
+                path.chmod(mode & ~0o222 if read_only else mode | 0o200)
+    mode = checkout.stat().st_mode
+    checkout.chmod(mode & ~0o222 if read_only else mode | 0o200)
 
 
 def descriptor_path(root: Path, identifier: str) -> Path:
@@ -161,10 +189,9 @@ def command_add(root: Path, args: argparse.Namespace) -> None:
         raise ValueError("remote must be a portable Git URL, not an absolute local path")
     args.branch = args.branch or remote_default_branch(args.remote)
 
-    _, repositories_root = layout(root)
-    checkout = repositories_root / args.id
+    checkout = base_clone(root, args.id, args.kind)
     if args.clone:
-        repositories_root.mkdir(parents=True, exist_ok=True)
+        checkout.parent.mkdir(parents=True, exist_ok=True)
         if checkout.exists() and not is_git_checkout(checkout):
             raise ValueError(f"checkout exists but is not a Git worktree: {checkout}")
         if not checkout.exists():
@@ -173,6 +200,8 @@ def command_add(root: Path, args: argparse.Namespace) -> None:
                 check=True,
             )
         require_remote(checkout, args.remote, root)
+        if args.kind == "reference":
+            protect(checkout, read_only=True)
     elif checkout.exists():
         if not is_git_checkout(checkout):
             raise ValueError(f"checkout exists but is not a Git worktree: {checkout}")
@@ -206,26 +235,53 @@ def stray_clones(root: Path) -> list[str]:
     _, repositories_root = layout(root)
     if not repositories_root.is_dir():
         return []
-    known = {path.stem for path in (root / "catalog" / "repositories").glob("*.json")}
-    return sorted(entry.name for entry in repositories_root.iterdir() if entry.is_dir() and entry.name not in known)
+    kinds = {path.stem: load_json(path).get("kind", "project") for path in (root / "catalog" / "repositories").glob("*.json")}
+    strays = []
+    for entry in sorted(repositories_root.iterdir()):
+        if entry.name not in KINDS:
+            strays.append(entry.name)
+            continue
+        strays += [f"{entry.name}/{clone.name}" for clone in sorted(entry.iterdir()) if kinds.get(clone.name) != entry.name]
+    return strays
 
 
 def command_strays(root: Path, _: argparse.Namespace) -> None:
     strays = stray_clones(root)
     if strays:
-        raise ValueError(f"repos/ holds clones the catalog does not list: {', '.join(strays)}; "
-                         "add them with ./cc repo add <url> or delete them")
+        raise ValueError(f"repos/ holds clones the catalog does not list under that kind: {', '.join(strays)}; "
+                         "add them with ./cc repo add <url>, fix the kind with ./cc repo set-kind, or delete them")
     print("repos/ matches the catalog")
 
 
+def command_update(root: Path, args: argparse.Namespace) -> None:
+    """Bring base clones up to date: fetch every one, and fast-forward a reference clone's files, lifting its
+    read-only protection only for the pull."""
+    identifiers = args.ids or sorted(path.stem for path in (root / "catalog" / "repositories").glob("*.json"))
+    for identifier in identifiers:
+        data = load_json(descriptor_path(root, identifier))
+        checkout = base_clone(root, identifier, data.get("kind", "project"))
+        if not is_git_checkout(checkout):
+            print(f"{identifier}: no base clone at {checkout}; clone it with ./cc repo add --clone")
+            continue
+        if data.get("kind") == "reference":
+            protect(checkout, read_only=False)
+            try:
+                subprocess.run(["git", "-C", str(checkout), "pull", "--ff-only", "--quiet"], check=True)
+            finally:
+                protect(checkout, read_only=True)
+            print(f"{identifier}: reference clone fast-forwarded and read-only again")
+        else:
+            subprocess.run(["git", "-C", str(checkout), "fetch", "--prune", "--quiet", "origin"], check=True)
+            print(f"{identifier}: fetched; new feature worktrees start from origin/{data.get('defaultBranch', 'main')}")
+
+
 def command_list(root: Path, _: argparse.Namespace) -> None:
-    _, repositories_root = layout(root)
     directory = root / "catalog" / "repositories"
     rows: list[tuple[str, ...]] = []
     for path in sorted(directory.glob("*.json")):
         data = load_json(path)
         identifier = str(data.get("id", path.stem))
-        present = "yes" if is_git_checkout(repositories_root / identifier) else "no"
+        present = "yes" if is_git_checkout(base_clone(root, identifier, data.get("kind", "project"))) else "no"
         targets = ",".join(data.get("targets") or []) or "?"
         stack = ",".join(data.get("stack") or []) or "?"
         rows.append(
@@ -287,11 +343,12 @@ def command_remove(root: Path, args: argparse.Namespace) -> None:
     if features:
         raise ValueError(f"{args.id} is used by feature(s) {', '.join(features)}; remove those worktrees first")
     data = load_json(path)
+    checkout = base_clone(root, args.id, data.get("kind", "project"))
     path.unlink()
     print(f"removed {args.id} from the catalog")
-    _, repositories_root = layout(root)
-    if is_git_checkout(repositories_root / args.id):
-        print(f"note: the base clone {repositories_root / args.id} is kept; delete it yourself if the repo is gone for good")
+    if is_git_checkout(checkout):
+        print(f"note: the base clone {checkout} is kept, and ./cc repo strays reports it; delete it yourself if the repo is gone for good"
+              + (" (chmod -R u+w it first: it is read-only)" if data.get("kind") == "reference" else ""))
     adapter = data.get("adapter")
     if adapter and (root / adapter).is_file():
         print(f"note: {adapter} and its flake input still exist; remove them if the repo is gone for good")
@@ -318,9 +375,8 @@ def command_remote(root: Path, args: argparse.Namespace) -> None:
     data["remote"] = args.remote
     write_json(path, data)
     print(f"{args.id}: remote {args.remote}")
-    _, repositories_root = layout(root)
     try:
-        require_remote(repositories_root / args.id, args.remote, root)
+        require_remote(base_clone(root, args.id, data.get("kind", "project")), args.remote, root)
     except ValueError as error:
         print(f"warning: {error}; update the clone with git remote set-url origin {args.remote}")
 
@@ -330,6 +386,24 @@ def command_kind(root: Path, args: argparse.Namespace) -> None:
     data = load_json(path)
     if args.kind == "project" and not (data.get("targets") and data.get("stack")):
         raise ValueError(f"a project repo needs targets and a stack: run set-targets and set-stack on {args.id} first")
+    old_kind = data.get("kind", "project")
+    if args.kind == old_kind:
+        print(f"{args.id}: already {args.kind}")
+        return
+    if args.kind == "reference" and features_using(root, args.id):
+        raise ValueError(f"{args.id} is used by feature(s) {', '.join(features_using(root, args.id))}; remove those worktrees first")
+    # The clone moves with the kind: repos/<kind>/<id> is what tells agents what it is.
+    source, destination = base_clone(root, args.id, old_kind), base_clone(root, args.id, args.kind)
+    if source.exists():
+        if destination.exists():
+            raise ValueError(f"{destination} already exists")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if old_kind == "reference":
+            protect(source, read_only=False)
+        source.rename(destination)
+        if args.kind == "reference":
+            protect(destination, read_only=True)
+        print(f"moved the base clone to {destination}" + (" (read-only)" if args.kind == "reference" else ""))
     data["kind"] = args.kind
     write_json(path, data)
     print(f"{args.id}: {args.kind}")
@@ -396,6 +470,9 @@ def parser() -> argparse.ArgumentParser:
     kind.set_defaults(handler=command_kind)
     strays = subparsers.add_parser("strays", help="fail when repos/ holds a clone the catalog does not list")
     strays.set_defaults(handler=command_strays)
+    update = subparsers.add_parser("update", help="fetch base clones; fast-forward reference clones, keeping them read-only")
+    update.add_argument("ids", nargs="*")
+    update.set_defaults(handler=command_update)
     return result
 
 

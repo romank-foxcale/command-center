@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""./cc migrate-layout: move this CC from the shared ../repos and ../worktrees into its own repos/ and
-worktrees/ (docs/decisions/0016-per-cc-repos-and-worktrees.md).
+"""./cc migrate-layout: move this CC's clones to repos/<kind>/<id> and its features to worktrees/<feature>,
+inside the CC (docs/decisions/0016-per-cc-repos-and-worktrees.md).
 
-Only this CC's catalog clones and the features whose manifest names this CC move; another CC's clones and
-features are never touched. Git's worktree links are repaired, manifests, council run state and session
-guards are rewritten, and the layout in control-center.json is updated last. Every check runs before the
-first move, so a refused run changes nothing.
+It moves a CC from the old shared ../repos and ../worktrees, and nests the flat repos/<id> clones of the
+first per-CC layout under repos/project/ and repos/reference/. Only this CC's catalog clones and the
+features whose manifest names this CC move. Worktree links are repaired, manifests, council run state and
+session guards rewritten, reference clones made read-only, and the layout in control-center.json updated
+last. Every check runs before the first move, so a refused run changes nothing.
 """
 
 from __future__ import annotations
@@ -13,11 +14,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+import repositories
 
 NEW_LAYOUT = {"projectsRoot": ".", "repositories": "repos", "worktrees": "worktrees", "worktreePattern": "{feature}/{repository}_wt"}
 IGNORED = ("/repos/", "/worktrees/")
@@ -59,42 +63,45 @@ def shared_with(root: Path, projects: Path, old_repos: Path, identifier: str) ->
 
 def plan(root: Path) -> dict[str, Any]:
     config = load_json(root / "control-center.json")
-    old = config["layout"]
-    if {key: old.get(key) for key in NEW_LAYOUT} == NEW_LAYOUT:
-        return {"done": True}
-    projects = (root / old["projectsRoot"]).resolve()
-    old_repos = (root / old["repositories"]).resolve()
-    old_worktrees = (root / old["worktrees"]).resolve()
-    new_repos, new_worktrees = root / "repos", root / "worktrees"
+    layout = config["layout"]
+    shared = {key: layout.get(key) for key in NEW_LAYOUT} != NEW_LAYOUT
+    old_repos = (root / layout["repositories"]).resolve()
+    old_worktrees = (root / layout["worktrees"]).resolve()
     problems: list[str] = []
+    kinds = {path.stem: load_json(path).get("kind", "project") for path in sorted((root / "catalog" / "repositories").glob("*.json"))}
 
-    repos: list[tuple[Path, Path]] = []
-    identifiers = sorted(path.stem for path in (root / "catalog" / "repositories").glob("*.json"))
-    for identifier in identifiers:
+    repos: list[tuple[str, Path, Path]] = []
+    for identifier, kind in kinds.items():
         source = old_repos / identifier
-        if not source.exists():
+        destination = repositories.base_clone(root, identifier, kind) if not shared else root / "repos" / kind / identifier
+        if identifier in repositories.KINDS:
+            problems.append(f"repo id {identifier} collides with the repos/{identifier}/ kind folder; rename it in the catalog")
             continue
-        users = shared_with(root, projects, old_repos, identifier)
-        if users:
-            problems.append(f"{source} is also in the catalog of {', '.join(users)}: clone it into each CC's repos/ by hand")
-        if (new_repos / identifier).exists():
-            problems.append(f"{new_repos / identifier} already exists")
-        repos.append((source, new_repos / identifier))
+        if not (source / ".git").exists() or source.resolve() == destination.resolve():
+            continue
+        if shared:
+            users = shared_with(root, (root / layout["projectsRoot"]).resolve(), old_repos, identifier)
+            if users:
+                problems.append(f"{source} is also in the catalog of {', '.join(users)}: clone it into each CC's repos/ by hand")
+        if destination.exists():
+            problems.append(f"{destination} already exists")
+        repos.append((identifier, source, destination))
 
-    features: list[tuple[Path, Path, dict[str, Any]]] = []
-    if old_worktrees.is_dir():
+    features: list[tuple[Path, Path]] = []
+    if shared and old_worktrees.is_dir():
         for manifest_path in sorted(old_worktrees.glob("*/.cc-worktree.json")):
             manifest = load_json(manifest_path)
             if manifest.get("controlCenter") != config["name"]:
                 continue  # another CC's feature
-            source = manifest_path.parent
-            if (new_worktrees / source.name).exists():
-                problems.append(f"{new_worktrees / source.name} already exists")
-            unknown = sorted(set(manifest.get("repositories", {})) - set(identifiers))
+            source, destination = manifest_path.parent, root / "worktrees" / manifest_path.parent.name
+            if destination.exists():
+                problems.append(f"{destination} already exists")
+            unknown = sorted(set(manifest.get("repositories", {})) - set(kinds))
             if unknown:
                 problems.append(f"feature {source.name} uses repos outside the catalog: {', '.join(unknown)}")
-            features.append((source, new_worktrees / source.name, manifest))
-    return {"done": False, "config": config, "old_worktrees": old_worktrees, "repos": repos, "features": features, "problems": problems}
+            features.append((source, destination))
+    return {"config": config, "shared": shared, "old_repos": old_repos, "old_worktrees": old_worktrees, "kinds": kinds,
+            "repos": repos, "features": features, "problems": problems}
 
 
 def move(source: Path, destination: Path) -> None:
@@ -105,22 +112,21 @@ def move(source: Path, destination: Path) -> None:
         shutil.move(str(source), str(destination))
 
 
-def replace_in(path: Path, pairs: list[tuple[str, str]]) -> None:
+def replace_paths(path: Path, pairs: list[tuple[str, str]]) -> None:
+    """Replace whole path names only: /repos/pv must not rewrite /repos/pv-backend."""
     text = path.read_text(encoding="utf-8")
-    for old, new in pairs:
-        text = text.replace(old, new)
+    for old, new in sorted(pairs, key=lambda pair: -len(pair[0])):
+        # A period ends the path only at the end of a sentence: feature names may contain dots (v1.2).
+        text = re.sub(re.escape(old) + r"(?=[/\\\"'\s:,;)]|\.(?:\s|$)|$)", new.replace("\\", "\\\\"), text)
     path.write_text(text, encoding="utf-8")
 
 
 def migrate(root: Path, dry_run: bool) -> int:
     root = root.resolve()
     steps = plan(root)
-    if steps["done"]:
-        print("already on the per-CC layout: repos/ and worktrees/")
-        return 0
-    for source, destination in steps["repos"]:
+    for _, source, destination in steps["repos"]:
         print(f"clone    {source} -> {destination}")
-    for source, destination, _ in steps["features"]:
+    for source, destination in steps["features"]:
         print(f"feature  {source} -> {destination}")
     if steps["problems"]:
         print("refused, nothing was moved:", file=sys.stderr)
@@ -132,53 +138,62 @@ def migrate(root: Path, dry_run: bool) -> int:
         return 0
 
     # Where every linked worktree of each clone will be after the moves, so repair can fix both ends.
-    feature_moves = {source.resolve(): destination for source, destination, _ in steps["features"]}
+    feature_moves = {source.resolve(): destination for source, destination in steps["features"]}
     links: dict[Path, list[Path]] = {}
-    for source, destination in steps["repos"]:
-        targets = []
-        for path in worktree_paths(source):
-            parent = path.resolve().parent
-            targets.append(feature_moves[parent] / path.name if parent in feature_moves else path)
-        links[destination] = targets
-
-    for source, destination in steps["repos"]:
+    for _, source, destination in steps["repos"]:
+        links[destination] = [
+            feature_moves[path.resolve().parent] / path.name if path.resolve().parent in feature_moves else path
+            for path in worktree_paths(source)
+        ]
+    for _, source, destination in steps["repos"]:
         move(source, destination)
-    for source, destination, _ in steps["features"]:
+    for source, destination in steps["features"]:
         move(source, destination)
     for base, targets in links.items():
         existing = [str(path) for path in targets if path.exists()]
         if existing:
             git(base, "worktree", "repair", *existing)
 
-    old_repos_root = (root / steps["config"]["layout"]["repositories"]).resolve()
-    new_repos_root = root / "repos"
-    for source, destination, manifest in steps["features"]:
+    # Rewrite every feature of this CC: manifests name the new places, run state and guards hold absolute paths.
+    pairs = [(str(source), str(destination)) for _, source, destination in steps["repos"]]
+    pairs += [(str(source), str(destination)) for source, destination in steps["features"]]
+    for manifest_path in sorted((root / "worktrees").glob("*/.cc-worktree.json")):
+        manifest = load_json(manifest_path)
+        if manifest.get("controlCenter") != steps["config"]["name"]:
+            continue
+        feature = manifest_path.parent
         for identifier, entry in manifest.get("repositories", {}).items():
-            entry["base"] = (new_repos_root / identifier).relative_to(root).as_posix()
-            entry["worktree"] = (destination / f"{identifier}_wt").relative_to(root).as_posix()
-        write_json(destination / ".cc-worktree.json", manifest)
-        # Council run state and the session guard hold absolute paths.
-        pairs = [(str(source), str(destination)), (str(old_repos_root), str(new_repos_root))]
-        for state in destination.glob(".cc-runs/*/state.json"):
-            replace_in(state, pairs)
-        if (destination / "CLAUDE.md").is_file():
-            replace_in(destination / "CLAUDE.md", pairs)
-        for identifier in manifest.get("repositories", {}):
-            git(destination / f"{identifier}_wt", "rev-parse", "HEAD")  # the worktree still resolves
+            kind = steps["kinds"].get(identifier, "project")
+            entry["base"] = f"repos/{kind}/{identifier}"
+            entry["worktree"] = (feature / f"{identifier}_wt").relative_to(root).as_posix()
+            git(feature / f"{identifier}_wt", "rev-parse", "HEAD")  # the worktree still resolves
+        write_json(manifest_path, manifest)
+        for path in [*feature.glob(".cc-runs/*/state.json"), feature / "CLAUDE.md"]:
+            if path.is_file():
+                replace_paths(path, pairs)
+
+    for identifier, kind in steps["kinds"].items():
+        clone = root / "repos" / kind / identifier
+        if kind == "reference" and (clone / ".git").exists():
+            repositories.protect(clone, read_only=True)
 
     config = steps["config"]
-    config["layout"] = {**config["layout"], **NEW_LAYOUT}
-    write_json(root / "control-center.json", config)
+    if steps["shared"]:
+        config["layout"] = {**config["layout"], **NEW_LAYOUT}
+        write_json(root / "control-center.json", config)
+        for folder in (steps["old_repos"], steps["old_worktrees"]):
+            if folder.is_dir() and not any(folder.iterdir()):
+                folder.rmdir()
+                print(f"removed the empty shared folder {folder}")
     gitignore = root / ".gitignore"
     lines = gitignore.read_text(encoding="utf-8").splitlines() if gitignore.is_file() else []
     missing = [entry for entry in IGNORED if entry not in lines]
     if missing:
         gitignore.write_text("\n".join(lines + ["", "# Base clones and feature worktrees of this CC.", *missing]) + "\n", encoding="utf-8")
-    for folder in (old_repos_root, steps["old_worktrees"]):
-        if folder.is_dir() and folder.resolve() != root and not any(folder.iterdir()):
-            folder.rmdir()
-            print(f"removed the empty shared folder {folder}")
-    print(f"moved {len(steps['repos'])} clones and {len(steps['features'])} features; layout updated. "
+    if not steps["repos"] and not steps["features"]:
+        print("already on the per-CC layout: repos/<kind>/<id> and worktrees/; reference clones are read-only")
+        return 0
+    print(f"moved {len(steps['repos'])} clones and {len(steps['features'])} features; reference clones are read-only. "
           "Run ./cc check and commit control-center.json and .gitignore.")
     return 0
 

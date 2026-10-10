@@ -149,6 +149,30 @@ def check_isolation(base: Path) -> None:
     assert shell("echo ../di_CC") == "ask"
 
 
+def check_reference_repos(base: Path) -> None:
+    """Base clones are never edited, and a reference repo reminds the agent once per session what it is."""
+    root = base / "ref" / "pv_CC"
+    (root / "repos" / "reference" / "pv-poc" / "src").mkdir(parents=True)
+    (root / "repos" / "project" / "pv-backend").mkdir(parents=True)
+    edit_at = lambda path: rule_hooks.pre_edit({"tool_name": "Edit", "tool_input": {"file_path": str(root / path)}, "cwd": str(root)}, root)
+    denied = edit_at("repos/reference/pv-poc/src/app.cs")
+    assert decision(denied) == "deny" and "reference repo" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+    denied = edit_at("repos/project/pv-backend/pom.xml")
+    assert decision(denied) == "deny" and "feature worktree" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+    assert edit_at("worktrees/f/pv-backend_wt/pom.xml") is None, "worktrees are where code changes"
+
+    def read(session: str, **tool_input):
+        tool = "Grep" if "pattern" in tool_input else "Read"
+        result = rule_hooks.post_read({"tool_name": tool, "tool_input": tool_input, "cwd": str(root), "session_id": session}, root)
+        return result["hookSpecificOutput"]["additionalContext"] if result else None
+
+    note = read("s1", file_path="repos/reference/pv-poc/src/app.cs")
+    assert note and "pv-poc is a reference repo" in note and "project repos win" in note, note
+    assert read("s1", pattern="Order", path="repos/reference/pv-poc") is None, "once per repo per session"
+    assert read("s2", file_path=str(root / "repos/reference/pv-poc/src/app.cs")), "a new session is reminded again"
+    assert read("s1", file_path="repos/project/pv-backend/pom.xml") is None, "project repos need no reminder"
+
+
 def check_cli() -> None:
     event = json.dumps({"tool_input": {"command": "cmake .."}})
     result = subprocess.run([sys.executable, str(SCRIPT), "pre-bash"], input=event.encode(), capture_output=True)
@@ -182,6 +206,7 @@ def main() -> int:
         check_edits(base / "cc")
         check_attributed_commits(base)
         check_isolation(base)
+        check_reference_repos(base)
     check_notes_and_drift()
     check_cli()
     print("rule hooks test passed")
