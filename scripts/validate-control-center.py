@@ -194,6 +194,9 @@ def validate_agents(root: Path, errors: list[str]) -> dict[str, dict[str, Any]]:
         elif data.get("provider") == "cursor" and data["access"] != "read-only":
             # Cursor's write limits are not enforced by the CC (scripts/council/providers.py).
             errors.append(f"{relative}: cursor roles must be read-only")
+        cap = data.get("maxToolCalls", 1)  # optional; scripts/council/providers.py has the default
+        if not isinstance(cap, int) or isinstance(cap, bool) or not 1 <= cap <= 1000:
+            errors.append(f"{relative}: 'maxToolCalls' must be an integer from 1 to 1000")
         skills = data.get("skills")
         if not isinstance(skills, list) or not all(isinstance(skill, str) for skill in skills):
             errors.append(f"{relative}: 'skills' must be a list of skill names")
