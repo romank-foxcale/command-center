@@ -73,8 +73,9 @@ This creates the standard layout:
 ```
 ~/Projects/
 ├── my-project_CC/        ← your Control Center (its own git repo)
-├── repos/                ← base clones of your project repos (shared by all CCs)
-└── worktrees/<feature>/  ← one folder per task, with a git worktree per changed repo
+│   ├── repos/project/    ← base clones of the repos this CC changes (git-ignored)
+│   ├── repos/reference/  ← read-only reference repos, such as a PoC: guidance, never the truth
+│   └── worktrees/<feature>/ ← one folder per task, with a git worktree per changed repo
 ```
 
 `cc-kit list` shows your CCs. Don't rename or move these folders: the scripts rely on the layout.
@@ -144,14 +145,14 @@ To plan a bigger task:
 The agent turns it into an agreed plan with work packages and checks, saved in `plans/active/`. It won't write code until you accept the plan. Then:
 
 ```bash
-./cc worktree create my-feature repo1 repo2   # task folders under ~/Projects/worktrees/my-feature/
+./cc worktree create my-feature repo1 repo2   # task folders under ~/Projects/my-project_CC/worktrees/my-feature/
 ./cc open my-feature                          # start Claude Code (or --tool codex) on the feature
 ./cc feature my-feature verify                # build + test your changed code on every target platform
 ./cc worktree status my-feature
 ./cc worktree remove my-feature               # refuses if anything is uncommitted or unpushed
 ```
 
-**Always start coding with `./cc open my-feature`**, not by opening Claude Code or Codex inside `~/Projects/worktrees/my-feature/<repo>_wt`. A session started inside a worktree doesn't get the CC's skills (`tdd`, `debug`, `lean-code`, …) or its rules, so it codes without them. `./cc open` starts the tool in the CC with the feature's worktrees added. If you do start a Claude session inside a worktree, it will tell you to restart.
+**Always start coding with `./cc open my-feature`**, not by opening Claude Code or Codex inside `~/Projects/my-project_CC/worktrees/my-feature/<repo>_wt`. A session started inside a worktree doesn't get the CC's skills (`tdd`, `debug`, `lean-code`, …) or its rules, so it codes without them. `./cc open` starts the tool in the CC with the feature's worktrees added. If you do start a Claude session inside a worktree, it will tell you to restart.
 
 **From Windows without opening Ubuntu:** the `cc.cmd` launcher in the CC folder runs the same commands inside WSL for you, with the same output and exit code. In PowerShell type `.\cc check`, in cmd `cc check`, in Git Bash `./cc.cmd check`. It works whether the CC lives on `C:` or inside Ubuntu (`\\wsl.localhost\Ubuntu\home\...`). With several Linux distributions installed, set `CC_WSL_DISTRO` to the one with Nix.
 
@@ -168,6 +169,7 @@ Other commands, run from the CC folder:
 | `./cc show` | List everything that can be built, checked or run |
 | `./cc build <name>` / `./cc run <name>` | Build or run one thing |
 | `./cc repo list` | Connected repos: kind, main branch, status |
+| `./cc repo update` | Fetch the base clones; fast-forward the read-only reference clones |
 | `./cc prs` | Open PRs of the connected repos, new ones marked (or ask "any new PRs?") |
 | `./cc plan list` | Plans in progress, archived, completed |
 | `./cc validate` | Check the `docs/` notes only (works without Nix) |
@@ -203,7 +205,7 @@ A testing council works the same way: both models write tests, the judge merges 
 
 A debug council finds and fixes a bug: `./cc council run debug --feature my-feature --task "<exact symptom>"`. The CC first runs verify and hands its output to both models; each diagnoses the root cause with evidence; the judge picks the best-evidenced one; after your approval the writer adds a reproduction test that must fail, and only then fixes the cause. After three failed fixes it stops and asks you to rethink the design.
 
-Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "opus"` in `writer.json`); `catalog/councils/` sets the roles, the approval pause and the retry limit. Change them with `/cc-settings` in your session, in `./cc settings` (on Agents, select a role, press `e` and pick a model from the list), or with `./cc council set-role` and `./cc council set`. Run files are kept in `~/Projects/worktrees/<feature>/.cc-runs/`.
+Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "opus"` in `writer.json`); `catalog/councils/` sets the roles, the approval pause and the retry limit. Change them with `/cc-settings` in your session, in `./cc settings` (on Agents, select a role, press `e` and pick a model from the list), or with `./cc council set-role` and `./cc council set`. Run files are kept in `worktrees/<feature>/.cc-runs/` inside the CC.
 
 ---
 

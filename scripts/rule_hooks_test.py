@@ -85,7 +85,7 @@ def check_edits(root: Path) -> None:
     assert decision(pre_edit(edit(root, "NOTES.md"), root)) == "deny", "declaring one folder allows only that folder"
     (root / "control-center.json").write_text("not json")
     assert decision(pre_edit(edit(root, "research/a.md"), root)) == "deny", "a broken manifest declares nothing"
-    assert pre_edit({"tool_name": "Write", "tool_input": {"file_path": str(root.parent / "elsewhere.md")}}, root) is None, \
+    assert pre_edit({"tool_name": "Write", "tool_input": {"file_path": str(root.parent.parent / "elsewhere.md")}}, root) is None, \
         "outside the CC: worktrees, scratchpad, memory"
 
 
@@ -116,6 +116,61 @@ def check_notes_and_drift() -> None:
         result = stop({}, root)
         assert result and result["decision"] == "block" and "tdd" in result["reason"], result
         assert stop({"stop_hook_active": True}, root) is None, "never loop the agent"
+
+
+def check_isolation(base: Path) -> None:
+    """Reaching into another project next to the CC asks; the CC's own repos and the rest of the machine do not."""
+    projects = base / "Projects"
+    root = projects / "pv_CC"
+    (root / "repos" / "pv").mkdir(parents=True)
+    (projects / "di_CC").mkdir()
+    reading = lambda tool, cwd=root, **tool_input: decision(rule_hooks.pre_read(
+        {"tool_name": tool, "tool_input": tool_input, "cwd": str(cwd)}, root))
+    assert reading("Read", file_path=str(projects / "di_CC" / "AGENTS.md")) == "ask", "another CC, absolute"
+    assert reading("Read", file_path="../di_CC/AGENTS.md") == "ask", "another CC, relative"
+    assert reading("Grep", pattern="def main", path="../repos") == "ask", "the old shared folder"
+    assert reading("Glob", pattern="../*_CC/**/*.json") == "ask", "listing the projects folder"
+    assert reading("Read", file_path=str(projects)) == "ask", "the projects folder itself"
+    assert reading("Read", file_path="repos/pv/README.md") is None, "this CC's own clone"
+    assert reading("Read", file_path="../../pv_CC/docs/index.md", cwd=root / "repos" / "pv") is None, "back into the CC"
+    assert reading("Read", file_path=str(base / "elsewhere" / "notes.md")) is None, "outside Projects: scratchpad, memory"
+    assert reading("Grep", pattern="../di_CC") is None, "a Grep pattern is text, not a path"
+
+    write = {"tool_name": "Write", "tool_input": {"file_path": "../di_CC/docs/x.md"}, "cwd": str(root)}
+    assert decision(rule_hooks.pre_edit(write, root)) == "ask", "writing into another CC"
+
+    shell = lambda command: decision(rule_hooks.pre_bash({"tool_input": {"command": command}, "cwd": str(root)}, root))
+    for command in ("cat ../di_CC/AGENTS.md", "ls ..", "grep -rn token ../repos", f"git -C {projects / 'di_CC'} log",
+                    "rg --path=../di_CC foo"):
+        assert shell(command) == "ask", command
+    for command in ("git status", "cat repos/pv/README.md", "./cc repo list", "ls /tmp", "cat ~/.bashrc"):
+        assert shell(command) is None, command
+    # The hook cannot tell a path argument from text; asking about one echo is the accepted cost.
+    assert shell("echo ../di_CC") == "ask"
+
+
+def check_reference_repos(base: Path) -> None:
+    """Base clones are never edited, and a reference repo reminds the agent once per session what it is."""
+    root = base / "ref" / "pv_CC"
+    (root / "repos" / "reference" / "pv-poc" / "src").mkdir(parents=True)
+    (root / "repos" / "project" / "pv-backend").mkdir(parents=True)
+    edit_at = lambda path: rule_hooks.pre_edit({"tool_name": "Edit", "tool_input": {"file_path": str(root / path)}, "cwd": str(root)}, root)
+    denied = edit_at("repos/reference/pv-poc/src/app.cs")
+    assert decision(denied) == "deny" and "reference repo" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+    denied = edit_at("repos/project/pv-backend/pom.xml")
+    assert decision(denied) == "deny" and "feature worktree" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+    assert edit_at("worktrees/f/pv-backend_wt/pom.xml") is None, "worktrees are where code changes"
+
+    def read(session: str, **tool_input):
+        tool = "Grep" if "pattern" in tool_input else "Read"
+        result = rule_hooks.post_read({"tool_name": tool, "tool_input": tool_input, "cwd": str(root), "session_id": session}, root)
+        return result["hookSpecificOutput"]["additionalContext"] if result else None
+
+    note = read("s1", file_path="repos/reference/pv-poc/src/app.cs")
+    assert note and "pv-poc is a reference repo" in note and "project repos win" in note, note
+    assert read("s1", pattern="Order", path="repos/reference/pv-poc") is None, "once per repo per session"
+    assert read("s2", file_path=str(root / "repos/reference/pv-poc/src/app.cs")), "a new session is reminded again"
+    assert read("s1", file_path="repos/project/pv-backend/pom.xml") is None, "project repos need no reminder"
 
 
 def check_cli() -> None:
@@ -150,6 +205,8 @@ def main() -> int:
         check_attribution(base)
         check_edits(base / "cc")
         check_attributed_commits(base)
+        check_isolation(base)
+        check_reference_repos(base)
     check_notes_and_drift()
     check_cli()
     print("rule hooks test passed")

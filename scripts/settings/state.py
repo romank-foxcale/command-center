@@ -84,7 +84,7 @@ def snapshot(root: Path) -> Snapshot:
         result.name = manifest.get("name", root.name)
         result.status = manifest.get("status", "?")
     layout = manifest.get("layout", {})
-    worktrees_root = (root / layout.get("worktrees", "../worktrees")).resolve()
+    worktrees_root = (root / layout.get("worktrees", "worktrees")).resolve()
 
     for lifecycle in ("active", "archived", "completed"):
         for path in sorted((root / "plans" / lifecycle).glob("*.md")):

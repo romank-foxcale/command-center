@@ -9,7 +9,7 @@ First read `../_shared/cc-cli.md` and follow it.
 
 ## 1. List
 
-Run `./cc prs --json`. It queries only the repos in this CC's catalog; never list PRs any other way (no `gh` over `../repos/`, which other CCs share).
+Run `./cc prs --json`. It queries only the repos in this CC's catalog; never list PRs any other way (no `gh` over the clones in `repos/`).
 
 Show one compact table, newest first: a `new` or `updated` mark (since the last listing), repo, `#number`, title, author, age, review state, and the `threads` field when it is set. `N to judge` means comments by others on the user's PR; `author replied` means replies to the user's comments on someone else's PR. Add a short English gloss in parentheses after a title in another language. When `base` differs from the repo's main branch (`./cc repo list`), note "stacked on `<base>`". Repeat any `warning:` lines from stderr. If the list is empty, say so and stop.
 

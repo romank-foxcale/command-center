@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Claude Code hooks that enforce the AGENTS.md hard rules at the moment of a tool call.
 
-Usage: rule_hooks.py <pre-bash|pre-edit|post-edit|stop>, with the hook's JSON on stdin.
+Usage: rule_hooks.py <pre-bash|pre-read|post-read|pre-edit|post-edit|stop>, with the hook's JSON on stdin.
 The gates (./cc check, ./cc verify) stay the source of truth: a hook only catches a break early,
 and only in Claude Code. See docs/decisions/0013-rule-hooks.md.
 """
@@ -120,7 +120,7 @@ def pre_tool(decision: str, reason: str) -> dict[str, Any]:
                                    "permissionDecisionReason": reason}}
 
 
-def pre_bash(event: dict[str, Any]) -> dict[str, Any] | None:
+def pre_bash(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
     command = event.get("tool_input", {}).get("command", "")
     if COMMIT_OR_PR.search(command):
         texts = [command]
@@ -138,6 +138,72 @@ def pre_bash(event: dict[str, Any]) -> dict[str, Any] | None:
     if tool:
         return pre_tool("ask", f"'{tool}' bypasses Nix. AGENTS.md allows it only for diagnosis; otherwise use "
                                "./cc build, ./cc check or ./cc verify, and move a working command into a derivation.")
+    cwd = Path(event.get("cwd") or root)
+    for word in shell_paths(command):
+        sibling = outside_cc(root, resolve(cwd, word))
+        if sibling:
+            return outside_ask(sibling)
+    return None
+
+
+# Isolation between projects (docs/decisions/0016-per-cc-repos-and-worktrees.md): a CC keeps its repos and
+# worktrees inside its own folder, so anything in the folder around it belongs to another project.
+PATH_WORD = re.compile(r"^(?:\.\.(?:[/\\]|$)|~|/|[A-Za-z]:[/\\])")
+
+
+def resolve(cwd: Path, raw: str) -> Path:
+    path = Path(raw).expanduser()
+    return (path if path.is_absolute() else cwd / path).resolve()
+
+
+def outside_cc(root: Path, path: Path) -> Path | None:
+    """The folder next to this CC that path reaches into (another CC, an RC, a shared folder), or the
+    projects folder itself; None inside the CC or anywhere else on the machine."""
+    root = root.resolve()
+    if path == root or root in path.parents:
+        return None
+    parent = root.parent
+    if path == parent:
+        return parent
+    return parent / path.relative_to(parent).parts[0] if parent in path.parents else None
+
+
+def outside_ask(sibling: Path) -> dict[str, Any]:
+    return pre_tool("ask", f"This reaches outside the CC into {sibling}. Every project keeps its own repos inside its "
+                           "own folder; this CC's repos are ./cc repo list, in repos/. Allow only if the user asked to "
+                           "work across projects.")
+
+
+def shell_paths(command: str) -> list[str]:
+    """Words of a shell line that name a path outside the current folder (.., ~, absolute)."""
+    try:
+        words = shlex.split(command, posix=True)
+    except ValueError:
+        words = command.split()
+    found = []
+    for word in words:
+        value = word.split("=", 1)[1] if word.startswith("-") and "=" in word else word
+        if PATH_WORD.match(value):
+            found.append(value)
+    return found
+
+
+def tool_paths(event: dict[str, Any]) -> list[str]:
+    tool_input = event.get("tool_input", {})
+    raw = [tool_input.get(key) for key in ("file_path", "notebook_path", "path")]
+    pattern = tool_input.get("pattern", "")
+    if event.get("tool_name") == "Glob" and PATH_WORD.match(pattern):
+        # The fixed part of a glob: everything before the first wildcard.
+        raw.append(re.split(r"[*?\[{]", pattern, maxsplit=1)[0] or ".")
+    return [value for value in raw if value]
+
+
+def pre_read(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
+    cwd = Path(event.get("cwd") or root)
+    for raw in tool_paths(event):
+        sibling = outside_cc(root, resolve(cwd, raw))
+        if sibling:
+            return outside_ask(sibling)
     return None
 
 
@@ -163,12 +229,21 @@ def git_ignored(root: Path, relative: Path) -> bool:
 
 
 def pre_edit(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
+    outside = pre_read(event, root)
+    if outside:
+        return outside
     relative = relative_to_root(root, event)
     if relative is None:
         return None
     if relative.parts[:2] == (".claude", "skills"):
         source = Path(".agents", *relative.parts[1:]).as_posix()
         return pre_tool("deny", f".claude/skills is a generated copy: edit {source} instead, then run ./cc agents sync.")
+    if relative.parts[:1] == ("repos",):
+        if relative.parts[1:2] == ("reference",):
+            return pre_tool("deny", f"{relative.as_posix()} is in a reference repo: read-only evidence for this CC, never "
+                                    "changed here. Make the change in a project repo's feature worktree instead.")
+        return pre_tool("deny", f"{relative.as_posix()} is in a base clone, which is never edited. Change code in a feature "
+                                "worktree: ./cc worktree create <feature> <repo>, then edit worktrees/<feature>/<repo>_wt.")
     creating = event.get("tool_name") == "Write" and not (root / relative).exists()
     if creating and relative.suffix.lower() == ".md" and not markdown_allowed(relative.as_posix(), extra_markdown_dirs(root)) \
             and not git_ignored(root, relative):
@@ -182,6 +257,41 @@ def load_script(name: str) -> Any:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def reference_repos(root: Path, event: dict[str, Any]) -> list[str]:
+    """Ids of the reference repos (repos/reference/<id>) that a read, search or listing touched."""
+    cwd = Path(event.get("cwd") or root)
+    base = (root / "repos" / "reference").resolve()
+    found = []
+    for raw in tool_paths(event) or ["."]:
+        path = resolve(cwd, raw)
+        if base in path.parents:
+            found.append(path.relative_to(base).parts[0])
+    return found
+
+
+def post_read(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
+    """After the first read of a reference repo in a session, remind the agent what it is: guidance, not truth."""
+    repos = reference_repos(root, event)
+    if not repos:
+        return None
+    seen_path = root / ".cc-local" / "hooks" / f"references-{re.sub(r'[^A-Za-z0-9_-]', '_', str(event.get('session_id', 'none')))}.json"
+    try:
+        seen = set(json.loads(seen_path.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        seen = set()
+    new = sorted(set(repos) - seen)
+    if not new:
+        return None
+    seen_path.parent.mkdir(parents=True, exist_ok=True)
+    seen_path.write_text(json.dumps(sorted(seen | set(new))), encoding="utf-8")
+    names = ", ".join(new)
+    return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": (
+        f"{names} {'is a reference repo' if len(new) == 1 else 'are reference repos'} (repos/reference/): read-only guidance, "
+        "such as a proof of concept or an older design, not the source of truth. Before relying on what it says, check it "
+        "against the project repos (repos/project/, ./cc repo list) and the CC's notes; when they disagree, the project "
+        "repos win. Cite it as reference, and never change it.")}}
 
 
 def post_edit(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
@@ -205,7 +315,7 @@ def stop(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
                                           + "\n".join(f"- {problem}" for problem in problems[:10])}
 
 
-HANDLERS = {"pre-bash": pre_bash, "pre-edit": pre_edit, "post-edit": post_edit, "stop": stop}
+HANDLERS = {"pre-bash": pre_bash, "pre-read": pre_read, "post-read": post_read, "pre-edit": pre_edit, "post-edit": post_edit, "stop": stop}
 
 
 def main() -> int:

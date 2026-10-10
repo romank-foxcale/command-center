@@ -87,6 +87,7 @@
               repositories = pkgs.runCommand "control-center-repositories" { nativeBuildInputs = [ pkgs.git ]; } ''
                 export HOME=$TMPDIR
                 ${pkgs.python3}/bin/python ${self}/scripts/repositories_test.py
+                ${pkgs.python3}/bin/python -B ${self}/scripts/migrate_layout_test.py
                 touch "$out"
               '';
               prs = pkgs.runCommand "control-center-prs" { nativeBuildInputs = [ pkgs.git ]; } ''

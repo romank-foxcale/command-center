@@ -364,7 +364,7 @@ class Settings(App):
             return
         item = self.selected("repos")
         if item:
-            self.push_screen(Ask(f"Remove {item} from this CC's catalog? Its clone in ../repos is kept.", []),
+            self.push_screen(Ask(f"Remove {item} from this CC's catalog? Its clone in repos/ is kept.", []),
                 lambda answer: answer is not None and self.cc("repo", "remove", item))
 
     def edit_repo(self, item: str) -> None:

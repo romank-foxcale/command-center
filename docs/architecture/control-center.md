@@ -35,7 +35,7 @@ relations:
 - full copies of project documentation;
 - a general-purpose UI.
 
-Base clones and feature worktrees are also outside: `../repos/` and `../worktrees/<feature>/`.
+Base clones and feature worktrees live inside the CC folder but outside Git: `repos/` and `worktrees/<feature>/` are git-ignored ([0016](../decisions/0016-per-cc-repos-and-worktrees.md)).
 
 ## Flow
 

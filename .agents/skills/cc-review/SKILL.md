@@ -13,7 +13,7 @@ A review answers one question: **should this merge as it is?** Zero findings is 
 
 1. `./cc prs show <repo> <number> --diff`: description, files, diff and the Trello cards linked from the PR.
 2. For each linked card: `./cc trello show --card <url>` (description and checklists). If Trello is not connected, say so and continue with the PR alone.
-3. Read the code around every changed hunk in the repo's base clone (`./cc repo list` names the repos; `../repos/<id>`), not the diff alone.
+3. Read the code around every changed hunk in the repo's base clone (`./cc repo list` names the repos; `repos/<kind>/<id>`), not the diff alone.
 4. Build: when the repo has gates (status `adapted` or `verified` in `./cc repo list`), run `./cc prs checkout <repo> <number>`, then `./cc feature pr-<repo>-<number> verify` in the background, following it with `./cc watch`. A gate the PR makes fail is a `[BREAK]` whose scenario is the failing gate and its error. If the failure is in code the PR does not touch, confirm with `./cc verify <repo>` on the main branch; failing there too, it is pre-existing and not a finding. Without gates, write "Build: not run (no Nix gates for <repo>)" and judge breaks from the code. Afterwards offer `./cc worktree remove pr-<repo>-<number>`.
 5. Knowledge: open `docs/index.md` and only the notes about this repo, the touched area or the technologies used: decisions, rules, hacks, debt and `docs/projects/`. Ignore `superseded` notes.
 

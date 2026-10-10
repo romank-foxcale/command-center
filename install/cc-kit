@@ -50,7 +50,7 @@ command_new() {
     warn "$projects_root is on the Windows drive; Nix is slow and unreliable there. Use a Linux path such as ~/Projects."
   fi
 
-  mkdir -p "$projects_root/repos" "$projects_root/worktrees"
+  mkdir -p "$projects_root"
   python3 "$kit_root/scripts/materialize-template.py" "$target"
   # Nix flakes only see files git knows about, so stage everything now.
   git -C "$target" add -A

@@ -24,7 +24,7 @@ def write(path: Path, data: object) -> None:
 
 def fixture(base: Path) -> Path:
     root = base / "x_CC"
-    write(root / "control-center.json", {"name": "x_CC", "status": "ready", "layout": {"projectsRoot": "..", "worktrees": "../worktrees"}})
+    write(root / "control-center.json", {"name": "x_CC", "status": "ready", "layout": {"projectsRoot": ".", "worktrees": "worktrees"}})
     write(root / "catalog/agents/judge.json", {"provider": "claude", "model": "opus", "access": "read-only"})
     write(root / "catalog/councils/coding.json", {"kind": "coding", "proposers": ["a", "b"], "judge": "judge", "writer": "w", "approval": True, "maxRetries": 2})
     write(root / "catalog/repositories/app.json", {"status": "verified", "targets": ["windows"], "stack": ["csharp"], "role": "client",
@@ -33,7 +33,7 @@ def fixture(base: Path) -> Path:
     write(root / "catalog/repositories/demo.json", {"status": "discovered", "targets": [], "stack": [], "kind": "reference",
                                                      "defaultBranch": "main", "remote": "https://github.com/o/demo"})
     write(root / "plans/active/ship-it.md", "# ship-it: Ship [the] thing\n\nLifecycle: active\nPlanning status: accepted\n")
-    runs = base / "worktrees/feat/.cc-runs"
+    runs = root / "worktrees/feat/.cc-runs"
     write(runs / "r1/state.json", {"id": "r1", "council": "coding", "feature": "feat", "repository": "app", "stage": "awaiting-approval",
                                    "labels": {"A": "proposer-gpt", "B": "proposer-claude"}, "startedAt": "2026-01-01T10:00:00"})
     # A process id that cannot exist: the run looks alive in its file but nobody is advancing it.
@@ -157,7 +157,7 @@ async def check(root: Path) -> None:
         assert expected in text, f"show must contain {expected!r}:\n{text}"
 
     # Run progress, as ./cc council status prints it.
-    r2 = json.loads((root.parent / "worktrees/feat/.cc-runs/r2/state.json").read_text())
+    r2 = json.loads((root / "worktrees/feat/.cc-runs/r2/state.json").read_text())
     assert progress.bar(r2) == "▰▰▰▰▰▰▱▱▱ 6/9", progress.bar(r2)
     assert progress.agents(r2) == "claude opus …", f"only the current step's agents, still working: {progress.agents(r2)}"
     assert progress.elapsed(r2).startswith("step ") and "total" in progress.elapsed(r2)
