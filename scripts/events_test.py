@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -67,6 +68,35 @@ def test_watch_should_notice_a_writer_that_died_without_ending(directory: Path) 
     check("dead writer ends watch", result == [1] and "exited without finishing" in out.getvalue(), (result, out.getvalue()))
 
 
+def test_watch_should_follow_a_resumed_run_past_its_paused_segment(directory: Path) -> None:
+    # A council that paused for approval: its first segment ended, then approve appended a second one.
+    stream = events.Events(directory / "resumed.jsonl")
+    stream.emit("start", "coding", pid=os.getpid())
+    stream.emit("step", "propose")
+    stream.emit(events.END, "verdict HYBRID, awaiting approval", ok=True)
+    stream.emit("start", "coding", pid=os.getpid())
+    stream.emit("step", "write")
+    out = io.StringIO()
+    result: list[int] = []
+    watcher = threading.Thread(target=lambda: result.append(events.follow(stream.path, out, poll=0.05)), daemon=True)
+    watcher.start()
+    time.sleep(0.3)
+    check("resumed run is still watched", watcher.is_alive() and result == [], (result, out.getvalue()))
+    stream.emit("gate", "verify: ai on windows pass")
+    stream.emit(events.END, "done: verify passed", ok=True)
+    watcher.join(5)
+    printed = out.getvalue()
+    check("resumed run ends on its own end", result == [0] and "verify passed" in printed and "windows pass" in printed, (result, printed))
+    check("resumed run shows the live segment only", "write" in printed and "propose" not in printed and "awaiting" not in printed, printed)
+
+    # Still paused: the last segment has ended, so the watch reports it and returns at once.
+    paused = events.Events(directory / "paused.jsonl")
+    paused.emit("start", "coding", pid=os.getpid())
+    paused.emit(events.END, "verdict A, awaiting approval", ok=True)
+    out = io.StringIO()
+    check("paused run returns", events.follow(paused.path, out, poll=0.05) == 0 and "awaiting approval" in out.getvalue(), out.getvalue())
+
+
 def test_codex_events_should_become_log_activity() -> None:
     command = json.dumps({"type": "item.started", "item": {"type": "command_execution", "command": "cat a.txt"}})
     message = json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "I will read\n a.txt."}})
@@ -98,6 +128,7 @@ def main() -> int:
         test_watchdog_should_report_a_silent_agent_once_per_period(directory)
         test_watch_should_exit_with_the_run_result(directory)
         test_watch_should_notice_a_writer_that_died_without_ending(directory)
+        test_watch_should_follow_a_resumed_run_past_its_paused_segment(directory)
         test_codex_events_should_become_log_activity()
         test_a_crashing_council_should_end_failed_not_look_alive(directory)
     for failure in FAILURES:

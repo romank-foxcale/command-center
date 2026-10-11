@@ -3,7 +3,7 @@ id: decision.0010-live-run-events
 title: Long runs report progress, agent talk and stalls as a live event stream
 status: accepted
 summary: Councils and ./cc verify append steps, handoffs between agents, what agents say, stalls after 3 minutes of silence and the end to an events.jsonl that ./cc watch follows, so the user never has to ask how a run is going.
-verified_at: 2026-10-06
+verified_at: 2026-10-11
 evidence:
   - scripts/events.py
   - scripts/events_test.py
@@ -29,7 +29,7 @@ Council runs and verify take minutes. Started in the background from a chat, the
 - Events are steps, handoffs (whose output goes to which agent), what agents say, agent start and finish, gate results, warnings, errors, stalls and the end. Tool calls stay in the per-agent logs: in a chat they would drown the conversation.
 - A watchdog reports a stall when an agent's log or a gate's output is silent for 3 minutes, naming the last thing it did, and repeats every further 3 minutes.
 - A crash marks the council run failed and ends the stream; `./cc watch` also ends with an error when the writing process died without an end event.
-- `./cc watch [<run>]` follows a stream and exits with the run's result. A chat agent that starts a long run in the background starts this watch too and relays each event.
+- `./cc watch [<run>]` follows a stream and exits with the run's result. A run that pauses (a council awaiting approval) ends its segment, and resuming it appends a new segment that opens with a start event; the watch follows the latest segment only, so after an approval it follows the writer, verify and security steps to the run's real end. A chat agent that starts a long run in the background starts this watch too and relays each event.
 - Codex runs with `--json` so its commands and messages are parsed like Claude's stream-json.
 
 ## Options considered
