@@ -3,7 +3,7 @@ id: index
 title: Control Center knowledge map
 status: active
 summary: Minimal entry point into the rules, architecture and decision history.
-verified_at: 2026-10-09
+verified_at: 2026-10-11
 evidence:
   - AGENTS.md
 relations:
@@ -26,7 +26,9 @@ relations:
   - docs/decisions/0014-cursor-provider-and-security-council.md
   - docs/decisions/0015-thread-sceptics.md
   - docs/decisions/0016-per-cc-repos-and-worktrees.md
+  - docs/decisions/0017-runtime-flows.md
   - docs/rules/quality-gates.md
+  - docs/flows/index.md
 ---
 
 # Knowledge map
@@ -63,9 +65,11 @@ relations:
 - [Cursor is a read-only provider, and security review is a three-model council](decisions/0014-cursor-provider-and-security-council.md)
 - [Review conversations are judged by two anonymous sceptics, and a judge settles only their splits](decisions/0015-thread-sceptics.md)
 - [Every CC keeps its own repos and worktrees inside its folder](decisions/0016-per-cc-repos-and-worktrees.md)
+- [Runtime flows are notes whose steps cite project code](decisions/0017-runtime-flows.md)
 
 ## Current context
 
+- [Runtime flows](flows/index.md): how each project runs, step by step, with cited code
 - [Technical debt](debt/index.md)
 - [Hacks](hacks/index.md)
 - [Projects](projects/index.md)

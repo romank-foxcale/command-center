@@ -16,6 +16,7 @@ A review answers one question: **should this merge as it is?** Zero findings is 
 3. Read the code around every changed hunk in the repo's base clone (`./cc repo list` names the repos; `repos/<kind>/<id>`), not the diff alone.
 4. Build: when the repo has gates (status `adapted` or `verified` in `./cc repo list`), run `./cc prs checkout <repo> <number>`, then `./cc feature pr-<repo>-<number> verify` in the background, following it with `./cc watch`. A gate the PR makes fail is a `[BREAK]` whose scenario is the failing gate and its error. If the failure is in code the PR does not touch, confirm with `./cc verify <repo>` on the main branch; failing there too, it is pre-existing and not a finding. Without gates, write "Build: not run (no Nix gates for <repo>)" and judge breaks from the code. Afterwards offer `./cc worktree remove pr-<repo>-<number>`.
 5. Knowledge: open `docs/index.md` and only the notes about this repo, the touched area or the technologies used: decisions, rules, hacks, debt and `docs/projects/`. Ignore `superseded` notes.
+6. Runtime flows: for every file the PR changes, find the active flows in `docs/flows/` that cite it (`grep -l "repo:<repo>/<path>" docs/flows/*.md`) and read them. A flow whose cited file or symbol the PR removes already fails the build's knowledge check.
 
 ## 2. Search, then filter
 
@@ -25,7 +26,7 @@ Search hard for each tag; then keep only what passes its bar.
 |---|---|---|
 | `[BREAK]` | Compile and type errors, broken imports, a removed or renamed symbol still used (grep the repo), changed API, schema or message contracts with their consumers (including other catalog repos), migrations, config and env keys, dependency changes, deleted or disabled tests, new code paths that throw or return wrong results on ordinary input | A concrete scenario: this input or step → this failure. If the failure is only reachable through a condition the code already rules out, drop it |
 | `[SCOPE]` | Each acceptance criterion and scope statement in the PR or its cards; changes unrelated to the stated purpose | The exact criterion it misses or contradicts, quoted with its source. Unrelated changes count only when substantial (another feature, module or behaviour), not a drive-by rename |
-| `[KNOWLEDGE]` | Conflicts with a decision, rule, hack's removal condition or recorded constraint | The note's path and the sentence it contradicts |
+| `[KNOWLEDGE]` | Conflicts with a decision, rule, hack's removal condition or recorded constraint; a step of a runtime flow that the PR's change makes untrue (the step no longer happens, happens in another order, or calls something else) | The note's path and the sentence it contradicts; for a flow, the step number, what the code now does instead, and "re-verify with cc-flow" as the fix |
 
 Before keeping a finding, try to refute it: read callers, tests, validation and config that might already handle it. If the refutation holds, drop the finding. If it stays plausible but cannot be settled from the code, keep it with `(unconfirmed: <how to confirm>)`, for example the gate to run.
 
@@ -45,6 +46,7 @@ Checked
 - Build: <gate run and result | not run: <why>>
 - Scope (<source>): ✓ <criterion> · ✗ <criterion> · ? <criterion that cannot be judged from the code>
 - Knowledge: <notes read>
+- Flows: <flow: still holds | step n changed> for every flow citing a changed file, or "none cite the changed files"
 ```
 
 - Order findings by tag (BREAK, SCOPE, KNOWLEDGE), then by impact.

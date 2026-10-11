@@ -1,0 +1,6 @@
+interface:
+  display_name: "CC Flow"
+  short_description: "Map how a project runs as verified flow notes"
+  default_prompt: "Use $cc-flow to draft the startup flow of one of our catalog repositories."
+policy:
+  allow_implicit_invocation: true

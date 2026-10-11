@@ -14,4 +14,6 @@ relations:
 
 # Glossary
 
+- [Runtime flow](runtime-flow.md): the order in which a project runs for one trigger; not a Nix workflow.
+
 Create a separate note only for a term whose ambiguity could change a decision. Local variable names and obvious technical terms do not belong here.

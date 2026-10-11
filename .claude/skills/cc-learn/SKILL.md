@@ -36,7 +36,7 @@ A hack must link to a decision or a debt note and state `remove_when`. When neit
 Fill the template completely, in English, whatever language the conversation uses:
 
 - `id`: `<kind>.<short-name>`, unique; `status`: `active` for hacks, debt and facts, `accepted` for a decision only when the user made it, otherwise `draft`; `verified_at`: today.
-- `evidence`: paths from the CC root that exist, or permanent URLs (a commit or file permalink) for code in project repos. Never a `worktrees/` path: worktrees are deleted.
+- `evidence`: paths from the CC root that exist; `repo:<id>/<path>#<symbol>` for code in a catalog project with an adapter, which `./cc check` keeps verified; or permanent URLs (a commit or file permalink) for other code. Never a `worktrees/` path: worktrees are deleted.
 - `relations`: the index and the notes it depends on.
 - Body: the why, the limits of applicability and the consequences. Do not restate code or transcribe the session.
 
