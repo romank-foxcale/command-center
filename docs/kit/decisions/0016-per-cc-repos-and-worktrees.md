@@ -1,5 +1,5 @@
 ---
-id: decision.0016-per-cc-repos-and-worktrees
+id: kit.decision.0016-per-cc-repos-and-worktrees
 title: Every CC keeps its own repos and worktrees inside its folder
 status: accepted
 summary: Base clones live in <cc>/repos/project/<repo> or, read-only on disk, <cc>/repos/reference/<repo>, and feature worktrees in <cc>/worktrees/<feature>/<repo>_wt, git-ignored, so no CC can stumble on another's code and every path says whether a repo is the truth or a reference; a hook asks before any tool reaches a sibling folder, verify and doctor fail on clones outside the catalog, and ./cc migrate-layout moves an existing CC.
@@ -12,16 +12,16 @@ evidence:
   - scripts/rule_hooks.py
   - scripts/repositories.py
 relations:
-  - docs/rules/worktrees.md
-  - docs/decisions/0011-catalog-is-the-repo-scope.md
-  - docs/decisions/0013-rule-hooks.md
+  - docs/kit/rules/worktrees.md
+  - docs/kit/decisions/0011-catalog-is-the-repo-scope.md
+  - docs/kit/decisions/0013-rule-hooks.md
 ---
 
 # Every CC keeps its own repos and worktrees inside its folder
 
 ## Context
 
-Until now, every CC under one Projects folder shared `../repos/` and `../worktrees/`. The aim was to clone a repo once, even when two CCs use it. In practice it let agents mix projects: agents in pv_CC and di_CC listed each other's PRs ([0011](0011-catalog-is-the-repo-scope.md)). The fix was a prose rule, not a boundary. On 2026-10-10 no repo was in two catalogs, and all shared clones together were 33 MB, so sharing saved nothing.
+Before this decision, every CC under one parent folder shared `../repos/` and `../worktrees/`. The aim was to clone a repo once, even when two CCs use it. In practice it let agents mix projects: agents in one CC listed another CC's PRs ([0011](0011-catalog-is-the-repo-scope.md)). The fix was a prose rule, not a boundary. Repos were rarely in two catalogs and clones are small, so sharing saved little.
 
 ## Decision
 

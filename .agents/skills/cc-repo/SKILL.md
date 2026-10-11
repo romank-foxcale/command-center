@@ -25,7 +25,7 @@ First read `../_shared/cc-cli.md` and follow it.
 
 ## Rules
 
-- `add` derives the id from the link (`foxcope-PV-backend` → `foxcope-pv-backend`) and reads the main branch from the remote; pass `--branch` only when the user names another one, or when the remote cannot be reached.
+- `add` derives the id from the link (`Acme-Shop-Backend` → `acme-shop-backend`) and reads the main branch from the remote; pass `--branch` only when the user names another one, or when the remote cannot be reached.
 - Kinds: `project` (default) is built, verified and changed through feature worktrees; `reference` is read-only guidance such as a PoC or demo. It needs no targets, stack or adapter, is skipped by `./cc verify`, and `./cc worktree` refuses it. Ask which kind when the user's words leave it open.
 - Targets are the platforms a project repo ships on: `windows`, `linux`, `macos`. Always ask the user; never infer them from CI or the build setup. `set-targets` replaces the whole set.
 - After `set-targets`, every target needs a gate in the repo's Nix adapter (`targets.<platform>`); if one is missing, say so and add it through the adapter, then run `./cc verify <id>`. Changing the targets of a verified repo resets it to `adapted`.

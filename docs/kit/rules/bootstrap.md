@@ -1,5 +1,5 @@
 ---
-id: rules.bootstrap
+id: kit.rules.bootstrap
 title: Control Center bootstrap and migration
 status: active
 summary: The template is cloned as a nested read-only seed (or installed as the kit), and the target CC is created in the parent folder through evidence-first grilling.
@@ -10,10 +10,10 @@ evidence:
   - .agents/skills/grill-cc-bootstrap/SKILL.md
 relations:
   - docs/index.md
-  - docs/architecture/control-center.md
-  - docs/decisions/0003-template-as-seed.md
-  - docs/rules/project-adapters.md
-  - docs/rules/worktrees.md
+  - docs/kit/architecture/control-center.md
+  - docs/kit/decisions/0003-template-as-seed.md
+  - docs/kit/rules/project-adapters.md
+  - docs/kit/rules/worktrees.md
 ---
 
 # Control Center bootstrap and migration

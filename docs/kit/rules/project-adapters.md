@@ -1,5 +1,5 @@
 ---
-id: rules.project-adapters
+id: kit.rules.project-adapters
 title: Connecting sibling projects
 status: active
 summary: Every external repository is connected through a catalog descriptor, a pinned source and a Nix adapter with packages, checks and apps.
@@ -10,11 +10,11 @@ evidence:
   - templates/project.nix
   - nix/lib/default.nix
 relations:
-  - docs/architecture/control-center.md
-  - docs/rules/executable-processes.md
+  - docs/kit/architecture/control-center.md
+  - docs/kit/rules/executable-processes.md
   - docs/projects/index.md
-  - docs/decisions/0006-target-platform-gates.md
-  - docs/rules/quality-gates.md
+  - docs/kit/decisions/0006-target-platform-gates.md
+  - docs/kit/rules/quality-gates.md
 ---
 
 # Connecting sibling projects

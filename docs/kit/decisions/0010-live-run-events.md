@@ -1,5 +1,5 @@
 ---
-id: decision.0010-live-run-events
+id: kit.decision.0010-live-run-events
 title: Long runs report progress, agent talk and stalls as a live event stream
 status: accepted
 summary: Councils and ./cc verify append steps, handoffs between agents, what agents say, stalls after 3 minutes of silence and the end to an events.jsonl that ./cc watch follows, so the user never has to ask how a run is going.
@@ -14,7 +14,7 @@ evidence:
   - .agents/skills/cc-verify/SKILL.md
 relations:
   - docs/index.md
-  - docs/decisions/0007-agent-councils.md
+  - docs/kit/decisions/0007-agent-councils.md
 ---
 
 # Long runs report progress, agent talk and stalls as a live event stream

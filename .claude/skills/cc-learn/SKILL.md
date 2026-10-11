@@ -5,7 +5,7 @@ description: Turn one non-obvious thing learned in this session - a root cause, 
 
 # CC learn
 
-One run records **one** durable piece of knowledge, so the next agent does not rediscover it. The rules are in `docs/rules/knowledge-layout.md`; read it first.
+One run records **one** durable piece of knowledge, so the next agent does not rediscover it. The rules are in `docs/kit/rules/knowledge-layout.md`; read it first.
 
 ## 1. Pick the one thing
 
@@ -26,8 +26,10 @@ Search `docs/` for the key terms and read what matches. If a note already states
 | --- | --- | --- | --- |
 | Hack: a temporary workaround | `docs/hacks/` | `templates/note.md` | `docs/hacks/index.md` |
 | Debt: a known problem left in place | `docs/debt/` | `templates/note.md` | `docs/debt/index.md` |
-| Decision with options and reasons | `docs/decisions/NNNN-<name>.md`, next free number | `templates/decision.md` | `docs/index.md` |
+| Decision with options and reasons | `docs/decisions/NNNN-<name>.md`, next free number from 0001 | `templates/decision.md` | `docs/decisions/index.md` |
 | Fact about one project | `docs/projects/` | `templates/note.md` | `docs/projects/index.md` |
+
+Everything here is this CC's own knowledge. Never write into `docs/kit/`: it belongs to the kit and is replaced on a kit update. A decision that changes kit behaviour for this CC names the kit decision it overrides in its text and `relations`.
 
 A hack must link to a decision or a debt note and state `remove_when`. When neither exists, the debt note is drafted in the same run: that is the only case of two notes at once.
 

@@ -1,5 +1,5 @@
 ---
-id: rules.worktrees
+id: kit.rules.worktrees
 title: Feature worktree topology
 status: active
 summary: Each CC keeps its base clones in <cc>/repos and the repos a task changes in <cc>/worktrees/feature/repo_wt, both git-ignored and never shared with another CC. Coding sessions start in the CC with ./cc open, because a session started inside a worktree does not get the CC's skills.
@@ -13,11 +13,11 @@ evidence:
   - .agents/skills/grill-task-planning/SKILL.md
 relations:
   - docs/index.md
-  - docs/architecture/control-center.md
-  - docs/rules/bootstrap.md
-  - docs/rules/project-adapters.md
-  - docs/rules/task-planning.md
-  - docs/decisions/0016-per-cc-repos-and-worktrees.md
+  - docs/kit/architecture/control-center.md
+  - docs/kit/rules/bootstrap.md
+  - docs/kit/rules/project-adapters.md
+  - docs/kit/rules/task-planning.md
+  - docs/kit/decisions/0016-per-cc-repos-and-worktrees.md
 ---
 
 # Feature worktree topology

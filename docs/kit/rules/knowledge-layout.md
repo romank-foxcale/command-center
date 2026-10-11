@@ -1,5 +1,5 @@
 ---
-id: rules.knowledge-layout
+id: kit.rules.knowledge-layout
 title: Markdown knowledge layout
 status: active
 summary: Markdown holds atomic facts, reasons, constraints, decisions, hacks and debt in a linked graph.
@@ -9,7 +9,7 @@ evidence:
   - templates/note.md
 relations:
   - docs/index.md
-  - docs/decisions/0002-atomic-linked-notes.md
+  - docs/kit/decisions/0002-atomic-linked-notes.md
 ---
 
 # Markdown knowledge layout
@@ -21,6 +21,11 @@ relations:
 - non-obvious hacks and the conditions for removing them;
 - technical debt and its impact;
 - verified facts that cannot be quickly derived from the code.
+
+## Two layers
+
+- `docs/kit/` is the kit's knowledge: rules, architecture and kit decisions with `kit.` ids. It is identical in every CC, replaced as a whole on a kit update, and never edited in a CC.
+- The rest of `docs/` and `plans/` is this CC's own knowledge: its decisions (numbered from 0001), debt, hacks, projects and glossary. A decision that changes kit behaviour for this CC names the kit decision it overrides ([0017](../decisions/0017-kit-and-project-layers.md)).
 
 ## What not to record
 

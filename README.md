@@ -30,7 +30,7 @@ What the kit includes:
 | All instructions, skills, notes and templates in English | everywhere |
 | `bootstrap install` keeps empty `catalog/` folders tracked so the Nix bootstrap check can see them | `scripts/materialize-template.py` |
 | Per-repo target platforms with a gate each, including a real Windows host gate | `./cc verify`, `ccLib.mkWindowsHostGate` |
-| Per-repo `stack` (languages) and optional `quality.mutation` gates with each stack's own tool; a missing gate warns | `./cc verify --quality`, `docs/rules/quality-gates.md` |
+| Per-repo `stack` (languages) and optional `quality.mutation` gates with each stack's own tool; a missing gate warns | `./cc verify --quality`, `docs/kit/rules/quality-gates.md` |
 | Coding, testing and debug councils: Claude and GPT propose or diagnose, an anonymous judge decides, a writer implements (debug: failing reproduction test first, enforced) | `./cc council`, `catalog/agents`, `catalog/councils` |
 | `lean-code` skill: the least code that works, adapted from [Ponytail](https://github.com/dietrichgebert/ponytail) (MIT) | `.agents/skills/lean-code/` |
 | `debug` and `tdd` skills: root cause before fixes, test first and honest tests, adapted from [Superpowers](https://github.com/obra/superpowers) (MIT) | `.agents/skills/debug/`, `.agents/skills/tdd/` |
@@ -112,8 +112,8 @@ Requires Nix with flakes. Docker/Podman is only needed for container workflows. 
 - [AGENTS.md](AGENTS.md): the mandatory protocol for agents.
 - [BOOTSTRAP.md](BOOTSTRAP.md): creating and migrating a CC.
 - [Knowledge map](docs/index.md): the entry point into the Obsidian-compatible `docs/`.
-- [Executable processes](docs/rules/executable-processes.md): what counts as the source of truth.
-- [Connecting projects](docs/rules/project-adapters.md): the contract for a sibling repository.
+- [Executable processes](docs/kit/rules/executable-processes.md): what counts as the source of truth.
+- [Connecting projects](docs/kit/rules/project-adapters.md): the contract for a sibling repository.
 - `nix/projects/`: build adapters for individual projects.
 - `nix/workflows/`: cross-project pipelines.
 

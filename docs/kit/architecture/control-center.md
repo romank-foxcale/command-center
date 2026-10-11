@@ -1,5 +1,5 @@
 ---
-id: architecture.control-center
+id: kit.architecture.control-center
 title: Control Center boundaries
 status: active
 summary: The Control Center holds the map, executable cross-project contracts and context, but never copies the sibling repositories.
@@ -10,10 +10,10 @@ evidence:
   - nix/lib/default.nix
 relations:
   - docs/index.md
-  - docs/rules/bootstrap.md
-  - docs/rules/executable-processes.md
-  - docs/rules/project-adapters.md
-  - docs/rules/worktrees.md
+  - docs/kit/rules/bootstrap.md
+  - docs/kit/rules/executable-processes.md
+  - docs/kit/rules/project-adapters.md
+  - docs/kit/rules/worktrees.md
 ---
 
 # Control Center boundaries

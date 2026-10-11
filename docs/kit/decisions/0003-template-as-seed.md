@@ -1,5 +1,5 @@
 ---
-id: decision.0003-template-as-seed
+id: kit.decision.0003-template-as-seed
 title: Template as a temporary seed
 status: accepted
 summary: The cc_template clone stays a read-only source, and the final CC is created as a separate Git repository in the parent folder.
@@ -9,8 +9,8 @@ evidence:
   - scripts/materialize-template.py
 relations:
   - docs/index.md
-  - docs/rules/bootstrap.md
-  - docs/rules/worktrees.md
+  - docs/kit/rules/bootstrap.md
+  - docs/kit/rules/worktrees.md
 ---
 
 # Template as a temporary seed

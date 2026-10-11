@@ -1,5 +1,5 @@
 ---
-id: decision.0009-trello-on-demand
+id: kit.decision.0009-trello-on-demand
 title: Trello cards are updated on demand, with credentials outside every repository
 status: accepted
 summary: A CC can connect one Trello board and link cards to plans and features, but it only comments on or moves a card when the user asks, after a preview; the API key and token live in ~/.config/cc/trello.env.
@@ -11,7 +11,7 @@ evidence:
   - .agents/skills/cc-trello/SKILL.md
 relations:
   - docs/index.md
-  - docs/decisions/0007-agent-councils.md
+  - docs/kit/decisions/0007-agent-councils.md
 ---
 
 # Trello cards are updated on demand, with credentials outside every repository

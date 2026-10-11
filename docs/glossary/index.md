@@ -8,8 +8,8 @@ evidence:
   - templates/glossary-term.md
 relations:
   - docs/index.md
-  - docs/rules/knowledge-layout.md
-  - docs/rules/task-planning.md
+  - docs/kit/rules/knowledge-layout.md
+  - docs/kit/rules/task-planning.md
 ---
 
 # Glossary

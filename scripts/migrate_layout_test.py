@@ -75,57 +75,57 @@ def migrate(root: Path, *flags: str) -> subprocess.CompletedProcess[str]:
 def check_shared(directory: Path) -> None:
     projects = directory / "Projects"
     (projects / "repos").mkdir(parents=True)
-    pv = make_cc(projects, "pv_CC", {"pv-backend": "project", "pv-poc": "reference", "pv": "project"})
-    di = make_cc(projects, "di_CC", {"ai": "project"})
-    shared_backend = clone(projects / "repos", "pv-backend")
-    clone(projects / "repos", "pv-poc")
-    clone(projects / "repos", "pv")
+    shop = make_cc(projects, "alpha_CC", {"shop-backend": "project", "shop-poc": "reference", "shop": "project"})
+    beta = make_cc(projects, "beta_CC", {"ai": "project"})
+    shared_backend = clone(projects / "repos", "shop-backend")
+    clone(projects / "repos", "shop-poc")
+    clone(projects / "repos", "shop")
     shared_ai = clone(projects / "repos", "ai")
-    old_wt = feature(pv, shared_backend, projects / "worktrees", "beta-db", "pv-backend", projects)
-    feature(di, shared_ai, projects / "worktrees", "flar", "ai", projects)
+    old_wt = feature(shop, shared_backend, projects / "worktrees", "beta-db", "shop-backend", projects)
+    feature(beta, shared_ai, projects / "worktrees", "flar", "ai", projects)
     git(old_wt, "commit", "-q", "--allow-empty", "-m", "work in progress")
     (old_wt / "draft.txt").write_text("uncommitted\n")
     head = git(old_wt, "rev-parse", "HEAD")
 
-    dry = migrate(pv, "--dry-run")
-    assert dry.returncode == 0 and "pv-backend" in dry.stdout and shared_backend.exists(), dry.stdout
+    dry = migrate(shop, "--dry-run")
+    assert dry.returncode == 0 and "shop-backend" in dry.stdout and shared_backend.exists(), dry.stdout
 
-    moved = migrate(pv)
+    moved = migrate(shop)
     assert moved.returncode == 0, moved.stderr
-    base, wt = pv / "repos" / "project" / "pv-backend", pv / "worktrees" / "beta-db" / "pv-backend_wt"
+    base, wt = shop / "repos" / "project" / "shop-backend", shop / "worktrees" / "beta-db" / "shop-backend_wt"
     assert (base / ".git").is_dir() and not shared_backend.exists()
-    assert (pv / "repos" / "project" / "pv" / ".git").is_dir(), "a repo id that prefixes another one moves too"
+    assert (shop / "repos" / "project" / "shop" / ".git").is_dir(), "a repo id that prefixes another one moves too"
     assert git(wt, "rev-parse", "HEAD") == head and (wt / "draft.txt").is_file(), "commits and local changes survive"
     assert git(wt, "branch", "--show-current") == "beta-db"
     listed = git(base, "worktree", "list", "--porcelain")
     assert f"worktree {wt}" in listed and "prunable" not in listed, listed
-    manifest = json.loads((pv / "worktrees/beta-db/.cc-worktree.json").read_text())["repositories"]["pv-backend"]
-    assert manifest["base"] == "repos/project/pv-backend" and manifest["worktree"] == "worktrees/beta-db/pv-backend_wt", manifest
-    state = json.loads((pv / "worktrees/beta-db/.cc-runs/r1/state.json").read_text())
+    manifest = json.loads((shop / "worktrees/beta-db/.cc-worktree.json").read_text())["repositories"]["shop-backend"]
+    assert manifest["base"] == "repos/project/shop-backend" and manifest["worktree"] == "worktrees/beta-db/shop-backend_wt", manifest
+    state = json.loads((shop / "worktrees/beta-db/.cc-runs/r1/state.json").read_text())
     assert state["worktree"] == str(wt) and state["base"] == str(base), state
-    assert str(base) in (pv / "worktrees/beta-db/CLAUDE.md").read_text()
+    assert str(base) in (shop / "worktrees/beta-db/CLAUDE.md").read_text()
 
-    poc = pv / "repos" / "reference" / "pv-poc"
+    poc = shop / "repos" / "reference" / "shop-poc"
     assert (poc / ".git").is_dir() and not os.access(poc / "README.md", os.W_OK) and not os.access(poc, os.W_OK), \
         "a reference clone is read-only on disk"
     assert os.access(poc / ".git", os.W_OK)
-    assert json.loads((pv / "control-center.json").read_text())["layout"]["repositories"] == "repos"
-    assert "/repos/" in (pv / ".gitignore").read_text() and "/worktrees/" in (pv / ".gitignore").read_text()
-    status = run(sys.executable, str(SCRIPTS / "worktrees.py"), str(pv), "status", "beta-db")
-    assert "pv-backend" in status.stdout and "yes" in status.stdout, status.stdout  # dirty: draft.txt
+    assert json.loads((shop / "control-center.json").read_text())["layout"]["repositories"] == "repos"
+    assert "/repos/" in (shop / ".gitignore").read_text() and "/worktrees/" in (shop / ".gitignore").read_text()
+    status = run(sys.executable, str(SCRIPTS / "worktrees.py"), str(shop), "status", "beta-db")
+    assert "shop-backend" in status.stdout and "yes" in status.stdout, status.stdout  # dirty: draft.txt
 
     assert shared_ai.is_dir() and (projects / "worktrees" / "flar" / "ai_wt").is_dir(), "the other CC is untouched"
-    assert migrate(pv).stdout.startswith("already on the per-CC layout"), "a second run changes nothing"
+    assert migrate(shop).stdout.startswith("already on the per-CC layout"), "a second run changes nothing"
 
     # A clone listed by two catalogs is refused before anything moves.
     other = make_cc(projects, "x_CC", {"ai": "project"})
     refused = migrate(other)
-    assert refused.returncode != 0 and "di_CC" in refused.stderr and shared_ai.is_dir(), refused.stderr
-    assert migrate(di).returncode != 0, "di shares ai with x_CC now"
+    assert refused.returncode != 0 and "beta_CC" in refused.stderr and shared_ai.is_dir(), refused.stderr
+    assert migrate(beta).returncode != 0, "beta shares ai with x_CC now"
     (other / "catalog" / "repositories" / "ai.json").unlink()
-    moved = migrate(di)
+    moved = migrate(beta)
     assert moved.returncode == 0, moved.stderr
-    assert git(di / "worktrees" / "flar" / "ai_wt", "branch", "--show-current") == "flar"
+    assert git(beta / "worktrees" / "flar" / "ai_wt", "branch", "--show-current") == "flar"
     assert not (projects / "repos").exists() and not (projects / "worktrees").exists(), "empty shared folders are removed"
 
 

@@ -1,5 +1,5 @@
 ---
-id: decision.0015-thread-sceptics
+id: kit.decision.0015-thread-sceptics
 title: Review conversations are judged by two anonymous sceptics, and a judge settles only their splits
 status: accepted
 summary: Comments on the user's PRs, and replies to the user's comments on other PRs, are judged per thread by two fresh read-only sceptics from different model families, who see the claim, the code at the PR head and the CC notes but never who anyone is. When they agree, their verdict stands. When they split, a judge from a third family decides and the split stays visible. The burden of proof is on the claim, and nothing is posted without the user's yes.
@@ -18,9 +18,9 @@ evidence:
   - .agents/skills/cc-threads/SKILL.md
 relations:
   - docs/index.md
-  - docs/decisions/0012-review-bar.md
-  - docs/decisions/0014-cursor-provider-and-security-council.md
-  - docs/decisions/0007-agent-councils.md
+  - docs/kit/decisions/0012-review-bar.md
+  - docs/kit/decisions/0014-cursor-provider-and-security-council.md
+  - docs/kit/decisions/0007-agent-councils.md
 ---
 
 # Review conversations are judged by two anonymous sceptics, and a judge settles only their splits

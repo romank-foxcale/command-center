@@ -1,5 +1,5 @@
 ---
-id: decision.0014-cursor-provider-and-security-council
+id: kit.decision.0014-cursor-provider-and-security-council
 title: Cursor is a read-only provider confined by its permission config, and security review is a three-model council
 status: accepted
 summary: Council roles can use the Cursor subscription through cursor-agent, only read-only and only inside a throwaway snapshot that carries Cursor's deny config; the security step runs Claude, GPT and Grok reviewers in parallel and the judge summarizes them anonymously, while a high from any one reviewer still blocks.
@@ -16,7 +16,7 @@ evidence:
   - .agents/skills/council-judge/SKILL.md
 relations:
   - docs/index.md
-  - docs/decisions/0007-agent-councils.md
+  - docs/kit/decisions/0007-agent-councils.md
 ---
 
 # Cursor is a read-only provider confined by its permission config, and security review is a three-model council

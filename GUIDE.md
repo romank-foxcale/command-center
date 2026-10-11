@@ -239,7 +239,7 @@ The agent inventories what exists without changing anything first, then moves it
 cc-kit update
 ```
 
-This updates `~/.cc-kit` only. Existing CCs are separate repos and never change behind your back. To pull a kit improvement into a CC, ask your agent to compare the CC with `~/.cc-kit` and bring over the change.
+This updates `~/.cc-kit` only. Existing CCs are separate repos and never change behind your back. To pull a kit improvement into a CC, ask your agent to compare the CC with `~/.cc-kit` and bring over the change. The kit's knowledge lives in `docs/kit/`, which a CC never edits, so that part is a plain replacement; your own decisions, notes and plans in the rest of `docs/` and `plans/` are left alone.
 
 ---
 

@@ -37,9 +37,9 @@ class FakeTrello(BaseHTTPRequestHandler):
         if method in {"POST", "PUT"}:
             SENT.append((method, path, query))
         if path == "/members/me/boards":
-            return self.answer(200, [{"name": "PV board", "shortLink": "Bd1"}])
+            return self.answer(200, [{"name": "Shop board", "shortLink": "Bd1"}])
         if path == "/boards/Bd1":
-            return self.answer(200, {"name": "PV board", "shortLink": "Bd1"})
+            return self.answer(200, {"name": "Shop board", "shortLink": "Bd1"})
         if path == "/boards/Bd1/lists":
             return self.answer(200, LISTS)
         if path == "/cards/Cd1" and method == "GET":
@@ -87,9 +87,9 @@ def main() -> int:
         assert "credentials: MISSING" in out, out
         credentials.write_text(f"TRELLO_API_KEY=key-1\nTRELLO_TOKEN={TOKEN}\n")
 
-        bad = cc("connect", "--board", "https://trello.com/b/Bd1/pv", "--active-list", "Doing")
+        bad = cc("connect", "--board", "https://trello.com/b/Bd1/shop", "--active-list", "Doing")
         assert bad.returncode == 1 and "Doing" in bad.stderr and "In progress" in bad.stderr, bad.stderr
-        assert cc("connect", "--board", "https://trello.com/b/Bd1/pv").returncode == 0
+        assert cc("connect", "--board", "https://trello.com/b/Bd1/shop").returncode == 0
         saved = json.loads((root / "catalog/integrations/trello.json").read_text())
         assert saved["lists"] == {"active": "In progress", "completed": "Done"} and saved["board"] == "Bd1", saved
         assert "active     -> In progress" in cc("status").stdout

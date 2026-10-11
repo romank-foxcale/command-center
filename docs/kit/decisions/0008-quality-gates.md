@@ -1,5 +1,5 @@
 ---
-id: decision.0008-quality-gates
+id: kit.decision.0008-quality-gates
 title: Language-specific quality gates behind language-neutral skills
 status: accepted
 summary: Skills say what to prove about tests; each repository's adapter says how, through a named quality.mutation gate that is optional for now and warns when missing.
@@ -11,8 +11,8 @@ evidence:
   - .agents/skills/tdd/SKILL.md
 relations:
   - docs/index.md
-  - docs/rules/quality-gates.md
-  - docs/decisions/0007-agent-councils.md
+  - docs/kit/rules/quality-gates.md
+  - docs/kit/decisions/0007-agent-councils.md
 ---
 
 # Language-specific quality gates behind language-neutral skills

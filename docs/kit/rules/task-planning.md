@@ -1,5 +1,5 @@
 ---
-id: rules.task-planning
+id: kit.rules.task-planning
 title: Planning tasks for agents
 status: active
 summary: Grilling turns an unclear task into an evidence-backed plan with non-overlapping work packages and verifiable acceptance.
@@ -11,9 +11,9 @@ evidence:
   - templates/task-plan.md
 relations:
   - docs/index.md
-  - docs/decisions/0004-plan-lifecycle.md
-  - docs/rules/knowledge-layout.md
-  - docs/rules/worktrees.md
+  - docs/kit/decisions/0004-plan-lifecycle.md
+  - docs/kit/rules/knowledge-layout.md
+  - docs/kit/rules/worktrees.md
   - docs/glossary/index.md
 ---
 

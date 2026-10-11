@@ -1,5 +1,5 @@
 ---
-id: decision.0013-rule-hooks
+id: kit.decision.0013-rule-hooks
 title: Claude Code hooks enforce the hard rules early; the gates still decide
 status: accepted
 summary: The AGENTS.md hard rules that a tool call reveals are enforced by Claude Code hooks at the moment of the call, and every rule that leaves an artifact is also gated by ./cc check or ./cc verify, so other tools and missed hooks are still caught.
@@ -14,8 +14,8 @@ evidence:
   - .claude/settings.json
 relations:
   - docs/index.md
-  - docs/decisions/0005-multi-tool-agent-configs.md
-  - docs/rules/worktrees.md
+  - docs/kit/decisions/0005-multi-tool-agent-configs.md
+  - docs/kit/rules/worktrees.md
 ---
 
 # Claude Code hooks enforce the hard rules early; the gates still decide

@@ -1,5 +1,5 @@
 ---
-id: rules.quality-gates
+id: kit.rules.quality-gates
 title: Quality gates per stack
 status: active
 summary: Each repository declares its languages in the catalog and may expose a quality.mutation gate in its adapter; ./cc verify --quality runs it and only warns when it is missing.
@@ -12,9 +12,9 @@ evidence:
   - flake.nix
 relations:
   - docs/index.md
-  - docs/decisions/0008-quality-gates.md
-  - docs/rules/project-adapters.md
-  - docs/decisions/0006-target-platform-gates.md
+  - docs/kit/decisions/0008-quality-gates.md
+  - docs/kit/rules/project-adapters.md
+  - docs/kit/decisions/0006-target-platform-gates.md
 ---
 
 # Quality gates per stack

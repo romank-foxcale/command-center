@@ -1,5 +1,5 @@
 ---
-id: decision.0001-nix-executable-knowledge
+id: kit.decision.0001-nix-executable-knowledge
 title: Nix as the format for executable knowledge
 status: accepted
 summary: Processes are described as Nix flakes; NixOS is used for machines and services, not as a universal format for everything.
@@ -8,8 +8,8 @@ evidence:
   - flake.nix
   - nix/lib/default.nix
 relations:
-  - docs/rules/executable-processes.md
-  - docs/architecture/control-center.md
+  - docs/kit/rules/executable-processes.md
+  - docs/kit/architecture/control-center.md
 ---
 
 # Nix as the format for executable knowledge

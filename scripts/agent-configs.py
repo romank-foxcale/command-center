@@ -18,7 +18,7 @@ TARGETS = (Path(".claude/skills"),)
 INSTRUCTION_STUBS = {
     Path("CLAUDE.md"): "@AGENTS.md",
 }
-# Claude Code hooks that enforce the hard rules (docs/decisions/0013-rule-hooks.md). This script owns
+# Claude Code hooks that enforce the hard rules (docs/kit/decisions/0013-rule-hooks.md). This script owns
 # the "hooks" key of the shared settings; every other key, such as permissions, is left alone.
 SETTINGS = Path(".claude/settings.json")
 

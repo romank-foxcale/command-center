@@ -18,6 +18,6 @@
 /.cursor/*.local.*
 __pycache__/
 
-# Base clones and feature worktrees of this CC (docs/decisions/0016-per-cc-repos-and-worktrees.md).
+# Base clones and feature worktrees of this CC (docs/kit/decisions/0016-per-cc-repos-and-worktrees.md).
 /repos/
 /worktrees/

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """./cc migrate-layout: move this CC's clones to repos/<kind>/<id> and its features to worktrees/<feature>,
-inside the CC (docs/decisions/0016-per-cc-repos-and-worktrees.md).
+inside the CC (docs/kit/decisions/0016-per-cc-repos-and-worktrees.md).
 
 It moves a CC from the old shared ../repos and ../worktrees, and nests the flat repos/<id> clones of the
 first per-CC layout under repos/project/ and repos/reference/. Only this CC's catalog clones and the
@@ -113,7 +113,7 @@ def move(source: Path, destination: Path) -> None:
 
 
 def replace_paths(path: Path, pairs: list[tuple[str, str]]) -> None:
-    """Replace whole path names only: /repos/pv must not rewrite /repos/pv-backend."""
+    """Replace whole path names only: /repos/shop must not rewrite /repos/shop-backend."""
     text = path.read_text(encoding="utf-8")
     for old, new in sorted(pairs, key=lambda pair: -len(pair[0])):
         # A period ends the path only at the end of a sentence: feature names may contain dots (v1.2).

@@ -37,7 +37,7 @@ def layout(root: Path) -> tuple[Path, Path]:
 
 def base_clone(root: Path, identifier: str, kind: str | None = None) -> Path:
     """repos/<kind>/<id>: the folder says what a clone is, in every path an agent reads
-    (docs/decisions/0016-per-cc-repos-and-worktrees.md)."""
+    (docs/kit/decisions/0016-per-cc-repos-and-worktrees.md)."""
     if kind is None:
         path = descriptor_path(root, identifier)
         kind = load_json(path).get("kind", "project") if path.is_file() else "project"
@@ -230,7 +230,7 @@ def command_add(root: Path, args: argparse.Namespace) -> None:
 
 def stray_clones(root: Path) -> list[str]:
     """Folders in this CC's repos/ that its catalog does not list: a clone nobody declared is out of scope
-    (docs/decisions/0016-per-cc-repos-and-worktrees.md). Nix checks cannot see the ignored folder, so verify
+    (docs/kit/decisions/0016-per-cc-repos-and-worktrees.md). Nix checks cannot see the ignored folder, so verify
     and doctor ask this instead."""
     _, repositories_root = layout(root)
     if not repositories_root.is_dir():

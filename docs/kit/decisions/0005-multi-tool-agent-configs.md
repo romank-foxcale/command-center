@@ -1,5 +1,5 @@
 ---
-id: decision.0005-multi-tool-agent-configs
+id: kit.decision.0005-multi-tool-agent-configs
 title: One set of skills for every AI tool
 status: accepted
 summary: Skills live in .agents/skills, Claude Code gets a checked copy in .claude/skills, and instructions stay in AGENTS.md.
@@ -12,9 +12,9 @@ evidence:
   - flake.nix
 relations:
   - docs/index.md
-  - docs/decisions/0003-template-as-seed.md
-  - docs/rules/bootstrap.md
-  - docs/decisions/0013-rule-hooks.md
+  - docs/kit/decisions/0003-template-as-seed.md
+  - docs/kit/rules/bootstrap.md
+  - docs/kit/decisions/0013-rule-hooks.md
 ---
 
 # One set of skills for every AI tool
