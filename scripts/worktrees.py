@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -17,6 +18,8 @@ from typing import Any
 FEATURE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 # Read by Claude Code sessions started inside a worktree of the feature (see write_session_guard).
 GUARD = "CLAUDE.md"
+# Council run artifacts, written into the feature folder by scripts/council/run.py.
+RUNS = ".cc-runs"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -289,6 +292,14 @@ def command_remove(root: Path, args: argparse.Namespace) -> None:
         entry = entries[identifier]
         worktree = context.resolve_project_path(entry["worktree"])
         ensure_removable(worktree, entry)
+    # Removing the last worktree removes the feature folder too. Decide before touching any worktree, so a removal
+    # never ends half done: council runs are kept in an archive, anything else nobody accounted for stops it here.
+    last = set(identifiers) == set(entries)
+    if last:
+        expected = {context.manifest_path.name, GUARD, RUNS} | {Path(entry["worktree"]).name for entry in entries.values()}
+        unexpected = sorted(path.name for path in context.feature_root.iterdir() if path.name not in expected)
+        if unexpected:
+            raise ValueError(f"{context.feature_root} also holds {', '.join(unexpected)}; move or delete it, then remove again")
 
     for identifier in identifiers:
         entry = entries[identifier]
@@ -299,13 +310,26 @@ def command_remove(root: Path, args: argparse.Namespace) -> None:
         if entries:
             write_json(context.manifest_path, manifest)
 
+    archived = None
     if entries:
         write_json(context.manifest_path, manifest)
     else:
+        runs = context.feature_root / RUNS
+        if runs.is_dir():
+            # Their token counts and attempt histories outlive the feature; .cc-local is never committed.
+            archived = root / ".cc-local" / "runs-archive" / args.feature
+            archived.mkdir(parents=True, exist_ok=True)
+            for run in sorted(runs.iterdir()):
+                target = archived / run.name
+                if target.exists():
+                    target = archived / f"{run.name}-{datetime.datetime.now():%H%M%S}"
+                shutil.move(str(run), str(target))
+            runs.rmdir()
         context.manifest_path.unlink()
         (context.feature_root / GUARD).unlink(missing_ok=True)
         context.feature_root.rmdir()
-    print(f"removed {len(identifiers)} worktree(s) from {args.feature}; branches were preserved")
+    print(f"removed {len(identifiers)} worktree(s) from {args.feature}; branches were preserved"
+          + (f"; council runs archived in {archived.relative_to(root)}" if archived else ""))
 
 
 def command_status(root: Path, args: argparse.Namespace) -> None:

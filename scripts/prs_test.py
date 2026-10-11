@@ -155,9 +155,30 @@ def check_checkout(base: Path, root: Path, env: dict[str, str]) -> None:
     assert second.returncode == 0 and "updated" in second.stdout, second.stderr
     assert git(worktree, "log", "-1", "--format=%s") == "pr 4, second push", "re-running follows the PR's latest push"
 
-    removed = subprocess.run([sys.executable, str(SCRIPT.parent / "worktrees.py"), str(root), "remove", "pr-shop-backend-4"],
-                             capture_output=True, text=True)
+    # A feature that ran a council holds .cc-runs next to its worktrees; a stray file is something nobody accounted for.
+    feature_root = root / "worktrees" / "pr-shop-backend-4"
+    run = feature_root / ".cc-runs" / "20261011-093830-coding"
+    (run / "logs").mkdir(parents=True)
+    (run / "state.json").write_text('{"stage": "done"}', encoding="utf-8")
+    (run / "logs" / "write-0.log").write_text("usage: 1 new input, 2 cached input, 3 output tokens\n", encoding="utf-8")
+    (feature_root / "notes.txt").write_text("draft", encoding="utf-8")
+
+    def remove() -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, str(SCRIPT.parent / "worktrees.py"), str(root), "remove", "pr-shop-backend-4"],
+                              capture_output=True, text=True)
+
+    refused = remove()
+    assert refused.returncode != 0 and "notes.txt" in refused.stderr, refused.stderr
+    assert worktree.is_dir() and (feature_root / ".cc-worktree.json").is_file(), "refused before any worktree was removed"
+    (feature_root / "notes.txt").unlink()
+
+    removed = remove()
     assert removed.returncode == 0, f"the PR's commits are published, so cleanup must not refuse: {removed.stderr}"
+    assert not feature_root.exists(), "the feature folder is gone, not left half removed"
+    archived = root / ".cc-local" / "runs-archive" / "pr-shop-backend-4" / "20261011-093830-coding"
+    assert (archived / "state.json").read_text() == '{"stage": "done"}' and (archived / "logs" / "write-0.log").is_file(), \
+        "council runs are archived, not deleted"
+    assert "runs-archive" in removed.stdout, removed.stdout
     return 0
 
 
