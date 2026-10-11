@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Claude Code hooks that enforce the AGENTS.md hard rules at the moment of a tool call.
 
-Usage: rule_hooks.py <pre-bash|pre-read|post-read|pre-edit|post-edit|stop>, with the hook's JSON on stdin.
+Usage: rule_hooks.py <pre-bash|pre-read|post-read|pre-edit|post-edit|stop|session-start>, with the hook's JSON on stdin.
+session-start is not a rule: it starts the setup interview in a CC that is not set up (docs/kit/decisions/0018-setup-starts-itself.md).
 The gates (./cc check, ./cc verify) stay the source of truth: a hook only catches a break early,
 and only in Claude Code. See docs/kit/decisions/0013-rule-hooks.md.
 """
@@ -321,7 +322,28 @@ def stop(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
                                           + "\n".join(f"- {problem}" for problem in problems[:10])}
 
 
-HANDLERS = {"pre-bash": pre_bash, "pre-read": pre_read, "post-read": post_read, "pre-edit": pre_edit, "post-edit": post_edit, "stop": stop}
+SETUP_CONTEXT = {
+    "discovery": "This Control Center is not set up yet. Unless the user asks for something else, open with the setup "
+                 "interview: load the grill-cc-bootstrap skill (mode: new, already materialized by cc-kit) and start "
+                 "grilling. The user may know nothing about how a CC works; explain each step in plain words.",
+    "adapting": "This Control Center's setup is not finished. Unless the user asks for something else, offer to continue "
+                "it with the grill-cc-bootstrap skill: read control-center.json and ./cc repo list to see what is left.",
+}
+
+
+def session_start(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
+    """Make the agent start (or resume) the setup of a CC that is not ready, so nobody needs a magic first prompt."""
+    try:
+        status = json.loads((root / "control-center.json").read_text(encoding="utf-8")).get("status")
+    except (OSError, ValueError):
+        return None  # the template itself, or a broken file that ./cc check reports
+    if status not in SETUP_CONTEXT:
+        return None
+    return {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": SETUP_CONTEXT[status]}}
+
+
+HANDLERS = {"pre-bash": pre_bash, "pre-read": pre_read, "post-read": post_read, "pre-edit": pre_edit, "post-edit": post_edit,
+            "stop": stop, "session-start": session_start}
 
 
 def main() -> int:

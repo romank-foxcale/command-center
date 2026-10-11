@@ -1,6 +1,6 @@
 ---
 name: grill-cc-bootstrap
-description: Conduct an evidence-first grilling session that creates a new Control Center from a temporary cc_template clone or migrates an existing CC of another format. Use when the user asks to bootstrap, configure, adapt, onboard, or migrate a Control Center and its repositories, workflows, benchmarks, executable Nix contracts, and durable knowledge.
+description: Conduct an evidence-first grilling session that creates a new Control Center from a temporary cc_template clone or migrates an existing CC of another format. Use when the user asks to bootstrap, configure, adapt, onboard, or migrate a Control Center and its repositories, workflows, benchmarks, executable Nix contracts, and durable knowledge; when a CC's status is still discovery or adapting; and when a project repo is added to an existing CC.
 ---
 
 # Grill CC bootstrap
@@ -29,6 +29,8 @@ First read `../_shared/grilling-core.md` in full, then `BOOTSTRAP.md`. Apply bot
 7. Do not delete the legacy setup before the slice is verified.
 
 ## Repository grilling
+
+The user may know nothing about Nix or how a CC works: never ask them to write or choose Nix, and explain each step in plain words. Read the stack and the build and test commands from the repo's files (`package.json`, `pyproject.toml`, `*.csproj`, `go.mod`, `Cargo.toml`, `CMakeLists.txt`, ...) and its CI, propose them, and ask only for confirmation. To add one repo to a ready CC, run only this section and step 6 of "New CC" for it.
 
 First study the repo and its CI, then close the gaps: remote/branch/role/owner; inputs/outputs/consumers; build/test interface; system/network dependencies; platforms/hardware; secrets/datasets/models/external state; the minimal adapter check.
 

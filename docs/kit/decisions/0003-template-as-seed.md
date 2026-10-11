@@ -23,7 +23,7 @@ The user starts an AI tool from the folder of the future CC. It may be empty, or
 
 Treat `cc_template/` as a read-only seed. In `new` mode, copy its tracked files into the parent without overwriting. In `migration` mode, adapt it after a read-only inventory. After acceptance, the user deletes the seed.
 
-`cc-kit new` performs the same materialization directly from the installed kit, without a nested clone.
+`cc-kit new` performs the same materialization directly from the installed kit, without a nested clone. `cc-kit migrate <folder>` makes the nested clone for migration mode ([0018](0018-setup-starts-itself.md)).
 
 ## Consequences
 

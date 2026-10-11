@@ -4,8 +4,9 @@
 
 .DESCRIPTION
   Safe to re-run. Each step checks what is already there and skips it.
-  Installing WSL needs administrator rights and may need a reboot; after the
-  reboot, run this script again and it continues where it stopped.
+  Start it as a normal user: it asks for administrator rights only to install WSL.
+  If Windows needs a reboot, it continues by itself after the next sign-in.
+  At the end it adds cc-kit to PowerShell and offers to create the first Control Center.
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File install\windows\install.ps1
@@ -21,8 +22,10 @@ param(
     [string]$KitBranch = "main",
     # For testing: copy the kit from a local Windows folder instead of cloning it.
     [string]$KitSource = "",
-    # Command-line AI tools to install inside WSL: claude, codex, opencode.
-    [string[]]$Tools = @()
+    # Command-line AI tools to install inside WSL: claude, codex, opencode, or none.
+    [string[]]$Tools = @("claude"),
+    # Internal: the elevated copy of this script that only installs WSL.
+    [switch]$WslOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -68,27 +71,47 @@ Write-Note "Windows build $build OK"
 
 # 2. WSL itself and the Linux distribution.
 Write-Step "Checking WSL2 and $Distro"
-$wslReady = $false
-if (Get-Command wsl.exe -ErrorAction SilentlyContinue) {
-    Invoke-Quiet { wsl.exe --status } | Out-Null
-    $wslReady = ($LASTEXITCODE -eq 0)
-}
-if (-not $wslReady -or -not ((Get-Distros) -contains $Distro)) {
-    if (-not (Test-Admin)) {
-        Write-Warn "WSL or $Distro is missing. Installing it needs administrator rights."
-        Write-Note "Right-click PowerShell > 'Run as administrator', then run this script again."
-        exit 1
+
+# A copy of this script that survives a reboot: the elevated WSL step and the resume after sign-in run it.
+$persisted = Join-Path $env:LOCALAPPDATA "cc-kit\install.ps1"
+if (-not $WslOnly) {
+    New-Item -ItemType Directory -Force (Split-Path $persisted) | Out-Null
+    if ($PSCommandPath -and ($PSCommandPath -ne $persisted)) {
+        Copy-Item -Force $PSCommandPath $persisted
+    } elseif (-not $PSCommandPath) {
+        Invoke-RestMethod "https://raw.githubusercontent.com/romank-foxcale/command-center/$KitBranch/install/windows/install.ps1" -OutFile $persisted
     }
-    Write-Note "Installing WSL2 with $Distro (this can take several minutes)"
-    Write-Note "If $Distro asks for a UNIX username and password, create them (the password stays invisible"
-    Write-Note "while you type), then type 'exit' to come back here."
-    # No --no-launch: on current WSL it can leave the distro unregistered.
-    & wsl.exe --install -d $Distro
-    if ($LASTEXITCODE -ne 0) { throw "wsl --install failed. See the message above." }
-    Write-Warn "If Windows asked for a reboot, reboot and run 'wsl --install -d $Distro' once more."
-    Write-Note "Then run this script again (no administrator rights needed the second time)."
-    exit 0
 }
+$rerun = "-ExecutionPolicy Bypass -File `"$persisted`" -Distro $Distro -KitRepo $KitRepo -KitBranch $KitBranch -Tools $($Tools -join ',')"
+if ($KitSource) { $rerun += " -KitSource `"$KitSource`"" }
+
+function Test-WslReady {
+    if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) { return $false }
+    Invoke-Quiet { wsl.exe --status } | Out-Null
+    ($LASTEXITCODE -eq 0) -and ((Get-Distros) -contains $Distro)
+}
+
+if (-not (Test-WslReady)) {
+    if ($WslOnly -or (Test-Admin)) {
+        Write-Note "Installing WSL2 with $Distro (this can take several minutes)"
+        Write-Note "When $Distro asks for a UNIX username and password, create them: the username in lowercase,"
+        Write-Note "the password stays invisible while you type. Then type 'exit' to come back here."
+        # No --no-launch: on current WSL it can leave the distro unregistered.
+        & wsl.exe --install -d $Distro
+        if ($LASTEXITCODE -ne 0) { throw "wsl --install failed. See the message above." }
+    } else {
+        Write-Note "Installing WSL needs administrator rights: Windows asks for them now, in a second window."
+        Start-Process powershell.exe -Verb RunAs -Wait -ArgumentList "$rerun -WslOnly"
+    }
+    if ($WslOnly) { exit 0 }
+    if (-not (Test-WslReady)) {
+        # WSL only works after a reboot: continue by itself after the next sign-in.
+        Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" "CcKitInstall" "powershell.exe -NoExit $rerun"
+        Write-Warn "Restart Windows to finish installing WSL. After you sign in, this setup continues by itself."
+        exit 0
+    }
+}
+if ($WslOnly) { exit 0 }
 & wsl.exe --set-default-version 2 | Out-Null
 
 $version = (Invoke-Quiet { wsl.exe --list --verbose } | Where-Object { $_ -match "\b$([regex]::Escape($Distro))\b" }) -replace '.*\s(\d)\s*$', '$1'
@@ -122,8 +145,9 @@ if ($KitSource) {
 
 # 5. Everything else happens inside Linux. sudo will ask for the Linux password.
 Write-Step "Running the Linux installer inside $Distro"
-$toolArgument = if ($Tools.Count) { "--tools " + ($Tools -join ",") } else { "" }
-$linuxInstall = "~/.cc-kit/install/install.sh $toolArgument"
+$toolArgument = if ($Tools.Count) { "--tools " + ($Tools -join ",") } else { "--tools none" }
+# The first Control Center is offered at the end of this script instead, once cc-kit works from PowerShell.
+$linuxInstall = "CC_KIT_NO_FIRST=1 ~/.cc-kit/install/install.sh $toolArgument"
 & wsl.exe -d $Distro -- bash -lc $linuxInstall
 if ($LASTEXITCODE -eq 10) {
     # install.sh turned on systemd, which only takes effect after WSL restarts.
@@ -152,8 +176,35 @@ $claudeDesktop = [bool](Get-AppxPackage -Name "Claude" -ErrorAction SilentlyCont
     (Test-Path "$env:LOCALAPPDATA\AnthropicClaude")
 Write-Note ("Claude desktop: " + $(if ($claudeDesktop) { "found" } else { "not found (optional)" }))
 
+# 7. cc-kit from PowerShell and cmd: a launcher on the user's PATH that runs it inside WSL.
+Write-Step "Adding the cc-kit command to Windows"
+$binDir = Join-Path $env:LOCALAPPDATA "cc-kit\bin"
+New-Item -ItemType Directory -Force $binDir | Out-Null
+$launcher = @"
+@echo off
+rem Runs cc-kit inside WSL ($Distro), where the kit, Nix and the Control Centers live.
+wsl.exe -d $Distro --cd ~ -e bash -lc "exec cc-kit \"`$@\"" cc-kit %*
+exit /b %errorlevel%
+"@
+Set-Content -Path (Join-Path $binDir "cc-kit.cmd") -Value $launcher -Encoding Ascii
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if (-not (($userPath -split ";") -contains $binDir)) {
+    [Environment]::SetEnvironmentVariable("Path", (@($userPath, $binDir) | Where-Object { $_ }) -join ";", "User")
+}
+$env:Path = "$env:Path;$binDir"
+Write-Note "cc-kit works in any new PowerShell or cmd window"
+
 Write-Step "Done"
-Write-Note "Create your first Control Center inside WSL:"
-Write-Host  "      wsl -d $Distro"
+$existing = Invoke-Quiet { wsl.exe -d $Distro -- bash -lc "ls -d ~/Projects/*_CC 2>/dev/null" }
+if (-not $existing) {
+    Write-Note "Now create your first Control Center."
+    Write-Note "Name it after the product or system it covers, in lowercase with dashes (for example: shop)."
+    $name = Read-Host "    Name (Enter to skip)"
+    if ($name) {
+        & (Join-Path $binDir "cc-kit.cmd") new $name.Trim()
+        exit 0
+    }
+}
+Write-Note "Create a Control Center any time, in PowerShell:"
 Write-Host  "      cc-kit new my-project"
-Write-Note "Then open it in your AI tool. See GUIDE.md in the kit for each tool."
+Write-Note "It opens Claude and the agent walks you through the setup. More: GUIDE.md in the kit."

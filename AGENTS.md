@@ -11,6 +11,10 @@ If the user asks to create, configure or migrate a CC:
 3. determine the mode: `new` or `migration`;
 4. keep grilling until the state is verifiable, not until you get the first answer.
 
+If `control-center.json` has status `discovery` or `adapting`, this CC is not set up yet: unless the user asks for something else, open with the setup interview (or offer to continue it) with `grill-cc-bootstrap`, in plain words for someone who does not know how a CC works. Nobody has to know a special prompt.
+
+Adding a project repo to a CC is onboarding, not only a catalog entry: after `./cc repo add`, continue with the "Repository grilling" of `grill-cc-bootstrap` for that repo (clone, adapter, a gate per target, `./cc verify <id>`), unless the user wants only the entry.
+
 Do not invent a new topology for the CC: base clones live in `repos/project/<repo>` (repos the CC changes) and `repos/reference/<repo>` (read-only guidance), feature worktrees in `worktrees/<feature>/<repo>_wt/`, all inside the CC and git-ignored. This CC's repositories are exactly `./cc repo list`; nothing outside the CC folder belongs to it.
 
 If the user asks to plan a complex or agentic task, load `grill-task-planning`. Keep current plans in `plans/active/`, cancelled ones in `plans/archived/` and finished ones in `plans/completed/`; make transitions with `./cc plan`.

@@ -3,15 +3,17 @@ id: kit.rules.bootstrap
 title: Control Center bootstrap and migration
 status: active
 summary: The template is cloned as a nested read-only seed (or installed as the kit), and the target CC is created in the parent folder through evidence-first grilling.
-verified_at: 2026-07-21
+verified_at: 2026-10-11
 evidence:
   - BOOTSTRAP.md
   - scripts/materialize-template.py
   - .agents/skills/grill-cc-bootstrap/SKILL.md
+  - install/cc-kit
 relations:
   - docs/index.md
   - docs/kit/architecture/control-center.md
   - docs/kit/decisions/0003-template-as-seed.md
+  - docs/kit/decisions/0018-setup-starts-itself.md
   - docs/kit/rules/project-adapters.md
   - docs/kit/rules/worktrees.md
 ---
@@ -26,6 +28,8 @@ relations:
 
 - `new`: safe materialization, then grilling and one-by-one repository onboarding.
 - `migration`: read-only inventory, mapping onto the target model, and a vertical-slice migration compared against the legacy behavior.
+
+Nobody has to start a mode by hand: `cc-kit new` and `cc-kit migrate` open the AI tool with the opening prompt, and while `control-center.json` is `discovery` or `adapting` every session opens with the setup interview ([0018](../decisions/0018-setup-starts-itself.md)). Adding a project repo to a ready CC runs the same repository onboarding.
 
 Migration never justifies losing meaning. An entity is either preserved, or its replacement or removal is recorded as a decision.
 
