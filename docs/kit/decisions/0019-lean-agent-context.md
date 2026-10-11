@@ -11,6 +11,9 @@ evidence:
   - scripts/council/run.py
   - scripts/validate-control-center.py
   - scripts/rule_hooks.py
+  - scripts/eval/run.py
+  - scripts/eval/scenarios.py
+  - scripts/eval/fixture.sh
 relations:
   - docs/kit/index.md
   - docs/kit/decisions/0005-multi-tool-agent-configs.md
@@ -47,7 +50,8 @@ The one slower scenario, commit (+13 s), was a gain: the shorter `AGENTS.md` mad
 ## Consequences
 
 - A rule that leaves an artifact is still gated by `./cc check` or `./cc verify`, and the hooks still enforce the rest at the tool call (0013). A shorter text does not weaken those gates.
-- The baseline passed every check too: the gain is cost and attention, not fixed failures. A future cut should be measured the same way before it is kept.
+- The baseline passed every check too: the gain is cost and attention, not fixed failures.
+- The eval is part of the kit as `./cc eval`: `./cc eval run <label> --ref <git-ref>` for each variant, then `./cc eval compare <a> <b>`. Measure a change to `AGENTS.md`, a skill or a hook this way before keeping it, and add a scenario when a change targets behaviour the current ones do not cover. It needs Nix and a logged-in `claude`, uses the user's subscription, and skips permission prompts only inside throwaway copies under `$CC_EVAL_WORK`.
 
 ## Revisit when
 

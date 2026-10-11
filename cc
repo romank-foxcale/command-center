@@ -16,6 +16,7 @@ usage() {
     '  verify [repo...] [--quality]  Run every check plus each catalog target gate (and quality gates)' \
     '  council <run|approve|reject|status|models|set-role|set> ...  Multi-model councils and their settings' \
     '  watch [run]    Follow a council or verify run live: steps, agent talk, stalls, result' \
+    '  eval <run|compare|trace|regrade> ...  Measure an agent-context change: headless claude runs, graded, with tokens, cost and time' \
     '  settings [show]  Settings panel: agents and models, councils, repos; show prints them as text' \
     '  validate       Validate the Markdown knowledge graph' \
     '  agents <sync|check>  Mirror .agents/skills into .claude/skills' \
@@ -163,6 +164,10 @@ case "$command_name" in
     ;;
   council)
     exec python3 "$cc_root/scripts/council/run.py" "$cc_root" "$@"
+    ;;
+  eval)
+    require_nix
+    exec python3 "$cc_root/scripts/eval/run.py" "$cc_root" "$@"
     ;;
   settings)
     require_nix
