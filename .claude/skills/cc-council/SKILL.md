@@ -1,6 +1,6 @@
 ---
 name: cc-council
-description: Run, approve, reject or inspect multi-model coding, testing and debug councils (Claude and GPT propose or diagnose, an anonymous judge decides, a writer implements, ./cc verify gates, Claude, GPT and Grok review security) with ./cc council, and change which provider and model each agent role uses. Use when the user wants a council to implement, test or debug something on a feature, approves or rejects a council verdict, asks about council runs, or wants a role such as judge or writer to use another model.
+description: Run, approve, reject or inspect multi-model coding, testing and debug councils with ./cc council, and change which provider and model each council role uses. Use when the user wants a council to implement, test or debug something on a feature, decides on a council verdict, asks about runs, or wants a role on another model.
 ---
 
 # CC council

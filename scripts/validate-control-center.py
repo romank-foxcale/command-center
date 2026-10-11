@@ -202,8 +202,8 @@ def validate_agents(root: Path, errors: list[str]) -> dict[str, dict[str, Any]]:
             errors.append(f"{relative}: 'skills' must be a list of skill names")
         else:
             for skill in skills:
-                if not (root / ".agents" / "skills" / skill / "SKILL.md").is_file():
-                    errors.append(f"{relative}: skill does not exist: .agents/skills/{skill}/SKILL.md")
+                if not any((root / ".agents" / folder / skill / "SKILL.md").is_file() for folder in ("roles", "skills")):
+                    errors.append(f"{relative}: skill does not exist in .agents/roles or .agents/skills: {skill}")
         roles[identifier] = data
     return roles
 

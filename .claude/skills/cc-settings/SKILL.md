@@ -1,6 +1,6 @@
 ---
 name: cc-settings
-description: Open the Control Center's settings panel (./cc settings) in a terminal - agents and their models, councils, repos (add by link, remove, main branch, kind, platforms, stack) and the Trello board - or, where no terminal can be opened, show and change the same settings in the chat with pick lists. Use when the user asks for the settings, wants to see or change a role's model, a council setting, the repo list or a repo's branch, platforms or stack, or types /cc-settings.
+description: Show and change the Control Center's settings - agents and their models, councils, repos and the Trello board - in the ./cc settings panel or, without a terminal, in chat. Use when the user asks for the settings or wants to see or change a model, a council setting or a repo's details.
 ---
 
 # CC settings

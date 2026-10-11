@@ -1,6 +1,6 @@
 ---
 name: cc-plan
-description: List, show, create, accept, archive or complete Control Center task plans in plans/active, plans/archived and plans/completed by running ./cc plan. Use when the user asks about plans or their status, wants to record a plan, approves a plan, drops one, or reports a planned task as finished. To work out what a plan should contain, use grill-task-planning instead.
+description: List, show, create, accept, archive or complete task plans with ./cc plan. Use when the user asks about plans, records or approves one, drops one, or reports a planned task finished. To work out a plan's content, use grill-task-planning.
 ---
 
 # CC plan

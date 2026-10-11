@@ -1,6 +1,6 @@
 ---
 name: cc-verify
-description: Verify, check, build, run or inspect the Control Center and feature worktrees through Nix by running ./cc verify, check, build, run, show, validate, doctor and ./cc feature. Use when the user wants to test, check, verify, build or run something, asks whether code works or is ready to push, wants to see what the CC exposes, validate the knowledge notes, or check the local setup, for the CC itself or for a feature.
+description: Verify, check, build, run or inspect the CC and feature worktrees through Nix with ./cc verify, check, build, run, show, validate, doctor and ./cc feature. Use when the user asks whether code works, passes or is ready to push, wants to build or run something, or check the setup.
 ---
 
 # CC verify

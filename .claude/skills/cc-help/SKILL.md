@@ -1,6 +1,6 @@
 ---
 name: cc-help
-description: List the Control Center's skills grouped by purpose, let the user pick one, then explain how that skill works - when to use it, what it does step by step, the commands it runs, what it never does, and example requests. Use when the user asks for help, what the CC can do, which skills exist, or how a specific skill works.
+description: List the CC's skills by purpose and explain the one the user picks: when to use it, what it does, the commands it runs and what it never does. Use when the user asks for help, what the CC can do, or how a skill works.
 ---
 
 # CC help
@@ -9,7 +9,7 @@ Help is read from the skills themselves, never from memory, so it is always curr
 
 ## 1. List
 
-1. Read the frontmatter (`name`, `description`) of every `.agents/skills/*/SKILL.md`. Skip `_shared` and every skill whose description says it is not for direct use (the `council-*` role skills); mention once that councils load those roles automatically.
+1. Read the frontmatter (`name`, `description`) of every `.agents/skills/*/SKILL.md`. Skip `_shared`. Council and thread roles live in `.agents/roles/` and are loaded by the runners, not listed here; mention once that councils load them automatically.
 2. Group the rest and show one short line per skill, numbered across all groups:
    - **Set up and plan:** `grill-*`
    - **Run the CC:** `cc-*` except `cc-help`

@@ -33,7 +33,7 @@ MESSAGE_FILE = re.compile(r"(?:\s-F|--file|--body-file)[=\s]+(['\"]?)([^\s'\"]+)
 # Markdown the CC may track outside the knowledge folders. Everything else belongs in a note, unless
 # the CC declares more folders in control-center.json "markdownDirs" (for example research/).
 MARKDOWN_ROOT_FILES = {"AGENTS.md", "BOOTSTRAP.md", "CLAUDE.md", "GUIDE.md", "README.md"}
-MARKDOWN_DIRS = ("docs/", "plans/", ".agents/skills/", ".claude/skills/")
+MARKDOWN_DIRS = ("docs/", "plans/", ".agents/skills/", ".agents/roles/", ".claude/skills/")
 
 # Build and test tools that must run through Nix (./cc build, check, verify) except for diagnosis.
 BUILD_TOOLS = {"cmake", "ctest", "make", "gmake", "ninja", "meson", "msbuild", "pytest"}

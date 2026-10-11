@@ -1,6 +1,6 @@
 ---
 name: lean-code
-description: Build the least code that actually works - read the problem fully, then stop at the first rung of the ladder that holds - need it at all, already in the codebase, standard library, native platform feature, installed dependency, one line, minimum new code. Use on any task that writes, changes, fixes, refactors, reviews or designs code or picks a dependency, including council proposer, judge and writer roles. Not for non-coding requests.
+description: Write the least code that actually works: understand the problem fully, then prefer no code, existing code, the standard library, platform features and installed dependencies over new code. Use on any task that writes, changes, fixes, reviews or designs code or picks a dependency.
 ---
 
 # Lean code

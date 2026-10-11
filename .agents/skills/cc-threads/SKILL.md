@@ -1,6 +1,6 @@
 ---
 name: cc-threads
-description: Judge the review conversation of a catalog PR with ./cc prs judge. On the user's own PR, it judges other people's comments (bots included) as VALID, OUT-OF-SCOPE, REFUTED, NEEDS-INFO or PREFERENCE. On someone else's PR, it judges the replies to the user's comments as ADDRESSED, NOT-ADDRESSED, PUSHBACK-HOLDS or PUSHBACK-FAILS. Two anonymous sceptics judge each thread, a judge settles their splits, and every verdict comes with evidence and a drafted reply. Use when the user asks whether review comments on their PR are right, whether an author really fixed or answered their comment, or picks "Judge the comments" in cc-prs.
+description: Judge the review threads of a catalog PR with ./cc prs judge: on the user's own PR whether others' comments hold, on someone else's PR whether replies to the user's comments really address them; each verdict comes with evidence and a drafted reply. Use when the user asks whether review comments are right or were really addressed.
 ---
 
 # CC threads

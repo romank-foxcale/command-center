@@ -13,7 +13,7 @@ evidence:
   - templates/agents/judge.json
   - templates/agents/security-grok.json
   - templates/councils/coding.json
-  - .agents/skills/council-judge/SKILL.md
+  - .agents/roles/council-judge/SKILL.md
 relations:
   - docs/index.md
   - docs/kit/decisions/0007-agent-councils.md

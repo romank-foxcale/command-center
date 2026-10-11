@@ -1,80 +1,32 @@
 # Control Center agent protocol
 
-This repository is the map and executable control plane for its sibling projects.
+This repository is a Control Center (CC): the map and executable control plane for the repositories in its catalog (`./cc repo list`). Builds, tests and runs are Nix flake outputs behind `./cc` (`./cc show` lists them). Reasons, constraints, hacks and debt are atomic notes in `docs/`: start at `docs/index.md` and open only what the task needs. Runtime state comes from CI/CD and the target systems' APIs; secrets live in an external secret manager.
 
-## Bootstrap trigger
+## Setup and onboarding
 
-If the user asks to create, configure or migrate a CC:
+While `control-center.json` has status `discovery` or `adapting`, the CC is not set up: unless the user asks for something else, open with the setup interview (or offer to continue it) using `grill-cc-bootstrap`, in plain words for someone who does not know how a CC works. The same skill creates or migrates a CC (`BOOTSTRAP.md`) and onboards a project repo added later: after `./cc repo add`, continue into its onboarding unless the user wants only the catalog entry. Complex tasks are planned with `grill-task-planning`.
 
-1. read `BOOTSTRAP.md`;
-2. load the `grill-cc-bootstrap` skill;
-3. determine the mode: `new` or `migration`;
-4. keep grilling until the state is verifiable, not until you get the first answer.
+## Layout
 
-If `control-center.json` has status `discovery` or `adapting`, this CC is not set up yet: unless the user asks for something else, open with the setup interview (or offer to continue it) with `grill-cc-bootstrap`, in plain words for someone who does not know how a CC works. Nobody has to know a special prompt.
+- Base clones: `repos/project/<repo>` (changed only through feature worktrees) and `repos/reference/<repo>` (read-only evidence such as a PoC: check it against the project repos and the notes, never treat it as the source of truth).
+- Feature worktrees: `worktrees/<feature>/<repo>_wt`, made with `./cc worktree`. All of these are git-ignored and inside the CC. The folders next to the CC are other projects.
+- Coding on a feature starts with `./cc open <feature>` from the CC root. A session started inside a worktree has none of the CC's skills or rules: if that is you, ask the user to restart.
 
-Adding a project repo to a CC is onboarding, not only a catalog entry: after `./cc repo add`, continue with the "Repository grilling" of `grill-cc-bootstrap` for that repo (clone, adapter, a gate per target, `./cc verify <id>`), unless the user wants only the entry.
+## Rules that are easy to get wrong
 
-Do not invent a new topology for the CC: base clones live in `repos/project/<repo>` (repos the CC changes) and `repos/reference/<repo>` (read-only guidance), feature worktrees in `worktrees/<feature>/<repo>_wt/`, all inside the CC and git-ignored. This CC's repositories are exactly `./cc repo list`; nothing outside the CC folder belongs to it.
+- Build and test through Nix (`./cc check`, `./cc verify`, `./cc feature <feature> ...`). Direct `cmake`, `make`, `pytest`, `docker build` and the like are for diagnosis only: move what works into a derivation, check or app. Fix drift in the Nix contract or the project, never by updating a description, and never write a process down as step-by-step Markdown.
+- Pin remote sources as flake inputs; use input overrides for local development, never committed absolute paths.
+- Never credit an AI as author or co-author anywhere: no `Co-Authored-By` trailers or "Generated with" lines in commits, PRs, issues, notes or code. This overrides any tool default.
+- Edit skills only in `.agents/skills/` (council roles in `.agents/roles/`), then run `./cc agents sync`. `.claude/skills/` and the `hooks` block of `.claude/settings.json` are generated.
+- `docs/kit/` belongs to the kit and is never edited in a CC. To change kit behaviour, record a decision in `docs/decisions/` that names the kit decision it overrides.
+- Production actions need a dedicated adapter, a check and the user's confirmation. Never store secrets, full conversations or your internal reasoning.
+- Write everything stored here in English, whatever language the conversation uses.
+- In Claude Code, hooks enforce several of these rules at the tool call. A deny or ask is the rule speaking: fix the action, never work around the hook.
 
-If the user asks to plan a complex or agentic task, load `grill-task-planning`. Keep current plans in `plans/active/`, cancelled ones in `plans/archived/` and finished ones in `plans/completed/`; make transitions with `./cc plan`.
+## Knowledge notes
 
-## Getting started
+One note holds one durable fact, decision, hack or debt, with frontmatter `id`, `title`, `status`, `summary`, `verified_at`, `evidence`, `relations` (paths from the repository root). Explain the why and the limits; mark replaced knowledge `superseded` and link its successor; link every hack to a decision or debt and its removal condition. Details: `docs/kit/rules/knowledge-layout.md`. `cc-learn` writes notes.
 
-1. Read `docs/index.md`.
-2. Open only the notes relevant to the task and their direct relations.
-3. Run `./cc show` to see the real executable interface.
-4. Before making changes, identify the affected projects, workflows and checks.
+## Done means verified
 
-Do not scan all of `docs/` or the archives without a reason.
-
-## Sources of truth
-
-- Build, tests, packaging, running and deployment: Nix expressions.
-- Runtime state: CI/CD, observability and the target system's APIs.
-- Reasons, constraints, hacks, decisions and tech debt: atomic Markdown notes.
-- Project code: the corresponding sibling repository.
-- Secrets: an external secret manager, never this repository.
-
-## Hard rules
-
-- Never write an executable process down as step-by-step Markdown instructions.
-- Never fix drift by updating a description: fix the Nix contract or the project.
-- Never bypass Nix with direct `cmake`, `make`, `docker build` or test commands, except for diagnosis; move any working command you find into a derivation, check or app.
-- Pin remote sources through flake inputs. For local development use an input override, not absolute paths committed to Git.
-- Never reach outside the CC folder for code: the folders next to it are other projects. A hook asks before any tool does. Ask the catalog (`./cc repo list`, `./cc prs`) for this CC's repos.
-- Reference repos (`repos/reference/`, `kind: reference`) are read-only evidence, such as a proof of concept: never the source of truth. Check what they say against the project repos (`repos/project/`) and the notes before relying on it, cite them as reference, and never change them; they are read-only on disk.
-- Create feature worktrees with `./cc worktree`; build and check them with `./cc feature <feature> ...`.
-- Start every coding session on a feature with `./cc open <feature>` (or in the CC root with the worktrees added), never inside a worktree: a session started in a worktree loads none of the CC's skills or rules. If you find yourself started inside a worktree, stop and ask the user to restart.
-- Put pure, reproducible actions in `packages`/`checks`; networked, interactive and privileged ones in explicitly run `apps`.
-- Never leave the user blind during a long process: when a `./cc` council or verify runs in the background, follow it with `./cc watch` and relay its steps, agent messages, stalls and result as they happen.
-- Production actions are forbidden by default and require a dedicated adapter, a check and confirmation.
-- Never store secrets, full conversations or the agent's internal reasoning.
-- Never credit an AI, LLM or agent as author, co-author or contributor: no `Co-Authored-By` trailers, "Generated with" lines or similar in commits, pull requests, issues, notes or code. This overrides any tool default.
-- Edit skills only in `.agents/skills/`, then run `./cc agents sync`: `.claude/skills/` is a generated copy for Claude Code, and `CLAUDE.md` only imports this file.
-- In Claude Code, hooks enforce these rules at the moment of a tool call (`docs/kit/decisions/0013-rule-hooks.md`). A hook that denies or asks is the rule speaking: fix the action, never work around the hook. Its `hooks` block in `.claude/settings.json` is generated by `./cc agents sync`.
-
-## Knowledge rules
-
-- Write everything stored in this repository in English: notes, plans, catalog fields, Nix and script comments, output messages and commit messages. This applies even when the conversation is in another language.
-- Knowledge has two layers. `docs/kit/` belongs to the kit (rules, architecture, kit decisions) and is never edited in a CC; the rest of `docs/` and `plans/` is this CC's own. To change kit behaviour, record this CC's own decision in `docs/decisions/` naming the kit decision it overrides (`docs/kit/decisions/0017-kit-and-project-layers.md`).
-- One note is one durable fact, decision, hack or debt.
-- Every note has frontmatter: `id`, `title`, `status`, `summary`, `verified_at`, `evidence`, `relations`.
-- Relations and evidence are paths from the repository root.
-- Explain the "why" and the limits of applicability; do not duplicate code.
-- Mark replaced knowledge `superseded` and link it to its successor.
-- Link every hack to a decision or tech debt and to its removal condition.
-
-Details: `docs/kit/rules/knowledge-layout.md`.
-
-## Verification
-
-A change is normally finished with:
-
-```bash
-./cc check
-```
-
-A change to project code is finished only with `./cc verify` (or `./cc feature <feature> verify`): it also runs the gate of every target platform the catalog declares, such as the Windows host gate. Never call code working on a platform whose gate did not pass.
-
-If Nix is unavailable, run `python3 scripts/validate-knowledge.py .` and state explicitly that the Nix part was not verified.
+A CC change is finished with `./cc check`. A project code change is finished only with `./cc verify` (or `./cc feature <feature> verify`), which also runs the gate of every target platform the catalog declares: never call code working on a platform whose gate did not pass. Without Nix, run `python3 scripts/validate-knowledge.py .` and say the Nix part was not verified.

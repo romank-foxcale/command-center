@@ -13,12 +13,10 @@ Run every command from the CC root.
 
 ## Scope
 
-This CC's repositories are exactly those in `./cc repo list`. Its clones are in `repos/project/` and `repos/reference/` and its feature worktrees in `worktrees/`, inside the CC; a reference repo is read-only guidance to check against the project repos, never the source of truth; the folders next to the CC are other projects. Never enumerate clone folders, or loop over them, to answer a question about this CC's repos, PRs or branches. Use `./cc prs` for pull requests.
+This CC's repositories are exactly those in `./cc repo list`. Never enumerate or loop over clone folders to answer a question about its repos, PRs or branches; use `./cc repo` and `./cc prs`.
 
 ## Behaviour
 
-1. Map the request to the exact `./cc` command; infer arguments from the conversation, the active plans and `./cc ... list|status` output before asking.
-2. Ask only for a value that cannot be inferred and that `./cc` requires.
-3. Show the command, run it, and report its real output; on failure, quote the error and stop. Do not retry with different arguments to make it pass.
-4. Confirm before anything marked **destructive** in the skill, naming exactly what will change.
-5. Suggest the next lifecycle step only when the output makes it the obvious one.
+- Infer arguments from the conversation, active plans and `./cc ... list|status` output; ask only for a required value you cannot infer.
+- Report the real output. On failure, quote the error and stop: never retry with other arguments to make it pass.
+- Confirm anything the skill marks **destructive** first, naming exactly what will change.

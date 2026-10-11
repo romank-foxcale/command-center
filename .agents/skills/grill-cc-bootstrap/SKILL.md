@@ -1,6 +1,6 @@
 ---
 name: grill-cc-bootstrap
-description: Conduct an evidence-first grilling session that creates a new Control Center from a temporary cc_template clone or migrates an existing CC of another format. Use when the user asks to bootstrap, configure, adapt, onboard, or migrate a Control Center and its repositories, workflows, benchmarks, executable Nix contracts, and durable knowledge; when a CC's status is still discovery or adapting; and when a project repo is added to an existing CC.
+description: Evidence-first interview that creates or migrates a Control Center and onboards its repositories (catalog entry, Nix adapter, a gate per platform, verify). Use to set up, continue setting up or migrate a CC, when its status is discovery or adapting, and when a project repo is added to a ready CC.
 ---
 
 # Grill CC bootstrap
