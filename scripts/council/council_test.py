@@ -113,6 +113,31 @@ def check_writer_history(base: Path) -> None:
     assert "- Files it changed: none" in history.split("## Attempt 2")[1], "an attempt that changed nothing says so"
 
 
+FLOW = "---\nid: flows.{name}\ntitle: {name}\nstatus: {status}\nsummary: s\nverified_at: 2026-10-11\nevidence:\n{evidence}\nrelations:\n  - docs/flows/index.md\n---\n\n# {name} flow body\n"
+
+
+def check_runtime_flows(base: Path) -> None:
+    """Every role gets the active flows citing its repository, in full, and nothing else."""
+    run = make_run(base, "flows")
+    role = {"skills": []}
+    assert "# Runtime flows" not in council_run.role_prompt(run.root, role, run.state, "# Task"), "no flows, no section"
+    flows = run.root / "docs" / "flows"
+    flows.mkdir(parents=True)
+    for name, status, evidence in (("startup", "active", ["repo:api/src/main.py#main", "README.md"]),
+                                   ("billing", "active", ["repo:web/src/pay.ts#pay", "repo:api/src/pay.py"]),
+                                   ("frontend", "active", ["repo:web/src/app.ts#render", "repo:apiary/x.py"]),
+                                   ("planned", "draft", ["repo:api/src/jobs.py#run"]),
+                                   ("old", "superseded", ["repo:api/src/old.py"])):
+        (flows / f"{name}.md").write_text(FLOW.format(name=name, status=status, evidence="\n".join(f"  - {item}" for item in evidence)))
+    (flows / "broken.md").write_text("no frontmatter, repo:api/src/x.py")
+    prompt = council_run.role_prompt(run.root, role, run.state, "# Task\n\nDo it.")
+    assert "# startup flow body" in prompt and "# billing flow body" in prompt, "active flows citing api, among others too"
+    assert "frontend" not in prompt, "a flow citing only other repos (apiary is not api) stays out"
+    assert "planned" not in prompt and "old flow" not in prompt and "no frontmatter" not in prompt, "only active, readable flows"
+    assert "id: flows.startup" not in prompt, "the body, not the frontmatter"
+    assert prompt.index("# Context") < prompt.index("# Runtime flows") < prompt.index("# Task"), prompt
+
+
 def check_catalog_rules() -> None:
     """The shipped templates validate, a writing Cursor role does not, and security takes a list or one role."""
     template = Path(__file__).resolve().parent.parent.parent
@@ -207,6 +232,7 @@ def main() -> int:
         assert reason == "security review blocks the change; see security.md"
 
         check_writer_history(base)
+        check_runtime_flows(base)
 
     check_catalog_rules()
     used = {"input": 10_000, "cached": 30_000, "output": 2_000}

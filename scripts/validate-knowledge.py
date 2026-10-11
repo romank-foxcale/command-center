@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import argparse
+import json
 import re
 import subprocess
 import sys
@@ -16,6 +18,9 @@ REQUIRED_FIELDS = ("id", "title", "status", "summary", "verified_at")
 ALLOWED_STATUSES = {"active", "accepted", "draft", "superseded", "archived"}
 MARKDOWN_LINK = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+# Evidence in a catalog project's code: repo:<id>/<path>#<symbol> (docs/decisions/0017-runtime-flows.md).
+REPO_EVIDENCE = re.compile(r"^repo:([a-z0-9]+(?:-[a-z0-9]+)*)/([^#]+?)(?:#(.+))?$")
+BODY_CITATION = re.compile(r"`(repo:[a-z0-9]+(?:-[a-z0-9]+)*/[^`\s]+)`")  # never matches the repo:<id>/... pattern itself
 
 
 def parse_frontmatter(path: Path, text: str) -> tuple[dict[str, str], dict[str, list[str]]]:
@@ -77,9 +82,52 @@ def stray_markdown(root: Path) -> list[str]:
     ]
 
 
-def validate(root: Path) -> list[str]:
+def local_sources(root: Path) -> dict[str, Path]:
+    """Outside Nix: the base clone of every catalog project whose adapter file exists."""
+    manifest, catalog = root / "control-center.json", root / "catalog" / "repositories"
+    if not manifest.is_file() or not catalog.is_dir():
+        return {}
+    clones = (root / json.loads(manifest.read_text(encoding="utf-8"))["layout"]["repositories"]).resolve() / "project"
+    sources = {}
+    for path in catalog.glob("*.json"):
+        descriptor = json.loads(path.read_text(encoding="utf-8"))
+        if descriptor.get("kind", "project") == "project" and (root / descriptor.get("adapter", "")).is_file():
+            sources[path.stem] = clones / path.stem
+    return sources
+
+
+def check_repo_evidence(root: Path, value: str, sources: dict[str, Path]) -> str:
+    """Why repo evidence does not hold in the pinned or feature source, or ''."""
+    match = REPO_EVIDENCE.match(value)
+    if not match:
+        return "repo evidence must be repo:<id>/<path> or repo:<id>/<path>#<symbol>"
+    identifier, path, symbol = match.groups()
+    descriptor = root / "catalog" / "repositories" / f"{identifier}.json"
+    if not descriptor.is_file():
+        return f"'{identifier}' is not a repository in catalog/repositories"
+    if json.loads(descriptor.read_text(encoding="utf-8")).get("kind", "project") != "project":
+        return f"'{identifier}' is a reference repository, which is evidence for nothing: cite a project repository"
+    if identifier not in sources:
+        return f"'{identifier}' has no adapter in nix/projects, so its code cannot be checked: onboard it first"
+    source = Path(sources[identifier]).resolve()
+    target = (source / path).resolve()
+    if not target.is_relative_to(source):
+        return f"'{path}' points outside {identifier}"
+    if not source.is_dir():
+        return f"no source for '{identifier}' at {source}: clone it with ./cc repo add"
+    if not target.is_file():
+        return f"{path} no longer exists in {identifier}"
+    if symbol and symbol not in target.read_text(encoding="utf-8", errors="replace"):
+        return f"'{symbol}' no longer appears in {identifier}/{path}"
+    return ""
+
+
+def validate(root: Path, sources: dict[str, Path] | None = None) -> list[str]:
+    """sources: catalog id -> project source, as the Nix check passes it; the base clones otherwise."""
     errors: list[str] = []
     root = root.resolve()
+    if sources is None:
+        sources = local_sources(root)
 
     for name in REQUIRED_FILES:
         if not (root / name).exists():
@@ -125,9 +173,18 @@ def validate(root: Path) -> list[str]:
             if not values:
                 errors.append(f"{relative}: '{field}' must contain at least one path")
             for value in values:
+                if field == "evidence" and value.startswith("repo:"):
+                    if problem := check_repo_evidence(root, value, sources):
+                        errors.append(f"{relative}: evidence '{value}': {problem}")
+                    continue
                 target = local_target(root, note, value, from_root=True)
                 if target and not target.exists():
                     errors.append(f"{relative}: broken {field} path '{value}'")
+
+        # A citation in the body is only as good as the check behind it: it must be listed in evidence.
+        body = text.split("\n---", 2)[-1]
+        for cited in sorted(set(BODY_CITATION.findall(body)) - set(lists.get("evidence", []))):
+            errors.append(f"{relative}: '{cited}' is cited in the text but not listed in evidence, so it is never checked")
 
         for raw_link in MARKDOWN_LINK.findall(text):
             target = local_target(root, note, raw_link, from_root=False)
@@ -141,8 +198,13 @@ def validate(root: Path) -> list[str]:
 
 
 def main() -> int:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
-    errors = validate(root)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("root", nargs="?", default=".", type=Path)
+    parser.add_argument("--sources", type=Path, help="JSON map of catalog id to project source (the Nix check)")
+    args = parser.parse_args()
+    root = args.root
+    sources = json.loads(args.sources.read_text(encoding="utf-8")) if args.sources else None
+    errors = validate(root, {key: Path(value) for key, value in sources.items()} if sources is not None else None)
     if errors:
         print("knowledge validation failed:", file=sys.stderr)
         for error in errors:

@@ -45,6 +45,10 @@
           };
           adapterTargets = pkgs.lib.mapAttrs (_: project: project.targets or { }) projects;
           adapterTargetsFile = pkgs.writeText "cc-adapter-targets.json" (builtins.toJSON adapterTargets);
+          # Each adapter's source (a feature's worktree under ./cc feature): what repo evidence in notes is checked against.
+          adapterSourcesFile = pkgs.writeText "cc-adapter-sources.json" (
+            builtins.toJSON (pkgs.lib.mapAttrs (_: project: "${project.src}") projects)
+          );
           adapterQuality = pkgs.lib.mapAttrs (_: project: project.quality or { }) projects;
           adapterQualityChecks = pkgs.lib.mapAttrs (_: project: project.qualityChecks or { }) projects;
         in
@@ -56,7 +60,8 @@
           checks =
             {
               knowledge = pkgs.runCommand "control-center-knowledge" { } ''
-                ${pkgs.python3}/bin/python ${self}/scripts/validate-knowledge.py ${self}
+                ${pkgs.python3}/bin/python ${self}/scripts/validate-knowledge.py ${self} --sources ${adapterSourcesFile}
+                ${pkgs.python3}/bin/python -B ${self}/scripts/validate_knowledge_test.py
                 touch "$out"
               '';
               agent-configs = pkgs.runCommand "control-center-agent-configs" { } ''

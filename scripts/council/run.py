@@ -107,6 +107,29 @@ def skill_text(root: Path, name: str) -> str:
     return re.sub(r"\A---\n.*?\n---\n", "", text, count=1, flags=re.DOTALL).strip()
 
 
+def runtime_flows(root: Path, repository: str) -> str:
+    """The active flow notes that cite this repository's code (docs/decisions/0017-runtime-flows.md): how the
+    code runs, which a role working in one worktree cannot see. Which flows apply comes from their evidence."""
+    spec = importlib.util.spec_from_file_location("knowledge", Path(__file__).resolve().parent.parent / "validate-knowledge.py")
+    knowledge = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(knowledge)
+    flows = []
+    for path in sorted((root / "docs" / "flows").glob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        try:
+            scalars, lists = knowledge.parse_frontmatter(path, text)
+        except ValueError:
+            continue  # ./cc check reports the broken note
+        if scalars.get("status") == "active" and any(item.startswith(f"repo:{repository}/") for item in lists.get("evidence", [])):
+            flows.append(re.sub(r"\A---\n.*?\n---\n", "", text, count=1, flags=re.DOTALL).strip())
+    if not flows:
+        return ""
+    return (
+        f"# Runtime flows\n\nHow {repository} runs, from the CC's flow notes. Their cited code existed when the CC last "
+        "checked it; the worktree is still the source of truth.\n\n" + "\n\n".join(flows) + "\n\n"
+    )
+
+
 def role_prompt(root: Path, role: dict[str, Any], state: dict[str, Any], body: str) -> str:
     skills = "\n\n".join(skill_text(root, skill) for skill in role.get("skills", []))
     context = (
@@ -115,7 +138,7 @@ def role_prompt(root: Path, role: dict[str, Any], state: dict[str, Any], body: s
         f"stack: {', '.join(state.get('stack', [])) or 'unknown'}. "
         "The current directory is the feature worktree."
     )
-    return f"{skills}\n\n# Context\n\n{context}\n\n{body}"
+    return f"{skills}\n\n# Context\n\n{context}\n\n{runtime_flows(root, state['repository'])}{body}"
 
 
 def worktree_diff(worktree: Path) -> str:
