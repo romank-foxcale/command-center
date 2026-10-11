@@ -23,6 +23,6 @@ First read `../_shared/cc-cli.md` and follow it.
 - Repo arguments are catalog ids; check `./cc repo list` when unsure. Include only repos the task will change, never read-only dependencies.
 - The branch defaults to the feature name. Pass `--branch` only when the user names one.
 - Never edit files in the base clones under `repos/`; all feature changes happen in the `_wt` worktree.
-- Before `remove`, run `status` and show it. `remove` refuses dirty worktrees and unpublished commits; report that, and never force it, clean, stash or reset to get past it. Branches are preserved after removal.
+- Before `remove`, run `status` and show it. `remove` refuses dirty worktrees and unpublished commits; report that, and never force it, clean, stash or reset to get past it. Branches are preserved after removal. Removing a feature's last worktree also removes the feature folder: its council runs (`.cc-runs/`) move to `.cc-local/runs-archive/<feature>/`, which the output names, and any other file left in the folder makes `remove` refuse before it changes anything. Report that file to the user; never delete it yourself.
 - After creating a feature, tell the user to start coding with `./cc open <feature>`, never by opening a session inside the worktree: only a session started in the CC has the CC's skills and rules. A session can edit the worktree only if it was started that way, or in the CC root with the worktree added.
 - To build or check the feature's code, hand off to `cc-verify`.
