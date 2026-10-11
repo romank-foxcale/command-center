@@ -52,7 +52,9 @@ def build_fixture(root: Path, label: str, ref: str) -> Path:
     subprocess.run(["git", "-C", str(kit), "checkout", "-q", ref], check=True)
     fixture = work / "fixture"
     print(f"{label}: building the fixture from {ref} ({subprocess.run(['git', '-C', str(kit), 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()})", flush=True)
-    subprocess.run(["bash", str(HERE / "fixture.sh"), str(kit), str(fixture)], check=True, stdout=subprocess.DEVNULL)
+    built = subprocess.run(["bash", str(HERE / "fixture.sh"), str(kit), str(fixture)], capture_output=True, text=True)
+    if built.returncode != 0:
+        raise ValueError(f"fixture build failed:\n{built.stdout}{built.stderr}")
     return fixture / "Projects" / "eval_CC"
 
 
