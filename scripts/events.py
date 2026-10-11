@@ -133,8 +133,15 @@ def alive(pid: int | None) -> bool:
 
 
 def follow(path: Path, out=sys.stdout, poll: float = 1.0) -> int:
-    """Print the stream's events as they arrive; return when it ends. 0 on success, 1 on failure or a dead writer."""
-    seen = 0
+    """Print the stream's events as they arrive; return when it ends. 0 on success, 1 on failure or a dead writer.
+
+    A run that pauses (a council awaiting approval) ends its segment, and resuming it appends a new segment
+    that opens with another start event. So the watch follows the latest segment only: an earlier segment's
+    end is history, not the end of the run.
+    """
+    events = read(path)
+    starts = [index for index, event in enumerate(events) if event.get("kind") == "start"]
+    seen = starts[-1] if starts else 0
     owner = None
     while True:
         events = read(path)
