@@ -38,6 +38,7 @@ HOOKS = {
         {"matcher": "Read|Grep|Glob", "hooks": hook("post-read")},
     ],
     "Stop": [{"hooks": hook("stop")}],
+    "SessionStart": [{"matcher": "startup", "hooks": hook("session-start")}],
 }
 
 

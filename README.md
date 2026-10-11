@@ -1,39 +1,126 @@
 # Control Center Kit
 
-A ready-to-install Control Center template that works on **Windows (via WSL2) and macOS**, and with **Claude Code, Cursor, Codex and OpenCode**.
+A **Control Center (CC)** is a folder that teaches AI coding agents (Claude Code, Codex, Cursor, OpenCode) how your system fits together:
 
-A Control Center (CC) is a git repo next to your project repos that tells AI agents how the system is built (as Nix code) and why (as linked notes). It also has agent skills that interview you before setting things up or planning work.
+- which repos belong to it,
+- how each one is built and tested,
+- why things are the way they are.
 
-**Quick start:**
+The agents then plan, code, test and review across those repos without you explaining the setup every time.
 
-- Windows: in PowerShell as administrator, run `install/windows/install.ps1`
-- macOS: `curl -fsSL https://raw.githubusercontent.com/romank-foxcale/command-center/main/install/install.sh | bash`
-- Then: `cc-kit new my-project` and open it in your AI tool
+You don't need to know how it works inside. You talk to the agent; it does the rest.
 
-**Full instructions: [GUIDE.md](GUIDE.md).**
+## Get started
 
-What the kit includes:
+**1. Install (once per computer, 10–30 minutes)**
 
-| Addition | Where |
+- **Windows:** open PowerShell (a normal window, not as administrator) and paste:
+
+  ```powershell
+  irm https://raw.githubusercontent.com/romank-foxcale/command-center/main/install/windows/install.ps1 -OutFile $env:TEMP\cc-install.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\cc-install.ps1
+  ```
+
+  When Ubuntu asks, create a Linux username and password. If Windows asks to restart, restart it: the install continues by itself after you sign in.
+
+- **macOS:** in Terminal:
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/romank-foxcale/command-center/main/install/install.sh | bash
+  ```
+
+**2. Name your first Control Center.** The installer asks for a name at the end. Use the product or system it covers, for example `shop`.
+
+**3. Answer the agent's questions.** Claude opens and interviews you: which repos, how they relate, which platforms they ship on. It reads the code first, so it only asks what it can't find out. It then connects each repo and proves it builds and passes its tests.
+
+That's it. You need a Claude subscription (Pro, Max, Team or Enterprise). Other tools work too: see [GUIDE.md](GUIDE.md).
+
+## Everyday use
+
+Open your CC with `cc-kit open shop`, or open the folder in your AI tool. Then just say what you want:
+
+| Say | What happens |
 |---|---|
-| Windows installer (WSL2 + Ubuntu, then hands off) | `install/windows/install.ps1` |
-| Linux/WSL/macOS installer (Nix with flakes, systemd, kit, optional CLIs) | `install/install.sh` |
-| `cc-kit` command: `new`, `list`, `open`, `doctor`, `update` | `install/cc-kit` |
-| Skills for every tool: canonical in `.agents/skills` (Codex, Cursor, OpenCode), synced copy in `.claude/skills` (Claude Code), checked by `./cc check` | `scripts/agent-configs.py`, `./cc agents` |
-| `CLAUDE.md` importing `AGENTS.md`, safe read-only permissions for Claude Code | `CLAUDE.md`, `.claude/settings.json` |
-| LF line endings enforced for Windows clones (CRLF only for `.ps1` and `.cmd`) | `.gitattributes` |
-| `./cc settings` panel with a mascot (agents and models, councils, repos, status line), the same in chat via the `cc-settings` skill, and `./cc council status` for live run progress | `scripts/settings/`, `.agents/skills/cc-settings/`, `./cc council set-role`, `./cc council set` |
-| `./cc open <feature>`: starts Claude Code or Codex in the CC with the feature's worktrees, so the CC's skills and rules apply; a session started inside a worktree is told to restart | `scripts/worktrees.py` |
-| Trello on demand: link plans and features to cards, preview then post comments or move cards (`cc-trello`); credentials stay in `~/.config/cc/trello.env` | `./cc trello`, `.agents/skills/cc-trello/` |
-| `cc-help` skill: lists the skills by purpose and explains the one you pick | `.agents/skills/cc-help/` |
-| `cc.cmd` launcher: run `.\cc check` from PowerShell or cmd; it forwards to `./cc` in WSL | `cc.cmd` |
-| All instructions, skills, notes and templates in English | everywhere |
-| `bootstrap install` keeps empty `catalog/` folders tracked so the Nix bootstrap check can see them | `scripts/materialize-template.py` |
+| "add github.com/acme/api" | Connects the repo: clones it, sets up its build and tests, verifies them |
+| "plan this: …" | Interviews you and writes an agreed plan before any code changes |
+| "start a feature for …" | Creates a separate working copy of the affected repos for the task |
+| "fix this bug: …" | Finds the root cause first, adds a failing test, then fixes it |
+| "is it ready to push?" | Builds and tests everything on every platform the repo ships on |
+| "any new PRs?" / "review PR 42" | Lists open pull requests, reviews one |
+| "what can you do?" | Lists the CC's skills and explains the one you pick |
+
+The `cc-kit` command, in PowerShell on Windows or in a terminal on macOS:
+
+| Command | What it does |
+|---|---|
+| `cc-kit new <name>` | Create another CC; the setup interview starts by itself |
+| `cc-kit open <name>` | Open a CC; an unfinished setup continues where it stopped |
+| `cc-kit migrate <folder>` | Turn an existing control center, repo list or docs folder into a CC |
+| `cc-kit list` | Your CCs, and which ones still need setup |
+| `cc-kit doctor` | Check that everything is installed |
+| `cc-kit update` | Update the kit |
+
+Full instructions, every AI tool and troubleshooting: **[GUIDE.md](GUIDE.md)**.
+
+---
+
+# For maintainers
+
+## How a CC works
+
+A CC stores two kinds of knowledge:
+
+- **how to carry out a process**: Nix `packages`, `checks`, `apps` and, where needed, NixOS modules. Build, test and deploy steps are never written down as Markdown: when a process changes, an executable declaration must break.
+- **why the system is built this way**: atomic linked Markdown notes in `docs/`. `docs/kit/` is the kit's own layer and is never edited in a CC.
+
+Everything runs through `./cc` in the CC folder (from PowerShell: `.\cc`, which forwards to WSL):
+
+```bash
+./cc check                                    # every pure check: builds, tests, notes, skill sync
+./cc verify                                   # plus each repo's gate on every target platform
+./cc repo add <git-url> --targets linux --stack java --clone
+./cc worktree create feature1 repo1 repo2     # task folders in worktrees/feature1/
+./cc open feature1                            # start the agent on the feature, with the CC's rules
+./cc feature feature1 verify
+./cc plan list
+./cc settings                                 # agents, models, councils, repos
+```
+
+Requires Nix with flakes. Docker or Podman is only needed for container workflows.
+
+**Without `cc-kit`:** clone this repo as `cc_template/` inside an empty folder (or one holding a CC in another format), open that folder in your AI tool and say: "Create a Control Center here. Read `cc_template/BOOTSTRAP.md`, treat `cc_template` as read-only and start grilling." AI tools don't find skills inside a nested clone, so the prompt has to name `BOOTSTRAP.md`. `cc-kit new` and `cc-kit migrate` do this for you.
+
+## Where to look
+
+- [AGENTS.md](AGENTS.md): the mandatory protocol for agents.
+- [BOOTSTRAP.md](BOOTSTRAP.md): creating and migrating a CC.
+- [Knowledge map](docs/index.md): the entry point into `docs/`.
+- [Executable processes](docs/kit/rules/executable-processes.md): what counts as the source of truth.
+- [Connecting projects](docs/kit/rules/project-adapters.md): the contract for a project repository.
+- `nix/projects/` (build adapters per repo), `nix/workflows/` (cross-repo pipelines).
+
+## What the kit includes
+
+| Feature | Where |
+|---|---|
+| Windows installer: asks for admin only for WSL, resumes after a reboot, adds `cc-kit` to PowerShell, creates the first CC | `install/windows/install.ps1` |
+| macOS, Linux and WSL installer: Nix with flakes, systemd on WSL, the kit, Claude Code by default | `install/install.sh` |
+| `cc-kit`: `new` and `migrate` open your AI tool with the setup interview started, `open` continues an unfinished setup | `install/cc-kit` |
+| A CC that is not set up starts its own setup in every tool | `scripts/rule_hooks.py`, `AGENTS.md`, [decision 0018](docs/kit/decisions/0018-setup-starts-itself.md) |
+| Interview skills: `grill-cc-bootstrap` (create, migrate, onboard a repo) and `grill-task-planning` (agent-ready plans) | `.agents/skills/` |
+| Skills for every tool: canonical in `.agents/skills`, synced copy in `.claude/skills` for Claude Code | `scripts/agent-configs.py`, `./cc agents` |
+| Claude Code hooks that enforce the hard rules when a tool is called | `scripts/rule_hooks.py`, `.claude/settings.json` |
 | Per-repo target platforms with a gate each, including a real Windows host gate | `./cc verify`, `ccLib.mkWindowsHostGate` |
-| Per-repo `stack` (languages) and optional `quality.mutation` gates with each stack's own tool; a missing gate warns | `./cc verify --quality`, `docs/kit/rules/quality-gates.md` |
-| Coding, testing and debug councils: Claude and GPT propose or diagnose, an anonymous judge decides, a writer implements (debug: failing reproduction test first, enforced) | `./cc council`, `catalog/agents`, `catalog/councils` |
-| `lean-code` skill: the least code that works, adapted from [Ponytail](https://github.com/dietrichgebert/ponytail) (MIT) | `.agents/skills/lean-code/` |
-| `debug` and `tdd` skills: root cause before fixes, test first and honest tests, adapted from [Superpowers](https://github.com/obra/superpowers) (MIT) | `.agents/skills/debug/`, `.agents/skills/tdd/` |
+| Per-repo `stack` and optional mutation-testing gates | `./cc verify --quality`, `docs/kit/rules/quality-gates.md` |
+| Coding, testing and debug councils: Claude and GPT propose or diagnose, an anonymous judge decides, a writer implements | `./cc council`, `catalog/agents`, `catalog/councils` |
+| PR review and review-thread judging | `./cc prs`, `cc-review`, `cc-threads` |
+| Settings panel (agents and models, councils, repos), also in chat via `cc-settings` | `./cc settings` |
+| Feature worktrees and `./cc open <feature>`, so a coding session keeps the CC's skills and rules | `./cc worktree`, `scripts/worktrees.py` |
+| Plans with a lifecycle: active, archived, completed | `./cc plan`, `plans/` |
+| Trello on demand: link cards, preview then post comments or move cards | `./cc trello`, `cc-trello` |
+| `lean-code`, `debug` and `tdd` skills | `.agents/skills/` |
+| `cc.cmd`: run `.\cc check` from PowerShell or cmd | `cc.cmd` |
+
+The template contains no UI, no secrets and no production permissions.
 
 ## Tools and sources it builds on
 
@@ -58,90 +145,3 @@ What the kit includes:
 | Docker or Podman (optional) | Container end-to-end workflows |
 
 Each project repository brings its own test tools through its Nix adapter; the CC prescribes none of them.
-
----
-
-# How a Control Center works
-
-The template is a temporary seed for creating or migrating an agent-facing Control Center. The final CC lives in its own folder; the template clone is deleted after acceptance.
-
-A Control Center stores two kinds of knowledge:
-
-- **how to carry out a process**: Nix `packages`, `checks`, `apps` and, where needed, NixOS modules;
-- **why the system is built this way**: atomic linked Markdown notes in `docs/`.
-
-Step-by-step build, test and deploy commands are never duplicated in Markdown. If a process changes, an executable declaration must break.
-
-## Creating a CC
-
-The easiest way is `cc-kit new <name>` (see [GUIDE.md](GUIDE.md)). Without the kit installed, the manual way is:
-
-```bash
-mkdir project1_CC
-cd project1_CC
-git clone <template-url> cc_template
-opencode   # or claude, codex, cursor .
-```
-
-First prompt:
-
-> Create a Control Center here. Read `cc_template/BOOTSTRAP.md`, treat `cc_template` as a read-only source and start grilling. If there is already a CC of another format here, migrate it without losing meaning.
-
-AI tools do not discover project skills inside a child Git repository, so the reference to `BOOTSTRAP.md` in the first prompt is required. After materialization the skill is available from the root of the target CC.
-
-After `./cc bootstrap validate` and `./cc check` pass, delete `cc_template/` and commit the final CC.
-
-## Working with a ready CC
-
-```bash
-./cc doctor
-./cc show
-./cc check
-./cc build <package>
-./cc run <app>
-./cc repo list
-./cc worktree status <feature>
-./cc feature <feature> check
-./cc plan list
-```
-
-Requires Nix with flakes. Docker/Podman is only needed for container workflows. On macOS, Linux images need a Linux builder or CI.
-
-## Where to look
-
-- [AGENTS.md](AGENTS.md): the mandatory protocol for agents.
-- [BOOTSTRAP.md](BOOTSTRAP.md): creating and migrating a CC.
-- [Knowledge map](docs/index.md): the entry point into the Obsidian-compatible `docs/`.
-- [Executable processes](docs/kit/rules/executable-processes.md): what counts as the source of truth.
-- [Connecting projects](docs/kit/rules/project-adapters.md): the contract for a sibling repository.
-- `nix/projects/`: build adapters for individual projects.
-- `nix/workflows/`: cross-project pipelines.
-
-## Repository onboarding and feature worktrees
-
-```bash
-./cc repo add <git-url> --targets linux --stack java --clone   # id and main branch come from the link
-./cc prs                                                     # open PRs of the catalog repos
-./cc worktree create feature1 repo1
-./cc feature feature1 check
-./cc worktree status feature1
-./cc worktree remove feature1
-```
-
-`repo add` creates a catalog descriptor; the build contract is added next, as a flake input and `nix/projects/<repo>.nix`. `feature` turns the worktree manifest into Nix `--override-input` arguments.
-
-## Grilling and plans
-
-- `grill-cc-bootstrap`: creating/migrating a CC.
-- `grill-task-planning`: preparing an agent-ready plan.
-- The shared grilling invariants live in a non-invocable shared core.
-
-```bash
-./cc plan create feature1 --title "Change observable behavior"
-./cc plan accept feature1
-./cc plan complete feature1 --evidence "Acceptance checks passed"
-```
-
-A plan exists in exactly one state: `plans/active/`, `plans/archived/` or `plans/completed/`. The alternative transition for cancelled work is `./cc plan archive feature1 --reason "..."`.
-
-The template deliberately contains no UI, no secrets and no production permissions.

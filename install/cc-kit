@@ -13,13 +13,77 @@ usage() {
     'Usage: cc-kit <command> [arguments]' \
     '' \
     'Commands:' \
-    '  new <name>            Create ~/Projects/<name>_CC and prepare it for your AI tool' \
-    '  list                  List Control Centers under ~/Projects' \
-    '  open <name> <tool>    Open a CC in code, cursor, claude, codex or opencode' \
-    '  doctor                Check prerequisites and AI tools' \
-    '  update                Update the kit itself (existing CCs are not changed)' \
+    '  new <name> [tool]        Create ~/Projects/<name>_CC and start its setup interview' \
+    '  open <name> [tool]       Open a CC (an unfinished setup continues by itself)' \
+    '  migrate <folder> [tool]  Turn an existing control center, catalog or docs folder into a CC' \
+    '  list                     List Control Centers under ~/Projects' \
+    '  doctor                   Check prerequisites and AI tools' \
+    '  update                   Update the kit itself (existing CCs are not changed)' \
     '' \
+    'tool: claude, codex, opencode, code, cursor or none.' \
+    'Default: $CC_KIT_TOOL, else the first installed of claude, codex, opencode.' \
     "Projects root: $projects_root (set CC_PROJECTS_ROOT to change it)"
+}
+
+# Opening prompts, so nobody has to know them. Claude Code also starts setup by itself
+# (the session-start hook), and AGENTS.md tells every other tool to do the same.
+setup_prompt='Set up this Control Center. Use the grill-cc-bootstrap skill.'
+continue_prompt='Continue setting up this Control Center. Use the grill-cc-bootstrap skill.'
+migrate_prompt='Migrate this folder to the Control Center format. Read cc_template/BOOTSTRAP.md, treat cc_template as read-only, and use the grill-cc-bootstrap skill.'
+
+default_tool() {
+  if [[ -n "${CC_KIT_TOOL:-}" ]]; then
+    printf '%s' "$CC_KIT_TOOL"
+    return
+  fi
+  local tool
+  for tool in claude codex opencode; do
+    command -v "$tool" >/dev/null && { printf '%s' "$tool"; return; }
+  done
+  printf 'none'
+}
+
+cc_status() {
+  python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("status","unknown"))' "$1/control-center.json" 2>/dev/null || echo unknown
+}
+
+# launch <folder> <tool> [prompt]: start the tool in the folder with the opening prompt, where the tool takes one.
+launch() {
+  local folder="$1" tool="$2" prompt="${3:-}"
+  case "$tool" in
+    none)
+      printf 'Open %s in your AI tool (see %s/GUIDE.md).\n' "$folder" "$kit_root"
+      [[ -z "$prompt" ]] || printf 'If the agent does not start on its own, tell it: %s\n' "$prompt"
+      return
+      ;;
+    claude | codex | opencode | code | cursor) ;;
+    *)
+      printf 'error: unknown tool: %s (claude, codex, opencode, code, cursor or none)\n' "$tool" >&2
+      exit 2
+      ;;
+  esac
+  if ! command -v "$tool" >/dev/null; then
+    printf 'error: %s is not installed. Install it with: %s/install/install.sh --tools %s\n' "$tool" "$kit_root" "$tool" >&2
+    exit 1
+  fi
+  case "$tool" in
+    claude | codex | opencode)
+      if [[ ! -t 0 || ! -t 1 ]]; then
+        printf 'Not in an interactive terminal. Run: cd %s && %s\n' "$folder" "$tool"
+        return
+      fi
+      cd "$folder"
+      # Claude Code and Codex take the first message as an argument and stay interactive.
+      if [[ -n "$prompt" && "$tool" != opencode ]]; then
+        exec "$tool" "$prompt"
+      fi
+      exec "$tool"
+      ;;
+    code | cursor)
+      [[ -z "$prompt" ]] || printf 'If the agent chat does not start on its own, tell it: %s\n' "$prompt"
+      exec "$tool" "$folder"
+      ;;
+  esac
 }
 
 ok() { printf '  ok    %s\n' "$1"; }
@@ -43,7 +107,7 @@ command_new() {
   target="$(cc_dir "${1:-}")"
   if [[ -e "$target" ]] && [[ -n "$(ls -A "$target" 2>/dev/null)" ]]; then
     printf 'error: %s already exists and is not empty.\n' "$target" >&2
-    printf 'To migrate an existing CC, see "Migrating an existing CC" in %s/GUIDE.md\n' "$kit_root" >&2
+    printf 'To turn an existing folder into a CC: cc-kit migrate <folder>\n' >&2
     exit 1
   fi
   if is_wsl && [[ "$projects_root" == /mnt/* ]]; then
@@ -55,13 +119,10 @@ command_new() {
   # Nix flakes only see files git knows about, so stage everything now.
   git -C "$target" add -A
 
-  printf '\nCreated %s\n\n' "$target"
-  printf 'Next: open it in your AI tool and start the setup interview.\n'
-  printf '  VS Code:   cc-kit open %s code\n' "$(basename "$target" _CC)"
-  printf '  Cursor:    cc-kit open %s cursor\n' "$(basename "$target" _CC)"
-  printf '  CLI tools: cd %s && claude   (or codex / opencode)\n' "$target"
-  printf '  Claude desktop: see GUIDE.md, section "Claude Code desktop"\n\n'
-  printf 'First prompt:  Set up this Control Center. Use the grill-cc-bootstrap skill.\n'
+  printf '\nCreated %s\n' "$target"
+  printf 'Starting the setup interview: the agent asks about your repos and sets everything up.\n'
+  printf 'Stop any time; "cc-kit open %s" continues where you left off.\n\n' "$(basename "$target" _CC)"
+  launch "$target" "${2:-$(default_tool)}" "$setup_prompt"
 }
 
 command_list() {
@@ -69,7 +130,8 @@ command_list() {
   local found=0
   for directory in "$projects_root"/*_CC; do
     [[ -f "$directory/control-center.json" ]] || continue
-    status="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["status"])' "$directory/control-center.json" 2>/dev/null || echo unknown)"
+    status="$(cc_status "$directory")"
+    [[ "$status" == ready ]] || status="$status (setup not finished: cc-kit open $(basename "$directory" _CC))"
     printf '%-40s %s\n' "$(basename "$directory")" "$status"
     found=1
   done
@@ -77,25 +139,39 @@ command_list() {
 }
 
 command_open() {
-  local target tool
+  local target prompt=''
   target="$(cc_dir "${1:-}")"
-  tool="${2:?usage: cc-kit open <name> <code|cursor|claude|codex|opencode>}"
-  [[ -f "$target/control-center.json" ]] || { printf 'error: no Control Center at %s\n' "$target" >&2; exit 1; }
-  case "$tool" in
-    code | cursor)
-      command -v "$tool" >/dev/null || { printf 'error: "%s" command not found; see GUIDE.md\n' "$tool" >&2; exit 1; }
-      exec "$tool" "$target"
-      ;;
-    claude | codex | opencode)
-      command -v "$tool" >/dev/null || { printf 'error: %s is not installed; run install.sh --tools %s\n' "$tool" "$tool" >&2; exit 1; }
-      cd "$target"
-      exec "$tool"
-      ;;
-    *)
-      printf 'error: unknown tool: %s\n' "$tool" >&2
-      exit 2
-      ;;
+  [[ -f "$target/control-center.json" ]] || { printf 'error: no Control Center at %s; see cc-kit list\n' "$target" >&2; exit 1; }
+  case "$(cc_status "$target")" in
+    discovery) prompt="$setup_prompt" ;;
+    adapting) prompt="$continue_prompt" ;;
   esac
+  launch "$target" "${2:-$(default_tool)}" "$prompt"
+}
+
+command_migrate() {
+  local folder="${1:?usage: cc-kit migrate <folder> [tool]}"
+  # A Windows path, as typed from PowerShell through the cc-kit.cmd launcher.
+  if [[ "$folder" =~ ^[A-Za-z]:[\\/] ]] && command -v wslpath >/dev/null; then
+    folder="$(wslpath -a "$folder")"
+  fi
+  [[ -d "$folder" ]] || { printf 'error: %s is not a folder\n' "$folder" >&2; exit 1; }
+  folder="$(cd -- "$folder" && pwd)"
+  if [[ -f "$folder/control-center.json" && -f "$folder/cc" ]]; then
+    printf 'error: %s is already a Control Center; use cc-kit open\n' "$folder" >&2
+    exit 1
+  fi
+  if is_wsl && [[ "$folder" == /mnt/* ]]; then
+    warn "$folder is on the Windows drive; Nix is slow and unreliable there. Move it under ~/Projects first."
+  fi
+  if [[ -d "$folder/cc_template" ]]; then
+    printf 'Reusing %s/cc_template\n' "$folder"
+  else
+    # The agent reads the template from here and says when it can be deleted.
+    git clone --quiet "$kit_root" "$folder/cc_template"
+  fi
+  printf 'Starting the migration interview. Nothing is changed before a read-only inventory.\n\n'
+  launch "$folder" "${2:-$(default_tool)}" "$migrate_prompt"
 }
 
 command_doctor() {
@@ -161,12 +237,17 @@ case "$command_name" in
   new) command_new "$@" ;;
   list) command_list ;;
   open) command_open "$@" ;;
+  migrate) command_migrate "$@" ;;
   doctor) command_doctor ;;
   update)
     git -C "$kit_root" pull --ff-only
     printf 'Kit updated. Existing Control Centers are separate repos and were not changed.\n'
     ;;
-  help | -h | --help) usage ;;
+  help | -h | --help)
+    usage
+    printf '\nYour Control Centers:\n'
+    command_list
+    ;;
   *)
     printf 'error: unknown command: %s\n' "$command_name" >&2
     usage >&2

@@ -217,6 +217,22 @@ def check_kit_layer(base: Path) -> None:
     assert edit_at(template, "docs/kit/rules/worktrees.md") is None, "the template repository owns the kit and edits it"
 
 
+def check_session_start(base: Path) -> None:
+    """A CC that is not set up yet makes the agent open with the setup interview; a ready CC and the template stay quiet."""
+    def context(status: str | None) -> str | None:
+        root = base / "start" / str(status)
+        root.mkdir(parents=True, exist_ok=True)
+        if status:
+            (root / "control-center.json").write_text(json.dumps({"status": status}), encoding="utf-8")
+        result = rule_hooks.session_start({}, root)
+        return result["hookSpecificOutput"]["additionalContext"] if result else None
+
+    assert "grill-cc-bootstrap" in context("discovery") and "not set up yet" in context("discovery")
+    assert "grill-cc-bootstrap" in context("adapting") and "continue" in context("adapting")
+    assert context("ready") is None, "a ready CC starts like any session"
+    assert context(None) is None, "the template has no control-center.json and is never bootstrapped"
+
+
 def main() -> int:
     check_nix_bypass()
     check_markdown_allowlist()
@@ -228,6 +244,7 @@ def main() -> int:
         check_isolation(base)
         check_reference_repos(base)
         check_kit_layer(base)
+        check_session_start(base)
     check_notes_and_drift()
     check_cli()
     print("rule hooks test passed")

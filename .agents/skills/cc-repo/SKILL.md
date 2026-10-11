@@ -36,5 +36,5 @@ First read `../_shared/cc-cli.md` and follow it.
 - `set-kind` moves the clone between `repos/project/` and `repos/reference/` and switches its read-only protection; it refuses to make a repo a reference while a feature worktree uses it.
 - `update` fetches the base clones and fast-forwards reference clones, lifting their protection only for the pull. Never `chmod` a reference clone yourself.
 - Status flow: `discovered` → `adapted` once it has a Nix adapter → `verified` once `./cc verify <id>` passed on every target in this conversation. Otherwise set `blocked` and report the reason.
-- Writing the Nix adapter and onboarding a whole CC belong to `grill-cc-bootstrap`; this skill only runs catalog commands.
+- Adding a `project` repo is onboarding: after `add`, hand over to the "Repository grilling" of `grill-cc-bootstrap` for that repo (clone, adapter, a gate per target, `./cc verify <id>`) unless the user wants only the catalog entry. Writing the Nix adapter belongs to that skill; this one only runs catalog commands.
 - In an unbootstrapped template clone, `repo` commands fail on a missing `control-center.json`; point the user to `grill-cc-bootstrap`.

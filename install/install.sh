@@ -3,13 +3,14 @@
 # Safe to re-run: every step checks what is already installed.
 #
 #   curl -fsSL https://raw.githubusercontent.com/romank-foxcale/command-center/main/install/install.sh | bash
-#   ~/.cc-kit/install/install.sh --tools claude,codex,opencode
+#   ~/.cc-kit/install/install.sh --tools claude,codex,opencode   (default: claude; none installs no tool)
 set -euo pipefail
 
 kit_repo="${CC_KIT_REPO:-https://github.com/romank-foxcale/command-center.git}"
 kit_branch="${CC_KIT_BRANCH:-main}"
 kit_dir="${CC_KIT_DIR:-$HOME/.cc-kit}"
-tools=""
+# Claude Code by default, so a newcomer has an agent to talk to when the install ends.
+tools="claude"
 
 # Exit code the Windows installer recognises as "restart WSL, then run me again".
 EXIT_RESTART_WSL=10
@@ -23,7 +24,7 @@ while [[ $# -gt 0 ]]; do
     --tools) tools="${2:?--tools needs a comma-separated list}"; shift 2 ;;
     --tools=*) tools="${1#--tools=}"; shift ;;
     -h | --help)
-      printf 'Usage: install.sh [--tools claude,codex,opencode]\n'
+      printf 'Usage: install.sh [--tools claude,codex,opencode|none]   (default: claude)\n'
       exit 0
       ;;
     *) die "unknown option: $1" ;;
@@ -154,7 +155,7 @@ install_tool() {
         nix profile add nixpkgs#codex 2>/dev/null || nix profile install nixpkgs#codex
       fi
       ;;
-    "") ;;
+    "" | none) ;;
     *) die "unknown tool '$1' (choose from claude, codex, opencode)" ;;
   esac
 }
@@ -171,6 +172,22 @@ fi
 step "Checking everything"
 "$kit_dir/install/cc-kit" doctor || true
 
-printf '\nDone. Open a new terminal, then create your first Control Center:\n'
+# 7. The first Control Center right away, unless one exists or nobody is at the keyboard
+# (curl | bash has no stdin, so ask on the terminal itself).
+shopt -s nullglob
+existing=("${CC_PROJECTS_ROOT:-$HOME/Projects}"/*_CC/control-center.json)
+shopt -u nullglob
+if [[ ${#existing[@]} -eq 0 && -z "${CC_KIT_NO_FIRST:-}" ]] && { : </dev/tty; } 2>/dev/null; then
+  printf '\nDone. Now create your first Control Center.\n'
+  printf 'Name it after the product or system it covers, in lowercase with dashes (for example: shop).\n'
+  printf 'Name (Enter to skip): '
+  first_name=""
+  read -r first_name </dev/tty || true
+  if [[ -n "$first_name" ]]; then
+    exec "$kit_dir/install/cc-kit" new "$first_name" </dev/tty
+  fi
+fi
+
+printf '\nDone. Create a Control Center any time with:\n'
 printf '    cc-kit new my-project\n'
-printf 'How to open it in Claude Code, Cursor, VS Code or Codex: %s/GUIDE.md\n' "$kit_dir"
+printf 'It opens your AI tool and the agent walks you through the setup. More: %s/GUIDE.md\n' "$kit_dir"

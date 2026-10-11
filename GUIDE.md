@@ -7,6 +7,8 @@ A **Control Center (CC)** is a git repo that sits next to your project repos and
 - **how to plan work**: two built-in agent skills that interview you before anything gets changed;
 - **how to code and test with several models**: councils in which Claude and GPT each propose, an anonymous judge decides, you approve, and a writer implements until `./cc verify` passes.
 
+You don't need to understand any of this to use it. Install it ([section 1](#1-install)), name your CC, and answer the agent's questions. The agent sets everything else up.
+
 Everyone creates **their own CC** and uses **their own AI tool and account**. The CC holds no credentials. You sign in to your tool as usual and choose any model your subscription includes. Councils call the `claude` and `codex` CLIs with your own logins; which model each council role uses is set in `catalog/agents/*.json` (see [Councils](#councils)).
 
 | You use | Your subscription covers |
@@ -20,71 +22,75 @@ Everyone creates **their own CC** and uses **their own AI tool and account**. Th
 
 ## 1. Install
 
-### Windows (WSL2)
+You do this once per computer. It takes 10–30 minutes, mostly downloading.
 
-Everything runs inside **WSL2** (Linux on Windows), because Nix doesn't run on Windows natively.
+### Windows
 
-1. Open **PowerShell as administrator** (right-click → *Run as administrator*).
-2. Download and run the installer:
+Open **PowerShell** (no need to run it as administrator) and paste:
 
-   ```powershell
-   irm https://raw.githubusercontent.com/romank-foxcale/command-center/main/install/windows/install.ps1 -OutFile $env:TEMP\cc-install.ps1
-   powershell -ExecutionPolicy Bypass -File $env:TEMP\cc-install.ps1 -Tools claude,codex,opencode
-   ```
+```powershell
+irm https://raw.githubusercontent.com/romank-foxcale/command-center/main/install/windows/install.ps1 -OutFile $env:TEMP\cc-install.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\cc-install.ps1
+```
 
-   `-Tools` is optional. It installs those command-line tools inside WSL, so leave out the ones you don't use.
-3. If WSL wasn't installed yet, the script installs it and Ubuntu starts in the same window, asking for a Linux username (lowercase, no spaces) and password. The password stays invisible while you type. Type `exit` when you see the green prompt. If Windows asks for a reboot instead, reboot and run `wsl --install -d Ubuntu` once more. Then run the second command again (no admin needed this time).
-4. The script then does the rest inside Ubuntu: base packages, systemd, Nix with flakes, the kit in `~/.cc-kit`, and the `cc-kit` command. `sudo` asks for your **Linux** password.
+What happens:
 
-To get a Linux terminal afterwards, run `wsl` in PowerShell (or open **Ubuntu** from the Start menu).
+1. If WSL (Linux on Windows, needed because Nix doesn't run on Windows) is missing, Windows asks for administrator rights in a second window and installs it.
+2. Ubuntu asks you to create a **Linux username** (lowercase, no spaces) and **password**. The password stays invisible while you type. Then type `exit`.
+3. If Windows needs a restart, restart it. **The setup continues by itself** after you sign in.
+4. It installs the rest inside Ubuntu: Nix, the kit and Claude Code. When `sudo` asks for a password, it's your **Linux** password.
+5. It adds the `cc-kit` command to PowerShell and asks for a name for your first Control Center. Type one, for example `shop`, and the next step starts by itself.
 
-> **Keep your projects inside Linux** (`~/Projects`), never under `/mnt/c/...`. Nix and git are very slow on the Windows drive, and some things break there.
+Want Codex or OpenCode too? Add `-Tools claude,codex,opencode` to the end of the second command.
+
+> Your Control Centers live inside Linux, in `~/Projects`, never under `C:\`. Nix and git are very slow on the Windows drive.
 
 ### macOS
 
 In Terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/romank-foxcale/command-center/main/install/install.sh | bash -s -- --tools claude,codex,opencode
+curl -fsSL https://raw.githubusercontent.com/romank-foxcale/command-center/main/install/install.sh | bash
 ```
 
-It installs the Apple command line tools if missing (re-run after the dialog finishes), then Nix with flakes, the kit in `~/.cc-kit`, and `cc-kit`.
+It installs the Apple command line tools if they're missing (run it again after that dialog finishes), then Nix, the kit and Claude Code. It ends by asking for your first Control Center's name. Add `-s -- --tools claude,codex,opencode` after `bash` for more tools.
 
 ### Check it worked
-
-Open a **new** terminal (Ubuntu on Windows) and run:
 
 ```bash
 cc-kit doctor
 ```
 
-Everything under *Required* must say `ok`. Everything under *Optional* only matters for the tools you use.
+Everything under *Required* must say `ok`. If `cc-kit` isn't found, open a new terminal.
 
 ---
 
-## 2. Create your Control Center
+## 2. Create a Control Center
 
 ```bash
 cc-kit new my-project
 ```
 
-This creates the standard layout:
+(On Windows this works in PowerShell too.) This creates `~/Projects/my-project_CC` and **opens Claude with the setup interview already started**. You don't need to type a special prompt; just answer the questions. Section 4 explains what happens next.
+
+- Another tool: `cc-kit new my-project codex` (or `opencode`, `code`, `cursor`, `none`). Set `CC_KIT_TOOL` to change the default.
+- Stop any time. `cc-kit open my-project` continues where you left off.
+- `cc-kit list` shows your Control Centers and which ones still need setup.
+
+The folder layout, which you never need to touch by hand:
 
 ```
 ~/Projects/
 ├── my-project_CC/        ← your Control Center (its own git repo)
-│   ├── repos/project/    ← base clones of the repos this CC changes (git-ignored)
-│   ├── repos/reference/  ← read-only reference repos, such as a PoC: guidance, never the truth
+│   ├── repos/project/    ← clones of the repos this CC changes (git-ignored)
+│   ├── repos/reference/  ← read-only reference repos, such as a PoC
 │   └── worktrees/<feature>/ ← one folder per task, with a git worktree per changed repo
 ```
-
-`cc-kit list` shows your CCs. Don't rename or move these folders: the scripts rely on the layout.
 
 ---
 
 ## 3. Open it in your AI tool
 
-Pick your tool. Every tool reads the same instructions (`AGENTS.md`) and the same two skills.
+`cc-kit open my-project` opens it in your default tool. Opening it any other way works too: while setup isn't finished, the agent starts or continues it by itself. Every tool reads the same instructions (`AGENTS.md`) and skills.
 
 ### Claude Code desktop
 
@@ -94,14 +100,14 @@ Pick your tool. Every tool reads the same instructions (`AGENTS.md`) and the sam
 
 ### VS Code + Claude Code extension, or VS Code + Codex extension
 
-- **Windows:** from an Ubuntu terminal run `cc-kit open my-project code`. VS Code opens *connected to WSL* (bottom-left corner says `WSL: Ubuntu`).
+- **Windows:** run `cc-kit open my-project code` (in PowerShell or Ubuntu). VS Code opens *connected to WSL* (bottom-left corner says `WSL: Ubuntu`).
   Install the Claude Code and/or Codex extension **in that WSL window**; VS Code offers "Install in WSL: Ubuntu". Sign in with your own account.
   If Codex still runs on the Windows side, enable the setting `chatgpt.runCodexInWindowsSubsystemForLinux`.
 - **macOS:** `cc-kit open my-project code`, or open the folder normally.
 
 ### Cursor
 
-- **Windows:** from an Ubuntu terminal run `cc-kit open my-project cursor`. The Cursor window must show `WSL: Ubuntu` in the bottom-left corner. If the new Agent window doesn't connect to WSL, use the classic editor window (`cursor --classic`).
+- **Windows:** run `cc-kit open my-project cursor` (in PowerShell or Ubuntu). The Cursor window must show `WSL: Ubuntu` in the bottom-left corner. If the new Agent window doesn't connect to WSL, use the classic editor window (`cursor --classic`).
 - **macOS:** open the folder normally.
 - Pick any model from Cursor's model picker; it's billed to your Cursor plan.
 
@@ -116,21 +122,19 @@ Pick your tool. Every tool reads the same instructions (`AGENTS.md`) and the sam
 
 ---
 
-## 4. First session: set the CC up
+## 4. First session: the setup interview
 
-Type this into your tool's chat:
+The agent asks about your repos: where they are, how they depend on each other, and **which platforms each one ships on** (Windows, Linux, macOS). It reads the code and CI first and asks only what it can't work out itself. You never need to write Nix or know how the CC works inside. Then it connects the repos one at a time:
 
-> Set up this Control Center. Use the grill-cc-bootstrap skill.
+1. registers and clones the repo (`./cc repo add`),
+2. writes the build and test definition for it, including a check for each platform it ships on,
+3. proves it builds and passes (`./cc verify`).
 
-The agent interviews you about your repos, how they depend on each other and how each is built. It then connects them one at a time:
+Expect several rounds of questions. When it's done, `cc-kit list` shows the CC as `ready`. Commit it and push it to your own remote. The agent can do that too if you ask.
 
-1. registers the repo (`./cc repo add`),
-2. writes a Nix build adapter and a check for it,
-3. proves it builds and passes (`./cc check`).
+**Adding a repo later:** say "add `<link to the repo>`". The agent connects it the same way, not just as a list entry.
 
-Expect several rounds of questions. The agent asks only what it can't work out from the code and CI. When it's done, `control-center.json` has status `ready`. Commit the CC and push it to your own remote.
-
-You can also call the skill directly: `/grill-cc-bootstrap` in Claude Code and Cursor, `$grill-cc-bootstrap` in Codex.
+If the interview doesn't start (for example in a tool that ignores `AGENTS.md`), say "Set up this Control Center", or call the skill directly: `/grill-cc-bootstrap` in Claude Code and Cursor, `$grill-cc-bootstrap` in Codex.
 
 ---
 
@@ -214,15 +218,10 @@ Which model plays which role is one field per file in `catalog/agents/` (for exa
 If you already have a control center, repo catalog or docs in another format:
 
 ```bash
-mkdir -p ~/Projects/old-thing_CC && cd ~/Projects/old-thing_CC   # or the folder that already has it
-git clone ~/.cc-kit cc_template
+cc-kit migrate ~/Projects/old-thing
 ```
 
-Open that folder in your tool and say:
-
-> Migrate this to the Control Center format. Read `cc_template/BOOTSTRAP.md`, treat `cc_template` as read-only, and use the grill-cc-bootstrap skill.
-
-The agent inventories what exists without changing anything first, then moves it over one piece at a time. When it's done, delete `cc_template/`.
+This puts a temporary copy of the kit in `old-thing/cc_template` and opens your AI tool with the migration interview started. The agent inventories what exists without changing anything first, then moves it over one piece at a time. When it's done it tells you to delete `cc_template/`. Move the folder out of `/mnt/c/...` first if it lives on the Windows drive.
 
 ---
 
@@ -248,7 +247,8 @@ This updates `~/.cc-kit` only. Existing CCs are separate repos and never change 
 | Symptom | Fix |
 |---|---|
 | `Python was not found` / Microsoft Store opens | You're in PowerShell or Git Bash, not Ubuntu. Run commands in Ubuntu. |
-| `cc-kit: command not found` | Open a new terminal, or run `source ~/.bashrc`. |
+| `cc-kit: command not found` | Open a new terminal (a new PowerShell window on Windows), or run `source ~/.bashrc` in Ubuntu. |
+| The installer stopped after a restart | Sign in again and wait a moment, or run the one-line installer again: it continues where it stopped. |
 | `$'\r': command not found` | The repo was cloned on the Windows side with Windows line endings. Clone it again from inside Ubuntu. |
 | `Nix is not installed` right after installing | Open a new terminal. |
 | `Nix flakes are disabled` | Re-run `~/.cc-kit/install/install.sh`. |

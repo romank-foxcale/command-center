@@ -20,7 +20,7 @@ If the current folder already has a `control-center.json` with status `discovery
   ./cc_template/cc bootstrap install .
   ```
 
-- `migration`: `target_root` already has a CC, repository catalog, automation or knowledge in another format. Do not run the installer. First do a read-only inventory, a mapping and a staged migration.
+- `migration`: `cc-kit migrate <folder>` clones the kit into `<folder>/cc_template` and starts this mode. `target_root` already has a CC, repository catalog, automation or knowledge in another format. Do not run the installer. First do a read-only inventory, a mapping and a staged migration.
 
 If the mode is unclear, do not write to the target folder until it is clarified.
 
