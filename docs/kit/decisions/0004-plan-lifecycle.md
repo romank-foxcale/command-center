@@ -1,5 +1,5 @@
 ---
-id: decision.0004-plan-lifecycle
+id: kit.decision.0004-plan-lifecycle
 title: Plan lifecycle
 status: accepted
 summary: Every task plan exists in exactly one state: active, archived or completed.
@@ -11,7 +11,7 @@ evidence:
   - plans/completed/.gitkeep
 relations:
   - docs/index.md
-  - docs/rules/task-planning.md
+  - docs/kit/rules/task-planning.md
 ---
 
 # Plan lifecycle

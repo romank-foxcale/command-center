@@ -1,5 +1,5 @@
 ---
-id: decision.0006-target-platform-gates
+id: kit.decision.0006-target-platform-gates
 title: Every target platform has its own gate
 status: accepted
 summary: Each catalog repository declares the platforms it ships on, and is verified only when the gate of every declared platform passes, including a real Windows host gate.
@@ -13,8 +13,8 @@ evidence:
   - .agents/skills/grill-cc-bootstrap/SKILL.md
 relations:
   - docs/index.md
-  - docs/rules/project-adapters.md
-  - docs/decisions/0001-nix-executable-knowledge.md
+  - docs/kit/rules/project-adapters.md
+  - docs/kit/decisions/0001-nix-executable-knowledge.md
 ---
 
 # Every target platform has its own gate

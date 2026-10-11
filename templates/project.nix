@@ -30,7 +30,7 @@ ccLib.mkProject {
     '';
   };
   # Optional, run by ./cc verify --quality: mutation testing with the tool for the
-  # repository's stack (docs/rules/quality-gates.md). It must fail when a mutant survives.
+  # repository's stack (docs/kit/rules/quality-gates.md). It must fail when a mutant survives.
   # quality.mutation = pkgs.runCommand "replace-me-mutation" { } ''...'';
   metadata = {
     role = "replace-me";

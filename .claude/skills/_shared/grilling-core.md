@@ -16,7 +16,7 @@ Follow this protocol together with the specific skill.
 Write every stored artifact in English, whatever language the conversation uses.
 
 - An executable process goes in Nix, not Markdown.
-- An accepted long-lived decision becomes an ADR following `templates/decision.md`.
+- An accepted long-lived decision becomes an ADR in `docs/decisions/` following `templates/decision.md`. `docs/kit/` belongs to the kit and is never written; a decision that changes kit behaviour names the kit decision it overrides.
 - A significant domain term goes in `docs/glossary/` following `templates/glossary-term.md`.
 - A hack or debt goes in an atomic note.
 - Do not store the transcript, rejected alternatives or internal reasoning.

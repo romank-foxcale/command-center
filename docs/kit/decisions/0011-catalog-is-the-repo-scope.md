@@ -1,5 +1,5 @@
 ---
-id: decision.0011-catalog-is-the-repo-scope
+id: kit.decision.0011-catalog-is-the-repo-scope
 title: The catalog is the CC's repo scope, managed by link
 status: accepted
 summary: A CC's repositories are exactly its catalog; its clones live in its own repos/ (0016) and are never scanned. Repos are added by pasting a link (main branch read from the remote), removed, re-branched and marked project or reference through ./cc repo and the settings panel; ./cc prs lists open PRs of catalog repos only.
@@ -14,16 +14,16 @@ evidence:
   - .agents/skills/_shared/cc-cli.md
 relations:
   - docs/index.md
-  - docs/decisions/0016-per-cc-repos-and-worktrees.md
-  - docs/rules/worktrees.md
-  - docs/rules/project-adapters.md
+  - docs/kit/decisions/0016-per-cc-repos-and-worktrees.md
+  - docs/kit/rules/worktrees.md
+  - docs/kit/rules/project-adapters.md
 ---
 
 # The catalog is the CC's repo scope, managed by link
 
 ## Context
 
-Several CCs (for example pv_CC and di_CC) sit in one parent folder and share `../repos/`. Asked for "new PRs", agents in both CCs looped `gh pr list` over every clone in `../repos/` and mixed the other CC's repos in. Nothing executable stated the scope, and the topology rule pointed at the shared folder. Separately, a repo's main branch is not always `main`, and some repos (a PoC) are guidance only.
+Several CCs sat in one parent folder and shared `../repos/`. Asked for "new PRs", agents in both CCs looped `gh pr list` over every clone in `../repos/` and mixed the other CC's repos in. Nothing executable stated the scope, and the topology rule pointed at the shared folder. Separately, a repo's main branch is not always `main`, and some repos (a PoC) are guidance only.
 
 ## Decision
 

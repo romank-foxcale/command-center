@@ -43,7 +43,7 @@ Projects/
 └── project2_CC/              (its own repos/ and worktrees/, never shared)
 ```
 
-Relative to any `<project>_CC` (docs/decisions/0016-per-cc-repos-and-worktrees.md):
+Relative to any `<project>_CC` (docs/kit/decisions/0016-per-cc-repos-and-worktrees.md):
 
 - base checkouts: `repos/project/<repo>` and, read-only, `repos/reference/<repo>`;
 - worktrees: `worktrees/<feature>/<repo>_wt`;

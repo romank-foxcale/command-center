@@ -3,7 +3,7 @@
 
 Usage: rule_hooks.py <pre-bash|pre-read|post-read|pre-edit|post-edit|stop>, with the hook's JSON on stdin.
 The gates (./cc check, ./cc verify) stay the source of truth: a hook only catches a break early,
-and only in Claude Code. See docs/decisions/0013-rule-hooks.md.
+and only in Claude Code. See docs/kit/decisions/0013-rule-hooks.md.
 """
 
 from __future__ import annotations
@@ -146,7 +146,7 @@ def pre_bash(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
     return None
 
 
-# Isolation between projects (docs/decisions/0016-per-cc-repos-and-worktrees.md): a CC keeps its repos and
+# Isolation between projects (docs/kit/decisions/0016-per-cc-repos-and-worktrees.md): a CC keeps its repos and
 # worktrees inside its own folder, so anything in the folder around it belongs to another project.
 PATH_WORD = re.compile(r"^(?:\.\.(?:[/\\]|$)|~|/|[A-Za-z]:[/\\])")
 
@@ -244,6 +244,12 @@ def pre_edit(event: dict[str, Any], root: Path = ROOT) -> dict[str, Any] | None:
                                     "changed here. Make the change in a project repo's feature worktree instead.")
         return pre_tool("deny", f"{relative.as_posix()} is in a base clone, which is never edited. Change code in a feature "
                                 "worktree: ./cc worktree create <feature> <repo>, then edit worktrees/<feature>/<repo>_wt.")
+    # The kit's knowledge (docs/kit/decisions/0017-kit-and-project-layers.md): a CC carries an identical copy that a kit
+    # update replaces. Only a CC has control-center.json; the template repository owns the kit and edits it freely.
+    if relative.parts[:2] == ("docs", "kit") and (root / "control-center.json").is_file():
+        return pre_tool("ask", f"{relative.as_posix()} belongs to the kit and is replaced on a kit update, so an edit here is "
+                               "lost. To change kit behaviour for this CC, record its own decision in docs/decisions/ that "
+                               "names the kit decision it overrides.")
     creating = event.get("tool_name") == "Write" and not (root / relative).exists()
     if creating and relative.suffix.lower() == ".md" and not markdown_allowed(relative.as_posix(), extra_markdown_dirs(root)) \
             and not git_ignored(root, relative):

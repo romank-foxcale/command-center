@@ -1,5 +1,5 @@
 ---
-id: decision.0012-review-bar
+id: kit.decision.0012-review-bar
 title: Reviews report only BREAK, SCOPE and KNOWLEDGE findings, and CLEAN is a verdict
 status: accepted
 summary: A PR review in a CC reports only evidence-backed [BREAK], [SCOPE] and [KNOWLEDGE] findings, tries to refute each before reporting it, never reports style or nits unless asked, and states a CLEAN verdict with what was checked when nothing clears the bar.
@@ -11,8 +11,8 @@ evidence:
   - scripts/trello.py
 relations:
   - docs/index.md
-  - docs/decisions/0011-catalog-is-the-repo-scope.md
-  - docs/decisions/0009-trello-on-demand.md
+  - docs/kit/decisions/0011-catalog-is-the-repo-scope.md
+  - docs/kit/decisions/0009-trello-on-demand.md
 ---
 
 # Reviews report only BREAK, SCOPE and KNOWLEDGE findings, and CLEAN is a verdict

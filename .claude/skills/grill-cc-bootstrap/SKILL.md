@@ -46,7 +46,7 @@ A target the user names but nobody can gate yet stays in `targets`; mark the rep
 
 ### Stack and quality gate
 
-Record the repo's languages with `--stack`, read from the code and confirmed with the user. Wire its existing test framework into the check, and propose a `quality.mutation` gate with the stack's default tool from `docs/rules/quality-gates.md`; the gate must fail on surviving mutants. A repo without the gate is allowed, but `./cc verify --quality` and councils will warn that its tests are not checked against injected bugs.
+Record the repo's languages with `--stack`, read from the code and confirmed with the user. Wire its existing test framework into the check, and propose a `quality.mutation` gate with the stack's default tool from `docs/kit/rules/quality-gates.md`; the gate must fail on surviving mutants. A repo without the gate is allowed, but `./cc verify --quality` and councils will warn that its tests are not checked against injected bugs.
 
 ## Acceptance
 

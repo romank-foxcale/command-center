@@ -1,5 +1,5 @@
 ---
-id: rules.executable-processes
+id: kit.rules.executable-processes
 title: Executable processes
 status: active
 summary: All knowledge about building, testing, packaging and running is expressed as Nix outputs.
@@ -10,9 +10,9 @@ evidence:
   - nix/workflows/default.nix
   - templates/project.nix
 relations:
-  - docs/architecture/control-center.md
-  - docs/rules/project-adapters.md
-  - docs/decisions/0001-nix-executable-knowledge.md
+  - docs/kit/architecture/control-center.md
+  - docs/kit/rules/project-adapters.md
+  - docs/kit/decisions/0001-nix-executable-knowledge.md
 ---
 
 # Executable processes

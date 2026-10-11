@@ -8,7 +8,7 @@ evidence:
   - nix/projects/default.nix
 relations:
   - docs/index.md
-  - docs/rules/project-adapters.md
+  - docs/kit/rules/project-adapters.md
 ---
 
 # Projects
