@@ -1,6 +1,6 @@
 ---
 name: cc-learn
-description: Turn one non-obvious thing learned in this session - a root cause, a workaround, a constraint, a decision - into an atomic Control Center note (hack, debt, decision or fact) with evidence and relations, linked from its index, after the user confirms the draft. Use when the user asks to remember, record or capture what was learned, after the debug skill offers it, or when a lasting workaround was just put in place.
+description: Record one non-obvious, durable thing learned - a root cause, workaround, constraint or decision - as an atomic CC note in docs/, after the user confirms the draft. Use when the user asks to remember or record something, or a lasting workaround was just put in place.
 ---
 
 # CC learn

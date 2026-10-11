@@ -14,7 +14,7 @@ evidence:
   - templates/agents/sceptic-claude.json
   - templates/agents/sceptic-grok.json
   - templates/agents/sceptic-judge.json
-  - .agents/skills/thread-sceptic/SKILL.md
+  - .agents/roles/thread-sceptic/SKILL.md
   - .agents/skills/cc-threads/SKILL.md
 relations:
   - docs/index.md

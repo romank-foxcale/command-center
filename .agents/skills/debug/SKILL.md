@@ -1,6 +1,6 @@
 ---
 name: debug
-description: Find the root cause of a bug, test failure, build or verify failure, flaky test or unexpected behaviour before changing any code - reproduce on the right platform, trace backwards, test one hypothesis at a time, fix once at the source with a failing test first. Use for any failure, before proposing a fix, and again whenever a fix did not work.
+description: Find the root cause of a bug, failing test, build or verify failure, flaky test or unexpected behaviour before changing code, then fix it once at the source with a failing test first. Use for any failure, and again whenever a fix did not work.
 ---
 
 # Debug

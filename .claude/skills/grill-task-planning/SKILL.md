@@ -1,6 +1,6 @@
 ---
 name: grill-task-planning
-description: Conduct an evidence-first grilling session that turns an ambiguous engineering request into an accepted, agent-ready implementation plan with repository/worktree scope, dependency-aware work packages, durable ADRs and glossary terms, failure modes, and verifiable acceptance criteria. Use before complex, architectural, multi-repository, or multi-agent work in a configured Control Center.
+description: Evidence-first interview that turns an ambiguous engineering request into an agreed, agent-ready plan: scope, repos and worktrees, work packages, failure modes and verifiable acceptance criteria. Use before complex, architectural, multi-repo or multi-agent work.
 ---
 
 # Grill task planning

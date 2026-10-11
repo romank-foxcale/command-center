@@ -18,6 +18,7 @@ relations:
   - docs/kit/rules/worktrees.md
   - docs/kit/decisions/0017-kit-and-project-layers.md
   - docs/kit/decisions/0018-setup-starts-itself.md
+  - docs/kit/decisions/0019-lean-agent-context.md
 ---
 
 # Kit knowledge map
@@ -58,3 +59,4 @@ This folder belongs to the kit. A CC never edits it: to change kit behaviour for
 - [Every CC keeps its own repos and worktrees inside its folder](decisions/0016-per-cc-repos-and-worktrees.md)
 - [Kit knowledge and a CC's own knowledge are separate layers](decisions/0017-kit-and-project-layers.md)
 - [A CC that is not set up starts its own setup; nobody needs a magic prompt](decisions/0018-setup-starts-itself.md)
+- [Agent context states what the repo cannot show, once; role skills stay out of sessions](decisions/0019-lean-agent-context.md)

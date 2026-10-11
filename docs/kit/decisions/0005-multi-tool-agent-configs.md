@@ -15,6 +15,7 @@ relations:
   - docs/kit/decisions/0003-template-as-seed.md
   - docs/kit/rules/bootstrap.md
   - docs/kit/decisions/0013-rule-hooks.md
+  - docs/kit/decisions/0019-lean-agent-context.md
 ---
 
 # One set of skills for every AI tool
@@ -35,4 +36,5 @@ People open the CC in Claude Code, Cursor, Codex and OpenCode. Codex reads proje
 - Cursor and OpenCode see the same skills twice; the contents are identical.
 - Editing the copy in `.claude/skills/` without editing the source breaks the check.
 - `.opencode/skills` is not used: OpenCode reads `.agents/skills`.
+- Council and thread role skills live in `.agents/roles/`, which no tool lists and `./cc agents sync` does not copy; only the runners load them ([0019](0019-lean-agent-context.md)).
 - `./cc agents sync` also writes the `hooks` key of `.claude/settings.json`; hooks are Claude Code only ([0013](0013-rule-hooks.md)).

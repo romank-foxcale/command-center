@@ -96,6 +96,11 @@
                 ${pkgs.python3}/bin/python -B ${self}/scripts/threads_test.py
                 touch "$out"
               '';
+              eval = pkgs.runCommand "control-center-eval" { nativeBuildInputs = [ pkgs.git ]; } ''
+                export HOME=$TMPDIR
+                ${pkgs.python3}/bin/python -B ${self}/scripts/eval/eval_test.py
+                touch "$out"
+              '';
               settings-smoke = pkgs.runCommand "control-center-settings-smoke" { } ''
                 export HOME=$TMPDIR
                 ${uiPython}/bin/python ${self}/scripts/settings/smoke.py

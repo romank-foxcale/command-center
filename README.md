@@ -83,6 +83,8 @@ Everything runs through `./cc` in the CC folder (from PowerShell: `.\cc`, which 
 ./cc feature feature1 verify
 ./cc plan list
 ./cc settings                                 # agents, models, councils, repos
+./cc eval run before --ref main && ./cc eval run after && ./cc eval compare before after
+                                              # measure an AGENTS.md or skill change: pass rate, tokens, cost, time
 ```
 
 Requires Nix with flakes. Docker or Podman is only needed for container workflows.
@@ -119,6 +121,7 @@ Requires Nix with flakes. Docker or Podman is only needed for container workflow
 | Trello on demand: link cards, preview then post comments or move cards | `./cc trello`, `cc-trello` |
 | `lean-code`, `debug` and `tdd` skills | `.agents/skills/` |
 | `cc.cmd`: run `.\cc check` from PowerShell or cmd | `cc.cmd` |
+| `./cc eval`: A/B-measure a change to the agent context with headless graded runs (pass rate, tokens, cost, time) | `scripts/eval/`, [decision 0019](docs/kit/decisions/0019-lean-agent-context.md) |
 
 The template contains no UI, no secrets and no production permissions.
 

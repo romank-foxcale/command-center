@@ -1,6 +1,6 @@
 ---
 name: cc-review
-description: Review a pull request of a catalog repo (or a feature's diff) against a fixed bar - report only [BREAK] (it breaks the build, tests or runtime), [SCOPE] (it contradicts or misses the stated scope and acceptance criteria from the PR or its Trello card) and [KNOWLEDGE] (it contradicts a note in the CC's docs), each with evidence, and give a CLEAN verdict with what was checked when nothing clears the bar. Use when the user asks to review a PR or a feature, or picks "Review it" in cc-prs.
+description: Review a catalog repo's pull request or a feature's diff against a fixed bar: only findings that break the build or runtime, miss the stated scope, or contradict the CC's notes, each with evidence. Use when the user asks to review a PR or a feature.
 ---
 
 # CC review

@@ -101,8 +101,14 @@ def worktrees_root(root: Path) -> Path:
     return (root / load_json(root / "control-center.json")["layout"]["worktrees"]).resolve()
 
 
+def skill_path(root: Path, name: str) -> Path:
+    """A role-only skill lives in .agents/roles, out of every session's skill list; roles also use ordinary skills."""
+    role = root / ".agents" / "roles" / name / "SKILL.md"
+    return role if role.is_file() else root / ".agents" / "skills" / name / "SKILL.md"
+
+
 def skill_text(root: Path, name: str) -> str:
-    text = (root / ".agents" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+    text = skill_path(root, name).read_text(encoding="utf-8")
     # Drop the frontmatter: the CLI only needs the instructions.
     return re.sub(r"\A---\n.*?\n---\n", "", text, count=1, flags=re.DOTALL).strip()
 

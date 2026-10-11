@@ -1,6 +1,6 @@
 ---
 name: cc-repo
-description: List, show, add (by pasting a link), remove, retarget or change the main branch, link, kind or onboarding status of repositories in the Control Center catalog by running ./cc repo. Use when the user asks which repos the CC knows, wants details on one, adds or removes a repo, says a repo's main branch is develop, changes the platforms a repo ships on (windows, linux, macos), marks a repo as reference-only, or marks it adapted, verified or blocked.
+description: List, show, add (by pasting a link), remove or change repositories in the CC catalog with ./cc repo: main branch, link, kind (project or reference), platforms, stack, status. Use when the user asks which repos the CC has, or adds, removes or changes one.
 ---
 
 # CC repo

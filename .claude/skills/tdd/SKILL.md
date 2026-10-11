@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Write tests that catch real breaks - test first for new behaviour and bug fixes (red, green, refactor, watching every test fail for the right reason), and the rules for honest tests - name the break, hand-derived expectations, no change detectors, real code over mocks, a mutation check. Use when implementing a feature or bug fix, writing or changing any test, adding mocks or test helpers, and in council test-writer roles.
+description: Write tests that catch real breaks: test first for new behaviour and bug fixes, watch each test fail for the right reason, and keep tests honest (hand-derived expectations, no change detectors, real code over mocks, a mutation check). Use when implementing a feature or fix, or writing or changing tests.
 ---
 
 # TDD

@@ -1,6 +1,6 @@
 ---
 name: cc-prs
-description: List the open pull requests of this Control Center's catalog repositories with ./cc prs, newest first with new and updated ones marked, then let the user pick one from a choice list and review or summarize it. Use when the user asks about new, open or pending PRs, pull requests waiting for review, or what to review next.
+description: List the open pull requests of the CC's catalog repos with ./cc prs, new and updated ones marked, and let the user pick one to review or summarize. Use when the user asks about new, open or pending PRs or what to review next.
 ---
 
 # CC pull requests
