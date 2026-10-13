@@ -65,6 +65,27 @@ def check_commit_grader(base: Path) -> None:
     assert checks == {"committed": True, "readme_clean": True, "no_ai_attribution": False}, checks
 
 
+def check_lesson_grader(base: Path) -> None:
+    cc = base / "lesson-cc"
+    wt = cc / "worktrees/ratio/calc_wt"
+    wt.mkdir(parents=True)
+    git = ["git", "-C", str(wt), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run(["git", "init", "-q", str(wt)], check=True)
+    (wt / "calc.py").write_text("def ratio(a, b):\n    return a / b\n")
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-qm", scenarios.RATIO], check=True)
+    cited = "[KNOWLEDGE] calc.py:2 · contradicts docs/lessons/zero-divisor-returns-none.md: \"returns None\". Fix: guard."
+    trace = {"final": f"calc · ratio\nVerdict: 1 finding(s)\n\n{cited}", "bash": ["./cc worktree status ratio"]}
+    assert all(scenarios.grade_lesson(cc, trace, {}).values()), scenarios.grade_lesson(cc, trace, {})
+    elsewhere = {**trace, "final": "Verdict: CLEAN\n\nChecked\n- Knowledge: docs/lessons/zero-divisor-returns-none.md"}
+    assert scenarios.grade_lesson(cc, elsewhere, {})["cited_lesson"] is False, "reading the lesson is not citing it"
+    other = {**trace, "final": "[KNOWLEDGE] calc.py:2 · contradicts docs/decisions/0001.md\nread zero-divisor-returns-none"}
+    assert scenarios.grade_lesson(cc, other, {})["cited_lesson"] is False, "the lesson must be on the finding's line"
+    assert scenarios.grade_lesson(cc, {**trace, "bash": ["gh pr list"]}, {})["no_pr_lookup"] is False
+    (wt / "calc.py").write_text("def ratio(a, b):\n    return None if b == 0 else a / b\n")
+    assert scenarios.grade_lesson(cc, trace, {})["worktree_untouched"] is False, "a review never edits"
+
+
 def check_test_runner(base: Path) -> None:
     repo = base / "runner"
     repo.mkdir()
@@ -106,6 +127,7 @@ def main() -> int:
         base = Path(directory)
         check_commit_grader(base)
         check_test_runner(base)
+        check_lesson_grader(base)
     print("eval test passed")
     return 0
 

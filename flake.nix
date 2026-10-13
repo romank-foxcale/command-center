@@ -57,6 +57,7 @@
             {
               knowledge = pkgs.runCommand "control-center-knowledge" { } ''
                 ${pkgs.python3}/bin/python ${self}/scripts/validate-knowledge.py ${self}
+                ${pkgs.python3}/bin/python -B ${self}/scripts/validate_knowledge_test.py
                 touch "$out"
               '';
               agent-configs = pkgs.runCommand "control-center-agent-configs" { } ''
@@ -94,6 +95,7 @@
                 export HOME=$TMPDIR
                 ${pkgs.python3}/bin/python ${self}/scripts/prs_test.py
                 ${pkgs.python3}/bin/python -B ${self}/scripts/threads_test.py
+                ${pkgs.python3}/bin/python -B ${self}/scripts/lessons_test.py
                 touch "$out"
               '';
               eval = pkgs.runCommand "control-center-eval" { nativeBuildInputs = [ pkgs.git ]; } ''

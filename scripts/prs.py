@@ -208,6 +208,10 @@ def main() -> int:
         import threads
 
         return threads.main(sys.argv[1:])
+    if sys.argv[2:3] == ["learn"]:
+        import lessons
+
+        return lessons.main(sys.argv[1:])
     if sys.argv[2:3] in (["show"], ["checkout"]):
         detail = argparse.ArgumentParser(prog=f"./cc prs {sys.argv[2]}")
         detail.add_argument("root", type=Path)

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "review-learner",
+  "purpose": "Groups the accepted review comments of merged PRs into candidate review lessons and marks those that repeat a known lesson (./cc prs learn)",
+  "provider": "claude",
+  "model": "opus",
+  "access": "read-only",
+  "skills": [
+    "review-learner"
+  ]
+}

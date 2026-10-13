@@ -168,6 +168,25 @@ def check_catalog_rules() -> None:
             assert (errors() == []) == valid, (changes, errors())
 
 
+def check_review_lessons(base: Path) -> None:
+    """Roles see the active lessons for the council's repository, and only those."""
+    run = make_run(base, "lessons")
+    state = {**run.state, "repository": "api"}
+    role = {"id": "writer", "skills": []}
+    assert "# Review lessons" not in council_run.role_prompt(run.root, role, state, "body"), "no lessons, no section"
+    folder = run.root / "docs" / "lessons"
+    folder.mkdir(parents=True)
+    note = "---\nid: lessons.{0}\nstatus: {1}\nsummary: {0} rule\nrepos:\n  - {2}\n---\n"
+    (folder / "index.md").write_text("---\nsummary: index\n---\n")
+    (folder / "handles.md").write_text(note.format("handles", "active", "api"))
+    (folder / "web-only.md").write_text(note.format("web-only", "active", "web"))
+    (folder / "old.md").write_text(note.format("old", "superseded", "api"))
+    prompt = council_run.role_prompt(run.root, role, state, "body")
+    assert "- docs/lessons/handles.md: handles rule" in prompt, prompt
+    assert "web-only" not in prompt and "old rule" not in prompt and "index" not in prompt.split("# Review lessons")[1], prompt
+    assert prompt.index("# Review lessons") < prompt.index("body"), "lessons come before the task"
+
+
 def main() -> int:
     three = ["security-claude", "security-gpt", "security-grok"]
     low = "SEVERITY: low\n\napp.py:3 minor"
@@ -207,6 +226,7 @@ def main() -> int:
         assert reason == "security review blocks the change; see security.md"
 
         check_writer_history(base)
+        check_review_lessons(base)
 
     check_catalog_rules()
     used = {"input": 10_000, "cached": 30_000, "output": 2_000}

@@ -26,6 +26,7 @@ usage() {
     '  prs [repo...] [--json]  Open pull requests of the catalog repos, newest first, new ones and waiting threads marked' \
     '  prs show <repo> <n> [--diff] | prs checkout <repo> <n>  One PR for review; its head as feature pr-<repo>-<n>' \
     '  prs threads|judge <repo> <n> [--all] [--json]  Review threads waiting on you; judge them with anonymous sceptics' \
+    '  prs learn [repo...] [--since YYYY-MM-DD] [--harvest-only] [--json]  Accepted review comments of merged PRs since the last run; the review-learner agent turns them into candidate lessons' \
     '  worktree <create|add|status|remove> ...' \
     '  migrate-layout [--dry-run]  Move this CC'"'"'s clones and worktrees from ../repos and ../worktrees into repos/ and worktrees/' \
     '  trello <status|boards|lists|connect|link|show|comment|move> ...  Trello cards, on demand only' \

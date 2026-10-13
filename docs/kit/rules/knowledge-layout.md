@@ -7,6 +7,7 @@ verified_at: 2026-07-20
 evidence:
   - scripts/validate-knowledge.py
   - templates/note.md
+  - templates/lesson.md
 relations:
   - docs/index.md
   - docs/kit/decisions/0002-atomic-linked-notes.md
@@ -25,7 +26,7 @@ relations:
 ## Two layers
 
 - `docs/kit/` is the kit's knowledge: rules, architecture and kit decisions with `kit.` ids. It is identical in every CC, replaced as a whole on a kit update, and never edited in a CC.
-- The rest of `docs/` and `plans/` is this CC's own knowledge: its decisions (numbered from 0001), debt, hacks, projects and glossary. A decision that changes kit behaviour for this CC names the kit decision it overrides ([0017](../decisions/0017-kit-and-project-layers.md)).
+- The rest of `docs/` and `plans/` is this CC's own knowledge: its decisions (numbered from 0001), debt, hacks, projects, review lessons and glossary. A decision that changes kit behaviour for this CC names the kit decision it overrides ([0017](../decisions/0017-kit-and-project-layers.md)).
 
 ## What not to record
 
@@ -51,4 +52,6 @@ Paths in `evidence` and `relations` are given from the repository root. The body
 
 A large primary summary can be kept with `kind: research-reference`. It is not canonical knowledge, is not loaded automatically, and may exceed the limit; durable conclusions from it are moved into ordinary atomic notes.
 
-`./cc validate` checks frontmatter, ID uniqueness, evidence, relations and Markdown links.
+A review lesson in `docs/lessons/` uses `templates/lesson.md`, which adds `repos`, `occurrences`, `last_seen` and `route` (`note` or `gate`).
+
+`./cc validate` checks frontmatter, ID uniqueness, evidence, relations, Markdown links and the lesson fields.

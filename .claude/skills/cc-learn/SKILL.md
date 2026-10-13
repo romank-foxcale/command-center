@@ -28,6 +28,7 @@ Search `docs/` for the key terms and read what matches. If a note already states
 | Debt: a known problem left in place | `docs/debt/` | `templates/note.md` | `docs/debt/index.md` |
 | Decision with options and reasons | `docs/decisions/NNNN-<name>.md`, next free number from 0001 | `templates/decision.md` | `docs/decisions/index.md` |
 | Fact about one project | `docs/projects/` | `templates/note.md` | `docs/projects/index.md` |
+| Recurring shortcoming reviewers keep raising | `docs/lessons/` | `templates/lesson.md` | `docs/lessons/index.md` |
 
 Everything here is this CC's own knowledge. Never write into `docs/kit/`: it belongs to the kit and is replaced on a kit update. A decision that changes kit behaviour for this CC names the kit decision it overrides in its text and `relations`.
 
