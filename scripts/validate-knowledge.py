@@ -94,6 +94,24 @@ def lesson_errors(relative: Path, scalars: dict[str, str], lists: dict[str, list
     return errors
 
 
+PROJECT_LAYER = ("plans/", "docs/decisions/", "docs/debt/", "docs/hacks/", "docs/projects/", "docs/glossary/", "docs/lessons/")
+EMPTY_MARKERS = {".gitkeep", "index.md"}
+
+
+def project_layer_in_template(root: Path) -> list[str]:
+    """The template (no control-center.json) ships each CC's own layer empty: only .gitkeep and the indexes are
+    tracked there (docs/kit/decisions/0017-kit-and-project-layers.md). A working plan may stay untracked."""
+    if (root / "control-center.json").exists():
+        return []
+    if (root / ".git").exists():
+        listed = subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True)
+        names = listed.stdout.splitlines() if listed.returncode == 0 else []
+    else:  # a Nix source copy holds only tracked files
+        names = [path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()]
+    return [f"{name}: the template ships the project layer empty; keep this out of the kit (git rm --cached)"
+            for name in names if name.startswith(PROJECT_LAYER) and Path(name).name not in EMPTY_MARKERS]
+
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     root = root.resolve()
@@ -157,6 +175,7 @@ def validate(root: Path) -> list[str]:
     if not notes:
         errors.append("docs/: no Markdown notes found")
     errors.extend(stray_markdown(root))
+    errors.extend(project_layer_in_template(root))
     return errors
 
 
