@@ -2,7 +2,7 @@
 id: index
 title: Control Center knowledge map
 status: active
-summary: Entry point into this CC's knowledge - the kit's rules, architecture and decisions, and this CC's own decisions, debt, hacks, projects and glossary.
+summary: Entry point into this CC's knowledge - the kit's rules, architecture and decisions, and this CC's own decisions, debt, hacks, projects, review lessons and glossary.
 verified_at: 2026-10-11
 evidence:
   - AGENTS.md
@@ -12,6 +12,7 @@ relations:
   - docs/debt/index.md
   - docs/hacks/index.md
   - docs/projects/index.md
+  - docs/lessons/index.md
   - docs/glossary/index.md
 ---
 
@@ -27,4 +28,5 @@ relations:
 - [Technical debt](debt/index.md)
 - [Hacks](hacks/index.md)
 - [Projects](projects/index.md)
+- [Review lessons](lessons/index.md)
 - [Glossary](glossary/index.md)

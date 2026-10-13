@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Learner"
+  short_description: "Turn accepted PR review comments into candidate lessons"
+  default_prompt: "Harvest review lessons with ./cc prs learn; this role skill is loaded by the runner."
+policy:
+  allow_implicit_invocation: false

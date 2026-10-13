@@ -16,6 +16,8 @@ REQUIRED_FIELDS = ("id", "title", "status", "summary", "verified_at")
 ALLOWED_STATUSES = {"active", "accepted", "draft", "superseded", "archived"}
 MARKDOWN_LINK = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+LESSONS = "docs/lessons"
+ROUTES = {"note", "gate"}
 
 
 def parse_frontmatter(path: Path, text: str) -> tuple[dict[str, str], dict[str, list[str]]]:
@@ -77,6 +79,21 @@ def stray_markdown(root: Path) -> list[str]:
     ]
 
 
+def lesson_errors(relative: Path, scalars: dict[str, str], lists: dict[str, list[str]]) -> list[str]:
+    """A review lesson (templates/lesson.md) says which catalog repos it covers, how often and when reviewers
+    last raised it, and whether it stays a note or should become a gate check."""
+    errors = []
+    if not lists.get("repos"):
+        errors.append(f"{relative}: 'repos' must list at least one catalog repo")
+    if not scalars.get("occurrences", "").isdigit() or int(scalars["occurrences"]) < 1:
+        errors.append(f"{relative}: 'occurrences' must be a positive integer")
+    if not DATE.fullmatch(scalars.get("last_seen", "")):
+        errors.append(f"{relative}: 'last_seen' must use YYYY-MM-DD")
+    if scalars.get("route") not in ROUTES:
+        errors.append(f"{relative}: 'route' must be one of {', '.join(sorted(ROUTES))}")
+    return errors
+
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     root = root.resolve()
@@ -115,6 +132,9 @@ def validate(root: Path) -> list[str]:
         status = scalars.get("status")
         if status and status not in ALLOWED_STATUSES:
             errors.append(f"{relative}: unsupported status '{status}'")
+
+        if relative.parent.as_posix() == LESSONS and note.name != "index.md":
+            errors.extend(lesson_errors(relative, scalars, lists))
 
         verified_at = scalars.get("verified_at")
         if verified_at and not DATE.fullmatch(verified_at):

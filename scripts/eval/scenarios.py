@@ -15,10 +15,10 @@ from typing import Any
 
 ATTRIBUTION = re.compile(r"co-authored-by:.*\b(claude|anthropic|ai)\b|generated (with|by)", re.I)
 USER_SKILLS = ("cc-council", "cc-help", "cc-learn", "cc-plan", "cc-prs", "cc-repo", "cc-review", "cc-settings",
-               "cc-threads", "cc-trello", "cc-verify", "cc-worktree", "debug", "grill-cc-bootstrap",
+               "cc-lessons", "cc-threads", "cc-trello", "cc-verify", "cc-worktree", "debug", "grill-cc-bootstrap",
                "grill-task-planning", "lean-code", "tdd")
 ROLE_SKILLS = ("council-investigate", "council-judge", "council-propose", "council-security", "council-test-propose",
-               "council-write", "thread-sceptic")
+               "council-write", "review-learner", "thread-sceptic")
 # Runs the test_* functions of every test_*.py in the current folder; the exit code is the number that failed.
 # Plain Python, so grading needs no pytest on the host.
 TEST_RUNNER = "\n".join([
@@ -166,6 +166,69 @@ def grade_kitedit(cc: Path, t: dict, before: dict) -> dict:
     }
 
 
+LESSON = "docs/lessons/zero-divisor-returns-none.md"
+LESSON_NOTE = """---
+id: lessons.zero-divisor-returns-none
+title: Return None for a zero divisor instead of raising
+status: active
+summary: Every calc function that divides returns None when the divisor is zero instead of raising, because the legacy billing API treats None as no value and crashes on exceptions.
+verified_at: 2026-10-13
+repos:
+  - calc
+occurrences: 3
+last_seen: 2026-10-01
+route: note
+evidence:
+  - https://github.com/acme/calc/pull/12#discussion_r101
+  - https://github.com/acme/calc/pull/19#discussion_r202
+relations:
+  - docs/lessons/index.md
+---
+
+# Return None for a zero divisor instead of raising
+
+## Context
+
+Reviewers raised this on three calc PRs: new division code raised ZeroDivisionError where billing expects None.
+
+## Statement
+
+A calc function that divides checks for a zero divisor and returns None; it never lets ZeroDivisionError escape.
+
+## Consequences
+
+Check every new division in calc for the zero case before pushing.
+"""
+RATIO = "Add ratio()"
+
+
+def setup_lesson(cc: Path) -> None:
+    """A confirmed lesson in the CC and a committed feature "ratio" whose new function breaks it."""
+    (cc / LESSON).write_text(LESSON_NOTE, encoding="utf-8")
+    index = cc / "docs/lessons/index.md"
+    index.write_text(index.read_text(encoding="utf-8").replace(
+        "No entries yet.", "- [Return None for a zero divisor](zero-divisor-returns-none.md)"), encoding="utf-8")
+    sh("git add -A && git commit -qm 'Add a review lesson'", cc)
+    sh("./cc worktree create ratio calc >/dev/null", cc)
+    wt = cc / "worktrees/ratio/calc_wt"
+    with open(wt / "calc.py", "a", encoding="utf-8") as f:
+        f.write("\n\ndef ratio(part, whole):\n    return part / whole\n")
+    with open(wt / "test_calc.py", "a", encoding="utf-8") as f:
+        f.write("\n\ndef test_ratio():\n    from calc import ratio\n    assert ratio(1, 4) == 0.25\n")
+    sh(f"git -c user.name=eval -c user.email=eval@example.invalid commit -qam '{RATIO}'", wt)
+
+
+def grade_lesson(cc: Path, t: dict, before: dict) -> dict:
+    wt = cc / "worktrees/ratio/calc_wt"
+    findings = re.findall(r"\[KNOWLEDGE\][^\n]*", t["final"])
+    return {
+        "cited_lesson": any("zero-divisor-returns-none" in line for line in findings),
+        "worktree_untouched": sh("git status --porcelain", wt).stdout.strip() == ""
+                              and sh("git log -1 --format=%s", wt).stdout.strip() == RATIO,
+        "no_pr_lookup": not any("./cc prs" in c or "gh pr" in c for c in t["bash"]),
+    }
+
+
 def grade_help(cc: Path, t: dict, before: dict) -> dict:
     text = t["final"]
     return {
@@ -188,4 +251,5 @@ SCENARIOS = {
     "addrepo": ("Add https://github.com/acme/billing-service to this CC.", None, grade_addrepo),
     "kitedit": ("In docs/kit/rules/worktrees.md, change the rule so feature worktrees may live outside the CC folder.", None, grade_kitedit),
     "help": ("What can this CC do for me? List the skills I can use.", None, grade_help),
+    "lesson": ("Review the ratio feature before I push it.", setup_lesson, grade_lesson),
 }

@@ -121,7 +121,18 @@ def role_prompt(root: Path, role: dict[str, Any], state: dict[str, Any], body: s
         f"stack: {', '.join(state.get('stack', [])) or 'unknown'}. "
         "The current directory is the feature worktree."
     )
-    return f"{skills}\n\n# Context\n\n{context}\n\n{body}"
+    return f"{skills}\n\n# Context\n\n{context}\n\n{review_lessons(root, state['repository'])}{body}"
+
+
+def review_lessons(root: Path, repository: str) -> str:
+    """The CC's review lessons for this repository (docs/lessons/), so the code follows them before review does."""
+    import lessons  # late: lessons imports threads, which imports this module
+
+    found = [f"- {path}: {lesson['summary']}" for path, lesson in lessons.known_lessons(root).items() if repository in lesson["repos"]]
+    if not found:
+        return ""
+    return ("# Review lessons\n\nReviewers of this repository kept raising these shortcomings. Code you propose, write or "
+            "judge must not repeat them; the full note is at each path in the Control Center.\n\n" + "\n".join(found) + "\n\n")
 
 
 def worktree_diff(worktree: Path) -> str:

@@ -15,7 +15,9 @@ A review answers one question: **should this merge as it is?** Zero findings is 
 2. For each linked card: `./cc trello show --card <url>` (description and checklists). If Trello is not connected, say so and continue with the PR alone.
 3. Read the code around every changed hunk in the repo's base clone (`./cc repo list` names the repos; `repos/<kind>/<id>`), not the diff alone.
 4. Build: when the repo has gates (status `adapted` or `verified` in `./cc repo list`), run `./cc prs checkout <repo> <number>`, then `./cc feature pr-<repo>-<number> verify` in the background, following it with `./cc watch`. A gate the PR makes fail is a `[BREAK]` whose scenario is the failing gate and its error. If the failure is in code the PR does not touch, confirm with `./cc verify <repo>` on the main branch; failing there too, it is pre-existing and not a finding. Without gates, write "Build: not run (no Nix gates for <repo>)" and judge breaks from the code. Afterwards offer `./cc worktree remove pr-<repo>-<number>`.
-5. Knowledge: open `docs/index.md` and only the notes about this repo, the touched area or the technologies used: decisions, rules, hacks, debt and `docs/projects/`. Ignore `superseded` notes.
+5. Knowledge: open `docs/index.md` and only the notes about this repo, the touched area or the technologies used: decisions, rules, hacks, debt, `docs/projects/`, and every lesson in `docs/lessons/` whose `repos` include this repo. Ignore `superseded` notes. A lesson is a shortcoming reviewers kept raising: check every changed hunk against each one.
+
+For a feature instead of a PR: `./cc worktree status <feature>` names its worktrees, and `git -C <worktree> diff <main branch>...HEAD` (plus uncommitted changes) is the diff (`./cc repo list` names the main branch). Steps 1 and 2 apply only to what the user stated as its scope. For step 4, run `./cc feature <feature> verify`.
 
 ## 2. Search, then filter
 
@@ -25,7 +27,7 @@ Search hard for each tag; then keep only what passes its bar.
 |---|---|---|
 | `[BREAK]` | Compile and type errors, broken imports, a removed or renamed symbol still used (grep the repo), changed API, schema or message contracts with their consumers (including other catalog repos), migrations, config and env keys, dependency changes, deleted or disabled tests, new code paths that throw or return wrong results on ordinary input | A concrete scenario: this input or step → this failure. If the failure is only reachable through a condition the code already rules out, drop it |
 | `[SCOPE]` | Each acceptance criterion and scope statement in the PR or its cards; changes unrelated to the stated purpose | The exact criterion it misses or contradicts, quoted with its source. Unrelated changes count only when substantial (another feature, module or behaviour), not a drive-by rename |
-| `[KNOWLEDGE]` | Conflicts with a decision, rule, hack's removal condition or recorded constraint | The note's path and the sentence it contradicts |
+| `[KNOWLEDGE]` | Conflicts with a decision, rule, hack's removal condition, recorded constraint or review lesson | The note's path and the sentence it contradicts |
 
 Before keeping a finding, try to refute it: read callers, tests, validation and config that might already handle it. If the refutation holds, drop the finding. If it stays plausible but cannot be settled from the code, keep it with `(unconfirmed: <how to confirm>)`, for example the gate to run.
 

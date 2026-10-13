@@ -21,6 +21,7 @@ relations:
   - docs/kit/decisions/0012-review-bar.md
   - docs/kit/decisions/0014-cursor-provider-and-security-council.md
   - docs/kit/decisions/0007-agent-councils.md
+  - docs/kit/decisions/0020-review-lessons.md
 ---
 
 # Review conversations are judged by two anonymous sceptics, and a judge settles only their splits

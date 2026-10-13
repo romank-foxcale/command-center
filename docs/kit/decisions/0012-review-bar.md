@@ -13,6 +13,7 @@ relations:
   - docs/index.md
   - docs/kit/decisions/0011-catalog-is-the-repo-scope.md
   - docs/kit/decisions/0009-trello-on-demand.md
+  - docs/kit/decisions/0020-review-lessons.md
 ---
 
 # Reviews report only BREAK, SCOPE and KNOWLEDGE findings, and CLEAN is a verdict
