@@ -55,7 +55,8 @@
 
           checks =
             {
-              knowledge = pkgs.runCommand "control-center-knowledge" { } ''
+              knowledge = pkgs.runCommand "control-center-knowledge" { nativeBuildInputs = [ pkgs.git ]; } ''
+                export HOME=$TMPDIR
                 ${pkgs.python3}/bin/python ${self}/scripts/validate-knowledge.py ${self}
                 ${pkgs.python3}/bin/python -B ${self}/scripts/validate_knowledge_test.py
                 touch "$out"

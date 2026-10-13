@@ -9,6 +9,8 @@ evidence:
   - docs/decisions/index.md
   - scripts/rule_hooks.py
   - scripts/rule_hooks_test.py
+  - scripts/validate-knowledge.py
+  - scripts/validate_knowledge_test.py
 relations:
   - docs/kit/index.md
   - docs/kit/decisions/0003-template-as-seed.md
@@ -25,7 +27,7 @@ The template was used to build CCs, and its notes mixed two kinds of knowledge: 
 ## Decision
 
 - **Kit layer:** `docs/kit/` holds the rules, the architecture and the kit decisions, with `kit.` ids. The template owns it; every CC carries an identical copy; a kit update replaces it as a whole.
-- **Project layer:** `docs/decisions/`, `docs/debt/`, `docs/hacks/`, `docs/projects/`, `docs/glossary/` and `plans/` belong to the CC. The template ships them as empty indexes. A CC's decisions are numbered from 0001 and committed only to that CC's repository.
+- **Project layer:** `docs/decisions/`, `docs/debt/`, `docs/hacks/`, `docs/projects/`, `docs/glossary/`, `docs/lessons/` and `plans/` belong to the CC. The template ships them as empty indexes. A CC's decisions are numbered from 0001 and committed only to that CC's repository. In the template, `./cc validate` fails when any of these folders tracks more than its index or `.gitkeep`. A working plan for a kit change stays untracked there.
 - **Overrides:** to change kit behaviour for one CC, the CC records its own decision that names the kit decision it overrides. It never edits `docs/kit/`.
 - **Protection:** in a CC (a folder with `control-center.json`), the Claude Code hook asks before an edit under `docs/kit/` ([0013](0013-rule-hooks.md)). The template repository edits the kit freely.
 - The template carries no decision, plan or data of the people who use it.
