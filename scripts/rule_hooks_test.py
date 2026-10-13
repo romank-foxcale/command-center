@@ -145,6 +145,12 @@ def check_isolation(base: Path) -> None:
         assert shell(command) == "ask", command
     for command in ("git status", "cat repos/shop/README.md", "./cc repo list", "ls /tmp", "cat ~/.bashrc"):
         assert shell(command) is None, command
+    # Shell punctuation glued to a path is not part of it: cd into the CC itself, then work there.
+    for command in (f"cd {root}; ./cc repo list", f"cd {root}&& ls", f"cd {root}|| exit 1", f"(cd {root})",
+                    f"ls {root}>/dev/null"):
+        assert shell(command) is None, command
+    for command in (f"cd {projects / 'beta_CC'}; ls", f"cat ../beta_CC/AGENTS.md;", "true&&cat ../beta_CC/x"):
+        assert shell(command) == "ask", command
     # The hook cannot tell a path argument from text; asking about one echo is the accepted cost.
     assert shell("echo ../beta_CC") == "ask"
 
