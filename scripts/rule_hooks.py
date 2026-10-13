@@ -176,9 +176,12 @@ def outside_ask(sibling: Path) -> dict[str, Any]:
 
 
 def shell_paths(command: str) -> list[str]:
-    """Words of a shell line that name a path outside the current folder (.., ~, absolute)."""
+    """Words of a shell line that name a path outside the current folder (.., ~, absolute). Operators such as
+    ; && | ( ) > split words even without spaces, so `cd <cc>; ...` is the path <cc>, not `<cc>;`."""
     try:
-        words = shlex.split(command, posix=True)
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        words = list(lexer)
     except ValueError:
         words = command.split()
     found = []
