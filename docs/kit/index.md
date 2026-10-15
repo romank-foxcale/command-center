@@ -20,6 +20,7 @@ relations:
   - docs/kit/decisions/0018-setup-starts-itself.md
   - docs/kit/decisions/0019-lean-agent-context.md
   - docs/kit/decisions/0020-review-lessons.md
+  - docs/kit/decisions/0021-cc-check-in-ci.md
 ---
 
 # Kit knowledge map
@@ -62,3 +63,4 @@ This folder belongs to the kit. A CC never edits it: to change kit behaviour for
 - [A CC that is not set up starts its own setup; nobody needs a magic prompt](decisions/0018-setup-starts-itself.md)
 - [Agent context states what the repo cannot show, once; role skills stay out of sessions](decisions/0019-lean-agent-context.md)
 - [Accepted review comments become user-confirmed, team-level review lessons](decisions/0020-review-lessons.md)
+- [CI runs ./cc check on every pull request to the CC](decisions/0021-cc-check-in-ci.md)

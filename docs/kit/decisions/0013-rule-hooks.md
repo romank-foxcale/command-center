@@ -17,6 +17,7 @@ relations:
   - docs/kit/decisions/0005-multi-tool-agent-configs.md
   - docs/kit/rules/worktrees.md
   - docs/kit/decisions/0018-setup-starts-itself.md
+  - docs/kit/decisions/0021-cc-check-in-ci.md
 ---
 
 # Claude Code hooks enforce the hard rules early; the gates still decide
@@ -56,7 +57,7 @@ The hard rules in `AGENTS.md` were instruction text only. Agents break them when
 
 - A CC that keeps other committed Markdown, such as a `research/` folder of source material, lists it in `markdownDirs` (validated by the `bootstrap` check). The exception is per CC and visible, so the template's default stays strict.
 - Hooks exist only in Claude Code. Codex, Cursor and OpenCode rely on the gates.
-- Hooks match shell text, so a command hidden in a script or another shell (`wsl.exe bash -lc ...`) passes the hook; only the gates are complete where a gate exists.
+- Hooks match shell text, so a command hidden in a script or another shell (`wsl.exe bash -lc ...`) passes the hook; only the gates are complete where a gate exists. CI runs `./cc check` on every pull request so the gates do not depend on someone running them ([0021](0021-cc-check-in-ci.md)).
 - New CCs get the hooks through `./cc bootstrap install`; existing CCs only through a migration.
 
 ## Revisit when
