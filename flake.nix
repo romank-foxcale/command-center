@@ -109,6 +109,26 @@
                 ${uiPython}/bin/python ${self}/scripts/settings/smoke.py
                 touch "$out"
               '';
+              # ccLib.mkContractCheck passes when the artifact matches its spec and fails on drift.
+              contract-check =
+                let
+                  contract =
+                    artifact:
+                    ccLib.mkContractCheck {
+                      name = "fixture";
+                      spec = pkgs.writeText "spec.txt" "get /orders\n";
+                      inherit artifact;
+                      generate = ''tr a-z A-Z < "$spec" > "$generated"'';
+                    };
+                  inSync = contract (pkgs.writeText "artifact.txt" "GET /ORDERS\n");
+                  drifted = pkgs.testers.testBuildFailure (contract (pkgs.writeText "artifact.txt" "GET /ORDER\n"));
+                in
+                pkgs.runCommand "control-center-contract-check" { } ''
+                  test -e ${inSync}
+                  grep -q "contract fixture drifted" ${drifted}/testBuildFailure.log
+                  grep -q "^+GET /ORDERS" ${drifted}/testBuildFailure.log
+                  touch "$out"
+                '';
             }
             // pkgs.lib.optionalAttrs (builtins.pathExists "${toString ./.}/control-center.json") {
               bootstrap = pkgs.runCommand "control-center-bootstrap" { } ''

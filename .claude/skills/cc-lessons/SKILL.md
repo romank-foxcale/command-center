@@ -53,7 +53,7 @@ Take the candidates one at a time, as a choice: **write it**, **edit it**, or **
 
 ## 4. Gate route
 
-For a lesson written or matched with `route: gate`, offer to start a feature that adds the check to the project repo: worktree and verification through `cc-worktree` and `cc-verify`, with a council or a normal edit. Don't start it unasked. Once the check exists and `./cc verify` passes, add the check's path or permalink to the lesson's `evidence`.
+For a lesson written or matched with `route: gate`, offer to start a feature that adds the check: a linter rule or an architecture test in the project repo, run by its adapter's static checks, or, when the lesson spans two repos, a contract check in a workflow (`docs/kit/rules/quality-gates.md`, "Static checks"). The feature uses `cc-worktree` and `cc-verify`, with a council or a normal edit. Don't start it unasked. Once the check exists and `./cc verify` passes, add the check's path or permalink to the lesson's `evidence`.
 
 ## Never
 
