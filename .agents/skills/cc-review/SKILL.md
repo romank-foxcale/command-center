@@ -31,6 +31,8 @@ Search hard for each tag; then keep only what passes its bar.
 
 Before keeping a finding, try to refute it: read callers, tests, validation and config that might already handle it. If the refutation holds, drop the finding. If it stays plausible but cannot be settled from the code, keep it with `(unconfirmed: <how to confirm>)`, for example the gate to run.
 
+What a check already decides is not judged again: a contract a workflow check enforces (`nix/workflows/`, `ccLib.mkContractCheck`) or a rule a static check enforces is reported only as the `[BREAK]` of that check failing in step 4, never re-derived from reading the code. Spend the judgment on what no check covers.
+
 Never report: style, naming, formatting, comments, "consider", "might be cleaner", refactors, micro-performance, missing tests for code that works, or problems that existed before this PR and that it does not make worse. These are not findings. List up to 3 as `[NIT]` only when the user asks for nits.
 
 ## 3. Report

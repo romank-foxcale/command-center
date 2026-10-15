@@ -14,8 +14,8 @@ First read `../_shared/grilling-core.md` in full, then `BOOTSTRAP.md`. Apply bot
 3. Record the name, status and topology in `control-center.json`.
 4. Collect the use cases, boundaries and permissions.
 5. Build the repository inventory. Do not write adapters until names, roles and relationships are agreed.
-6. Onboard one repo at a time: `./cc repo add --targets ... --stack ...` → inspect → flake input/adapter → package/check, one gate per target and, where feasible, `quality.mutation` → `./cc verify <id> --quality` → `./cc repo set-status <id> verified`.
-7. Only then assemble workflows and benchmarks.
+6. Onboard one repo at a time: `./cc repo add --targets ... --stack ...` → inspect → flake input/adapter → package/check, static checks, one gate per target and, where feasible, `quality.mutation` → `./cc verify <id> --quality` → `./cc repo set-status <id> verified`.
+7. Only then assemble workflows and benchmarks. Every contract between two repos (an API spec and the client or types generated from it, a shared schema) gets a contract check from `templates/workflow.nix`.
 8. Replace the template README and project map with real data; remove the placeholders. Keep `GUIDE.md`, `install/`, `CLAUDE.md` and `.claude/skills`: they are the entry point for people and AI tools.
 
 ## Migration
@@ -46,14 +46,19 @@ Always ask, never infer: "Which platforms does `<repo>` ship on: windows, linux,
 
 A target the user names but nobody can gate yet stays in `targets`; mark the repo `blocked` with that reason instead of dropping the target.
 
-### Stack and quality gate
+### Stack, static checks and quality gate
 
-Record the repo's languages with `--stack`, read from the code and confirmed with the user. Wire its existing test framework into the check, and propose a `quality.mutation` gate with the stack's default tool from `docs/kit/rules/quality-gates.md`; the gate must fail on surviving mutants. A repo without the gate is allowed, but `./cc verify --quality` and councils will warn that its tests are not checked against injected bugs.
+Record the repo's languages with `--stack`, read from the code and confirmed with the user. Wire its existing test framework into the check.
+
+Static checks: wire the formatter, linter and architecture tests the repo already configures (look in its build files, CI and pre-commit hooks) into the adapter's `checks` in check mode. Where it has none, propose the stack's defaults from `docs/kit/rules/quality-gates.md` ("Static checks") as ordinary fast checks; if the code does not pass them yet, start from a baseline or a smaller rule set that passes and say what was left out. Explain why in plain words: what a tool can check is caught on every run, so reviews and councils need not look for it.
+
+Then propose a `quality.mutation` gate with the stack's default tool from `docs/kit/rules/quality-gates.md`; the gate must fail on surviving mutants. A repo without the gate is allowed, but `./cc verify --quality` and councils will warn that its tests are not checked against injected bugs.
 
 ## Acceptance
 
 - `control-center.json` and the catalog are valid.
 - Every repo declares its targets and is verified on all of them by `./cc verify`, or has an explicit blocker.
-- Cross-repo relationships are represented by a workflow/check.
+- Every repo runs its stack's static checks, or the reason it does not is recorded.
+- Cross-repo relationships are represented by a workflow/check; a generated contract artifact by a contract check.
 - The critical path passes end to end.
 - The target CC does not depend on `cc_template`.

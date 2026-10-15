@@ -3,7 +3,7 @@ id: kit.index
 title: Kit knowledge map
 status: active
 summary: What makes a CC a CC - its rules, architecture and decisions - owned by the kit, identical in every CC and replaced as a whole when the kit is updated.
-verified_at: 2026-10-11
+verified_at: 2026-10-15
 evidence:
   - AGENTS.md
 relations:
@@ -21,6 +21,7 @@ relations:
   - docs/kit/decisions/0019-lean-agent-context.md
   - docs/kit/decisions/0020-review-lessons.md
   - docs/kit/decisions/0021-cc-check-in-ci.md
+  - docs/kit/decisions/0022-deterministic-checks-before-review.md
 ---
 
 # Kit knowledge map
@@ -64,3 +65,4 @@ This folder belongs to the kit. A CC never edits it: to change kit behaviour for
 - [Agent context states what the repo cannot show, once; role skills stay out of sessions](decisions/0019-lean-agent-context.md)
 - [Accepted review comments become user-confirmed, team-level review lessons](decisions/0020-review-lessons.md)
 - [CI runs ./cc check on every pull request to the CC](decisions/0021-cc-check-in-ci.md)
+- [What a tool can decide is a check, so review judges only the rest](decisions/0022-deterministic-checks-before-review.md)

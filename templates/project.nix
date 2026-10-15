@@ -17,6 +17,15 @@ ccLib.mkProject {
   inherit src;
   packages.default = package;
   checks.build = package;
+  # The stack's formatter, linter and architecture rules in check mode, as ordinary fast
+  # checks (docs/kit/rules/quality-gates.md, "Static checks"): what a tool can decide is
+  # not left to review. Take the tools from the build's own pinned dependencies when the repo
+  # has them (Maven/Gradle plugins, devDependencies); for a Python repo, for example:
+  # checks.lint = pkgs.runCommand "replace-me-lint" { nativeBuildInputs = [ pkgs.ruff ]; } ''
+  #   ruff format --check --no-cache ${src}
+  #   ruff check --no-cache ${src}
+  #   touch "$out"
+  # '';
   # One gate per entry in the catalog's "targets": a check (pure, runs in ./cc check)
   # or an app for a real host. ./cc verify runs them all; a missing one fails validation.
   # targets.linux = package;

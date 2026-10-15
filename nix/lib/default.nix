@@ -147,6 +147,33 @@ rec {
       apps = ensureApps "workflow ${name} apps" apps;
     };
 
+  # A cross-repo contract: regenerate the consumer's committed artifact from the producer's
+  # source of truth and fail on any difference, so drift is caught by a check, not by review.
+  # `generate` is a shell snippet that reads "$spec" and writes "$generated"; it must produce
+  # byte-identical output for an unchanged spec (run the consumer's formatter in it if needed).
+  mkContractCheck =
+    {
+      name,
+      spec,
+      artifact,
+      generate,
+      nativeBuildInputs ? [ ],
+    }:
+    assert lib.assertMsg (builtins.match "[a-z0-9]+(-[a-z0-9]+)*" name != null) (
+      "contract name must use lowercase hyphen-case"
+    );
+    pkgs.runCommand "contract-${name}" { inherit nativeBuildInputs; } ''
+      export HOME="$TMPDIR"
+      spec=${spec}
+      generated="$TMPDIR/generated"
+      ${generate}
+      if ! diff -u --label committed --label generated ${artifact} "$generated"; then
+        echo "contract ${name} drifted: the consumer's committed artifact differs from what the producer's spec generates" >&2
+        exit 1
+      fi
+      touch "$out"
+    '';
+
   collect =
     field: definitions:
     lib.foldl'
