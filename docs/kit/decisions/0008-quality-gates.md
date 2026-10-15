@@ -3,16 +3,18 @@ id: kit.decision.0008-quality-gates
 title: Language-specific quality gates behind language-neutral skills
 status: accepted
 summary: Skills say what to prove about tests; each repository's adapter says how, through a named quality.mutation gate that is optional for now and warns when missing.
-verified_at: 2026-10-06
+verified_at: 2026-10-15
 evidence:
   - scripts/verify.py
   - scripts/council/run.py
   - nix/lib/default.nix
   - .agents/skills/tdd/SKILL.md
+  - .agents/skills/cc-council/SKILL.md
 relations:
   - docs/index.md
   - docs/kit/rules/quality-gates.md
   - docs/kit/decisions/0007-agent-councils.md
+  - docs/kit/decisions/0022-deterministic-checks-before-review.md
 ---
 
 # Language-specific quality gates behind language-neutral skills
@@ -25,7 +27,7 @@ Tests written by the same agent that wrote the code often pass without catching 
 
 - The catalog records each repository's `stack`; roles receive it in their context.
 - The adapter exposes `quality.mutation` with the tool for its stack; `./cc verify --quality` and councils call it by name and never know the language.
-- A missing gate is a warning, so repositories can be onboarded gradually. Councils report "tests were not checked against injected bugs" when it is missing, and "tests pass but miss injected bugs" when it fails.
+- A missing gate is a warning, so repositories can be onboarded gradually. `./cc verify --quality` warns that the tests were not checked against injected bugs and a council's summary ends in a "mutation gate missing" warning when it is missing, and "tests pass but miss injected bugs" when it fails.
 - Equivalent mutants are marked in code with the tool's skip mechanism and a reason.
 
 ## Options considered

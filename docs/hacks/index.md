@@ -3,7 +3,7 @@ id: hacks.index
 title: Hacks
 status: active
 summary: Index of temporary workarounds; every hack must have evidence and a removal condition.
-verified_at: 2026-07-20
+verified_at: 2026-10-15
 evidence:
   - docs/index.md
 relations:

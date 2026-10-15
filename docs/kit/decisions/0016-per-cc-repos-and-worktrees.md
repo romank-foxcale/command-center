@@ -3,7 +3,7 @@ id: kit.decision.0016-per-cc-repos-and-worktrees
 title: Every CC keeps its own repos and worktrees inside its folder
 status: accepted
 summary: Base clones live in <cc>/repos/project/<repo> or, read-only on disk, <cc>/repos/reference/<repo>, and feature worktrees in <cc>/worktrees/<feature>/<repo>_wt, git-ignored, so no CC can stumble on another's code and every path says whether a repo is the truth or a reference; a hook asks before any tool reaches a sibling folder, verify and doctor fail on clones outside the catalog, and ./cc migrate-layout moves an existing CC.
-verified_at: 2026-10-10
+verified_at: 2026-10-15
 evidence:
   - templates/control-center.json
   - scripts/validate-control-center.py

@@ -3,7 +3,7 @@ id: kit.decision.0020-review-lessons
 title: Accepted review comments become user-confirmed, team-level review lessons that reviews and councils apply
 status: accepted
 summary: ./cc prs learn harvests the review comments accepted on merged catalog PRs (the line changed before merge, or ./cc prs judge found them VALID) without a model call; a read-only review-learner agent, whose model is set in ./cc settings, groups the anonymized comments into candidate lessons and counts the ones that repeat a known lesson; the user confirms each lesson before it is written to docs/lessons/; cc-review cites lessons as [KNOWLEDGE] and council roles see them in their prompts; a checkable lesson is routed to a gate through a normal feature; nothing about a person and no comment text is stored.
-verified_at: 2026-10-13
+verified_at: 2026-10-15
 evidence:
   - scripts/lessons.py
   - scripts/lessons_test.py
@@ -24,6 +24,7 @@ relations:
   - docs/kit/decisions/0015-thread-sceptics.md
   - docs/kit/decisions/0007-agent-councils.md
   - docs/kit/decisions/0019-lean-agent-context.md
+  - docs/kit/decisions/0022-deterministic-checks-before-review.md
 ---
 
 # Accepted review comments become user-confirmed, team-level review lessons that reviews and councils apply
@@ -42,7 +43,7 @@ Reviewers keep pointing out the same kinds of shortcomings, and the CC forgot ea
   The runner keeps only entries that cite known keys and lessons and have a valid route. It takes permalinks from the harvest, never from the model. The saved position moves only once the learner has succeeded.
 - **Lessons are a note kind.** `docs/lessons/` follows `templates/lesson.md`, which adds `repos`, `occurrences`, `last_seen` and `route` (`note` or `gate`). `./cc validate` checks those fields. `cc-lessons` writes or updates a lesson only after the user's yes on that lesson.
 - **Applied before push.** `cc-review` checks every changed hunk against the lessons for the repo and reports a violation as `[KNOWLEDGE]`. Council roles get the repo's lessons in their prompt, ahead of the task.
-- **The strongest route wins.** For a lesson a lint or test could enforce (`route: gate`), `cc-lessons` offers to start a normal feature that adds the check to the project repo. Once `./cc verify` enforces it, the lesson's evidence points to the check. The harvest itself never writes to a project repo.
+- **The strongest route wins.** For a lesson a lint or test could enforce (`route: gate`), `cc-lessons` offers to start a normal feature that adds the check: a linter rule or architecture test in the project repo, or a contract check in a workflow when the lesson spans two repos ([0022](0022-deterministic-checks-before-review.md)). Once `./cc verify` enforces it, the lesson's evidence points to the check. The harvest itself never writes to a project repo.
 - **Measured.** Each run reports how many accepted comments repeat a known lesson, in total and per lesson. A lesson that keeps matching is not being applied: it is a candidate for a gate. The eval scenario `lesson` proves the wiring: `cc-review`, given a feature that breaks a confirmed lesson, cites the lesson as `[KNOWLEDGE]` and edits nothing. It passed 3 of 3 runs on Opus.
 
 ## Options considered

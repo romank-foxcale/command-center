@@ -3,7 +3,7 @@ id: glossary.index
 title: Glossary
 status: active
 summary: Map of domain terms that agents must understand the same way.
-verified_at: 2026-07-21
+verified_at: 2026-10-15
 evidence:
   - templates/glossary-term.md
 relations:

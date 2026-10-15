@@ -3,7 +3,7 @@ id: kit.rules.task-planning
 title: Planning tasks for agents
 status: active
 summary: Grilling turns an unclear task into an evidence-backed plan with non-overlapping work packages and verifiable acceptance.
-verified_at: 2026-07-21
+verified_at: 2026-10-15
 evidence:
   - .agents/skills/_shared/grilling-core.md
   - .agents/skills/grill-task-planning/SKILL.md

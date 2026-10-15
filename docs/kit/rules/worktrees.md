@@ -3,7 +3,7 @@ id: kit.rules.worktrees
 title: Feature worktree topology
 status: active
 summary: Each CC keeps its base clones in <cc>/repos and the repos a task changes in <cc>/worktrees/feature/repo_wt, both git-ignored and never shared with another CC. Coding sessions start in the CC with ./cc open, because a session started inside a worktree does not get the CC's skills.
-verified_at: 2026-10-10
+verified_at: 2026-10-15
 evidence:
   - BOOTSTRAP.md
   - scripts/worktrees.py
@@ -50,4 +50,4 @@ As a safety net, `./cc worktree create|add` writes `worktrees/<feature>/CLAUDE.m
 
 ## Safety
 
-Removing a worktree is refused when there is dirty state, unpublished commits, or a mismatch between the manifest and the Git state. Absolute paths and the current state of worktrees are never committed to the CC.
+Removing a worktree is refused when there is dirty state, unpublished commits, or a mismatch between the manifest and the Git state. Removing a feature's last worktree also removes its folder, so it is decided first: council runs move to `.cc-local/runs-archive/<feature>/`, and any other unexpected file refuses the removal before a worktree is touched. Absolute paths and the current state of worktrees are never committed to the CC.

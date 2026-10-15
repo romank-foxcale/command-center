@@ -3,7 +3,7 @@ id: kit.decision.0004-plan-lifecycle
 title: Plan lifecycle
 status: accepted
 summary: Every task plan exists in exactly one state: active, archived or completed.
-verified_at: 2026-07-21
+verified_at: 2026-10-15
 evidence:
   - scripts/plans.py
   - plans/active/.gitkeep

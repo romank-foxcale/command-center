@@ -3,7 +3,7 @@ id: debt.index
 title: Technical debt
 status: active
 summary: Index of the Control Center's cross-project debt; each specific debt is stored as a separate note.
-verified_at: 2026-07-20
+verified_at: 2026-10-15
 evidence:
   - docs/index.md
 relations:
