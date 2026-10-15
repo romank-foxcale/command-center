@@ -18,7 +18,7 @@ If the session taught several things, list them and ask which one; record the ot
 
 ## 2. Look for an existing note
 
-Search `docs/` for the key terms and read what matches. If a note already states it, offer to update that note (refresh `verified_at`, add evidence, correct it) instead of creating a duplicate. If the new fact replaces an old one, the old note becomes `status: superseded` and links to its successor.
+Search `docs/` for the key terms and read what matches. If a note already states it, offer to update that note (refresh `verified_at`, add evidence, correct it) instead of creating a duplicate. If the new fact replaces an old one, the old note becomes `status: superseded` and links to its successor. A note that `./cc validate` warns about (evidence changed after `verified_at`) is refreshed only after reading the change: confirm it still holds, then bump `verified_at`, or correct it.
 
 ## 3. Choose the kind
 
