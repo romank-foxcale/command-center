@@ -112,6 +112,59 @@ def project_layer_in_template(root: Path) -> list[str]:
             for name in names if name.startswith(PROJECT_LAYER) and Path(name).name not in EMPTY_MARKERS]
 
 
+MAINTAINED = {"active", "accepted", "draft"}
+
+
+def last_changes(root: Path, paths: set[str]) -> dict[str, str]:
+    """The last commit date (YYYY-MM-DD) of each path, a file or a directory, from one walk of the history.
+    Paths Git does not track (ignored, untracked) get no date."""
+    log = subprocess.run(
+        ["git", "-C", str(root), "log", "--format=@%cs", "--name-only", "--no-renames", "--", *sorted(paths)],
+        capture_output=True, text=True,
+    )
+    dates: dict[str, str] = {}
+    day = ""
+    for line in log.stdout.splitlines() if log.returncode == 0 else []:
+        if line.startswith("@"):
+            day = line[1:]
+        elif line:
+            for path in paths - dates.keys():
+                if line == path or line.startswith(path.rstrip("/") + "/"):
+                    dates[path] = day
+    return dates
+
+
+def stale_evidence(root: Path) -> list[str]:
+    """Warnings for maintained notes whose in-repo evidence was committed after the note's verified_at. Many such
+    changes leave the note true, so this asks for a look, never fails (docs/kit/decisions/0023-stale-evidence-warning.md).
+    Skipped without Git history: a Nix source copy has no .git, and a shallow clone dates every file to its one commit."""
+    root = root.resolve()
+    if not (root / ".git").exists():
+        return []
+    shallow = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-shallow-repository"],
+                             capture_output=True, text=True)
+    if shallow.returncode != 0 or shallow.stdout.strip() != "false":
+        return []
+
+    claims: list[tuple[str, str, str]] = []
+    for note in sorted((root / "docs").rglob("*.md")):
+        try:
+            scalars, lists = parse_frontmatter(note, note.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        verified_at = scalars.get("verified_at", "")
+        if scalars.get("status") not in MAINTAINED or not DATE.fullmatch(verified_at):
+            continue
+        for value in lists.get("evidence", []):
+            target = local_target(root, note, value, from_root=True)
+            if target and target.exists() and target.is_relative_to(root):
+                claims.append((note.relative_to(root).as_posix(), target.relative_to(root).as_posix(), verified_at))
+
+    dates = last_changes(root, {path for _, path, _ in claims}) if claims else {}
+    return [f"{note}: evidence '{path}' changed on {dates[path]}, after verified_at {verified_at}"
+            for note, path, verified_at in claims if dates.get(path, "") > verified_at]
+
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     root = root.resolve()
@@ -179,8 +232,23 @@ def validate(root: Path) -> list[str]:
     return errors
 
 
+def print_stale(root: Path) -> None:
+    warnings = stale_evidence(root)
+    if warnings:
+        print(f"warning: {len(warnings)} evidence paths changed after their note was verified; "
+              "check each note and refresh verified_at (or correct it):", file=sys.stderr)
+        for warning in warnings:
+            print(f"- {warning}", file=sys.stderr)
+
+
 def main() -> int:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
+    arguments = sys.argv[1:]
+    stale_only = "--stale" in arguments
+    arguments = [argument for argument in arguments if argument != "--stale"]
+    root = Path(arguments[0] if arguments else ".")
+    print_stale(root)
+    if stale_only:
+        return 0
     errors = validate(root)
     if errors:
         print("knowledge validation failed:", file=sys.stderr)

@@ -3,11 +3,12 @@ id: kit.rules.knowledge-layout
 title: Markdown knowledge layout
 status: active
 summary: Markdown holds atomic facts, reasons, constraints, decisions, hacks and debt in a linked graph.
-verified_at: 2026-07-20
+verified_at: 2026-10-15
 evidence:
   - scripts/validate-knowledge.py
   - templates/note.md
   - templates/lesson.md
+  - cc
 relations:
   - docs/index.md
   - docs/kit/decisions/0002-atomic-linked-notes.md
@@ -55,3 +56,5 @@ A large primary summary can be kept with `kind: research-reference`. It is not c
 A review lesson in `docs/lessons/` uses `templates/lesson.md`, which adds `repos`, `occurrences`, `last_seen` and `route` (`note` or `gate`).
 
 `./cc validate` checks frontmatter, ID uniqueness, evidence, relations, Markdown links and the lesson fields.
+
+`./cc validate` and `./cc check` also warn, without failing, when an evidence file tracked in this repository was committed after the note's `verified_at` ([0023](../decisions/0023-stale-evidence-warning.md)). Re-check the note against the change, then refresh `verified_at` or correct the note; never bump the date without looking.

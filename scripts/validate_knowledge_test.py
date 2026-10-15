@@ -5,6 +5,8 @@ malformed lesson field is reported, while notes outside docs/lessons/ and its in
 from __future__ import annotations
 
 import importlib.util
+import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -76,7 +78,58 @@ def check_template_ships_an_empty_project_layer() -> None:
     check("a CC keeps its own plans and notes", project_layer_errors(cc=True, git=True, tracked=[plan, lesson]) == [])
 
 
+def commit(root: Path, day: str, files: dict[str, str]) -> None:
+    """Write the files and commit them with author and committer date `day`."""
+    for name, content in files.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    stamp = f"{day}T12:00:00+00:00"
+    env = {**os.environ, "GIT_AUTHOR_DATE": stamp, "GIT_COMMITTER_DATE": stamp}
+    git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", day], check=True, env=env)
+
+
+def dated_note(evidence: list[str], verified_at: str = "2026-03-10", status: str = "active") -> str:
+    paths = "".join(f"  - {path}\n" for path in evidence)
+    return (f"---\nid: n\ntitle: T\nstatus: {status}\nsummary: S\nverified_at: {verified_at}\n"
+            f"evidence:\n{paths}relations:\n  - docs/index.md\n---\n\n# T\n")
+
+
+def check_stale_evidence() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary) / "cc"
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        commit(root, "2026-03-01", {".gitignore": "repos/\n", "a.py": "1", "b.py": "1", "lib/x.py": "1",
+                                    "repos/r/y.py": "1"})
+        commit(root, "2026-03-10", {"b.py": "2"})
+        commit(root, "2026-03-20", {"a.py": "2", "lib/x.py": "2", "repos/r/y.py": "2"})
+        commit(root, "2026-03-25", {
+            "docs/n.md": dated_note(["a.py", "b.py", "lib", "repos/r/y.py", "https://example.com/a.py"]),
+            "docs/old.md": dated_note(["a.py"], status="superseded"),
+            "docs/fresh.md": dated_note(["a.py"], verified_at="2026-03-20"),
+        })
+        found = validator.stale_evidence(root)
+        expected = ["docs/n.md: evidence 'a.py' changed on 2026-03-20, after verified_at 2026-03-10",
+                    "docs/n.md: evidence 'lib' changed on 2026-03-20, after verified_at 2026-03-10"]
+        check("evidence changed after verified_at is reported; same day, ignored, URL, superseded are not",
+              found == expected, found)
+        check("staleness is a warning, never a validation error",
+              not any("changed on" in error for error in validator.validate(root)), validator.validate(root))
+
+        shallow = Path(temporary) / "shallow"
+        subprocess.run(["git", "clone", "-q", "--depth", "1", root.as_uri(), str(shallow)], check=True)
+        check("a shallow clone is skipped: every file would look changed on its one commit",
+              validator.stale_evidence(shallow) == [], validator.stale_evidence(shallow))
+
+        copy = Path(temporary) / "copy"
+        shutil.copytree(root, copy, ignore=shutil.ignore_patterns(".git"))
+        check("a copy without .git (Nix) is skipped", validator.stale_evidence(copy) == [], validator.stale_evidence(copy))
+
+
 def main() -> int:
+    check_stale_evidence()
     check_template_ships_an_empty_project_layer()
     check("a complete lesson passes", errors_for(LESSON) == [], errors_for(LESSON))
     for field, value, expected in (

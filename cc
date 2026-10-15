@@ -95,7 +95,14 @@ case "$command_name" in
     require_nix
     lock_flake
     load_feature_overrides
-    exec nix flake check "${nix_override_args[@]}" "$cc_root" --keep-going "$@"
+    status=0
+    nix flake check "${nix_override_args[@]}" "$cc_root" --keep-going "$@" || status=$?
+    # Notes whose evidence changed after verified_at: a warning, never a failure. It needs the Git history, which
+    # the Nix sandbox lacks. Why: docs/kit/decisions/0023-stale-evidence-warning.md
+    if command -v python3 >/dev/null; then
+      python3 "$cc_root/scripts/validate-knowledge.py" --stale "$cc_root" || true
+    fi
+    exit "$status"
     ;;
   build)
     require_nix
