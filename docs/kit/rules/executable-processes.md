@@ -3,7 +3,7 @@ id: kit.rules.executable-processes
 title: Executable processes
 status: active
 summary: All knowledge about building, testing, packaging and running is expressed as Nix outputs.
-verified_at: 2026-10-09
+verified_at: 2026-10-15
 evidence:
   - flake.nix
   - nix/lib/default.nix

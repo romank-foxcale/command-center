@@ -3,7 +3,7 @@ id: kit.decision.0018-setup-starts-itself
 title: A CC that is not set up starts its own setup; nobody needs a magic prompt
 status: accepted
 summary: cc-kit new and migrate open the AI tool with the opening prompt, a Claude Code session-start hook and an AGENTS.md rule make the agent open with the setup interview while control-center.json is discovery or adapting, adding a project repo always continues into onboarding, and both installers end by creating the first CC.
-verified_at: 2026-10-11
+verified_at: 2026-10-15
 evidence:
   - install/cc-kit
   - install/install.sh

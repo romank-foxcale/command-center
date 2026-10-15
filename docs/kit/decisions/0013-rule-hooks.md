@@ -3,7 +3,7 @@ id: kit.decision.0013-rule-hooks
 title: Claude Code hooks enforce the hard rules early; the gates still decide
 status: accepted
 summary: The AGENTS.md hard rules that a tool call reveals are enforced by Claude Code hooks at the moment of the call, and every rule that leaves an artifact is also gated by ./cc check or ./cc verify, so other tools and missed hooks are still caught.
-verified_at: 2026-10-07
+verified_at: 2026-10-15
 evidence:
   - scripts/rule_hooks.py
   - scripts/rule_hooks_test.py
@@ -16,6 +16,7 @@ relations:
   - docs/index.md
   - docs/kit/decisions/0005-multi-tool-agent-configs.md
   - docs/kit/rules/worktrees.md
+  - docs/kit/decisions/0017-kit-and-project-layers.md
   - docs/kit/decisions/0018-setup-starts-itself.md
   - docs/kit/decisions/0021-cc-check-in-ci.md
 ---
@@ -37,11 +38,12 @@ The hard rules in `AGENTS.md` were instruction text only. Agents break them when
   | No AI credit in commits or PRs | deny `git commit`, `gh pr create/edit` with an AI `Co-Authored-By` or "Generated with" line | `./cc verify` scans branch commits in the CC and each feature worktree |
   | No direct build or test tools | `ask`: the user approves a diagnosis run | none: a command leaves no artifact |
   | Skills only in `.agents/skills` | deny edits under `.claude/skills` | `agent-configs` check |
-  | No stray Markdown | deny creating `.md` outside `docs/`, `plans/`, the skills, `templates/`, the root files and the folders the CC declares in `control-center.json` `markdownDirs` | `knowledge` check |
+  | No stray Markdown | deny creating `.md` outside `docs/`, `plans/`, the skills and roles, `templates/`, the root files and the folders the CC declares in `control-center.json` `markdownDirs` | `knowledge` check |
   | Notes follow the knowledge rules | after an edit in `docs/`, return that note's validation errors | `knowledge` check |
   | Skill copies in sync | at stop, report drift once | `agent-configs` check |
   | Stay inside the CC ([0016](0016-per-cc-repos-and-worktrees.md)) | `ask` when a Read, Grep, Glob, edit or shell path resolves into a folder next to the CC | `./cc verify` fails on clones in `repos/` outside the catalog |
   | Base clones are never edited | deny edits under `repos/`, naming the feature worktree instead | reference clones are read-only on disk |
+  | Kit knowledge is not edited in a CC ([0017](0017-kit-and-project-layers.md)) | `ask` before an edit under `docs/kit/` when the folder has `control-center.json` | none: the next kit update replaces the edit |
   | A reference repo is guidance, not truth | after the first read of `repos/reference/<id>` in a session, add a note to check it against the project repos | none: it is judgement |
 
 - The `session-start` hook enforces no rule: it makes a CC that is not set up open with the setup interview ([0018](0018-setup-starts-itself.md)).

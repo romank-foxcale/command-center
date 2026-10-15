@@ -3,7 +3,7 @@ id: kit.decision.0001-nix-executable-knowledge
 title: Nix as the format for executable knowledge
 status: accepted
 summary: Processes are described as Nix flakes; NixOS is used for machines and services, not as a universal format for everything.
-verified_at: 2026-07-20
+verified_at: 2026-10-15
 evidence:
   - flake.nix
   - nix/lib/default.nix

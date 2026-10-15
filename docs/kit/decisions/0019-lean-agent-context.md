@@ -2,8 +2,8 @@
 id: kit.decision.0019-lean-agent-context
 title: Agent context states what the repo cannot show, once; role skills stay out of sessions
 status: accepted
-summary: AGENTS.md keeps only what an agent cannot see in the repo and the high-stakes rules, skill descriptions say what and when, generic behaviour steps are dropped, and council and thread role skills live in .agents/roles; an A/B eval of 30 headless runs per variant kept every check passing at 9% lower cost.
-verified_at: 2026-10-11
+summary: AGENTS.md keeps only what an agent cannot see in the repo and the high-stakes rules, skill descriptions say what and when, generic behaviour steps are dropped, and runner-only role skills (council, thread sceptic, review learner) live in .agents/roles; an A/B eval of 30 headless runs per variant kept every check passing at 9% lower cost.
+verified_at: 2026-10-15
 evidence:
   - AGENTS.md
   - .agents/skills/_shared/cc-cli.md
@@ -31,7 +31,7 @@ Every session loaded about 4.2k tokens of CC context before the user's first wor
 - `AGENTS.md` keeps what an agent cannot see in the repo (layout, where knowledge lives, setup status, the kit layer) and the rules that conflict with tool defaults or are hard to undo (Nix only, no AI attribution, generated skill copies, production, English). Details stay in the skills and `docs/kit/rules/`, loaded when needed.
 - A skill description says what the skill is for and when to use it. How it works stays in its body.
 - The shared CLI note keeps only real gotchas: never retry with other arguments, confirm destructive commands, use the catalog instead of scanning folders.
-- Council and thread role skills move to `.agents/roles/`. `scripts/council/run.py` and `./cc` validation look there first, then in `.agents/skills/` for shared skills such as `tdd`. `./cc agents sync` does not copy them, so no session lists them.
+- Council and thread role skills move to `.agents/roles/`, as does any later role skill that only a runner loads, such as `review-learner`. `scripts/council/run.py` and `./cc` validation look there first, then in `.agents/skills/` for shared skills such as `tdd`. `./cc agents sync` does not copy them, so no session lists them.
 
 ## Measurement
 

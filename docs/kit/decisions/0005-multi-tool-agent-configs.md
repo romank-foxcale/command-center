@@ -3,7 +3,7 @@ id: kit.decision.0005-multi-tool-agent-configs
 title: One set of skills for every AI tool
 status: accepted
 summary: Skills live in .agents/skills, Claude Code gets a checked copy in .claude/skills, and instructions stay in AGENTS.md.
-verified_at: 2026-10-07
+verified_at: 2026-10-15
 evidence:
   - scripts/agent-configs.py
   - CLAUDE.md

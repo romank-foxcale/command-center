@@ -3,7 +3,7 @@ id: kit.rules.bootstrap
 title: Control Center bootstrap and migration
 status: active
 summary: The template is cloned as a nested read-only seed (or installed as the kit), and the target CC is created in the parent folder through evidence-first grilling.
-verified_at: 2026-10-11
+verified_at: 2026-10-15
 evidence:
   - BOOTSTRAP.md
   - scripts/materialize-template.py
