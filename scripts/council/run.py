@@ -648,8 +648,8 @@ def command_status(root: Path, args: argparse.Namespace) -> None:
     say("RUN\tFEATURE/REPO\tSTAGE\tPROGRESS\tTOKENS\n" + "\n".join(rows) if rows else "no council runs")
 
 
-def edit_validated(root: Path, path: Path, changes: dict[str, Any]) -> None:
-    """Apply changes to a catalog file and keep them only if the CC still validates."""
+def edit_validated(root: Path, path: Path, changes: dict[str, Any]) -> list[str]:
+    """Apply changes to a catalog file and keep them only if the CC still validates; return its warnings."""
     spec = importlib.util.spec_from_file_location("validator", root / "scripts" / "validate-control-center.py")
     validator = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(validator)
@@ -659,6 +659,7 @@ def edit_validated(root: Path, path: Path, changes: dict[str, Any]) -> None:
     if errors:
         path.write_text(original, encoding="utf-8")
         raise ValueError("change rejected:\n  " + "\n  ".join(errors))
+    return [warning for warning in validator.floating_models(root) if warning.startswith(path.relative_to(root).as_posix())]
 
 
 def command_set_role(root: Path, args: argparse.Namespace) -> None:
@@ -670,9 +671,11 @@ def command_set_role(root: Path, args: argparse.Namespace) -> None:
         changes["maxToolCalls"] = args.max_tool_calls
     if not changes:
         raise ValueError("give --provider, --model and/or --max-tool-calls")
-    edit_validated(root, path, changes)
+    warnings = edit_validated(root, path, changes)
     role = load_json(path)
     say(f"{args.role}: {role['provider']} {role['model']}, at most {providers.max_tool_calls(role)} tool calls per call")
+    for warning in warnings:
+        say(f"warning: {warning}")
 
 
 def command_models(root: Path, args: argparse.Namespace) -> None:

@@ -3,7 +3,7 @@
   "id": "writer",
   "purpose": "Implements the approved approach in the feature worktree, reusing existing code first",
   "provider": "claude",
-  "model": "opus",
+  "model": "claude-opus-5-5",
   "access": "write-worktree",
   "skills": [
     "lean-code",

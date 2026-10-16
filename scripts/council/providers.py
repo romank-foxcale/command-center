@@ -36,9 +36,10 @@ CURSOR_DENY = {"permissions": {"allow": ["Read(**)"], "deny": ["Write(**)", "She
 CURSOR_MODEL = re.compile(r"^(\S+) - ")
 
 
-# The Claude CLI cannot list models, so these are maintained here: aliases follow the newest model
-# of each tier, full ids pin one. Update when Anthropic releases models.
-CLAUDE_MODELS = ["opus", "sonnet", "haiku", "claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-haiku-4-5-20251001"]
+# The Claude CLI cannot list models, so these are maintained here: full ids pin one model and come first;
+# aliases follow the newest model of each tier, and ./cc check warns about them
+# (docs/kit/decisions/0024-pinned-model-ids.md). Update when Anthropic releases models.
+CLAUDE_MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-haiku-4-5-20251001", "opus", "sonnet", "haiku"]
 
 # A call that keeps reading and editing fills its own context window, and its work degrades long
 # before it fails. Codex and Cursor have no turn limit, so the runner counts the tool lines it writes

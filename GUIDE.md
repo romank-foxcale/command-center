@@ -200,7 +200,7 @@ A council makes Claude and GPT work on the same task. It needs both CLIs install
 
 1. Both models study the worktree and propose an approach, without editing.
 2. A judge compares them as "Proposal A" and "Proposal B", without knowing who wrote which, and picks one or a hybrid.
-While it works, the terminal shows a live line with a progress bar, the current step, which models are still working and timers, for example `⠹ debug ▰▰▰▱▱▱▱▱▱ 3/9 propose claude opus ✓ · codex gpt-6.1-sol … step 02:31 · total 04:10`; `./cc council status <run>` shows the same plus each working agent's latest actions, and in a session you can just ask "how is it going?".
+While it works, the terminal shows a live line with a progress bar, the current step, which models are still working and timers, for example `⠹ debug ▰▰▰▱▱▱▱▱▱ 3/9 propose claude claude-opus-5-5 ✓ · codex gpt-6.1-sol … step 02:31 · total 04:10`; `./cc council status <run>` shows the same plus each working agent's latest actions, and in a session you can just ask "how is it going?".
 3. The run stops and shows you the verdict and who wrote what. Approve it, pick the other proposal, add a note, or reject it.
 4. The writer implements it in the worktree, reusing existing code first; `./cc feature my-feature verify` must pass, with up to 2 retries.
 5. A security reviewer reads the diff. You review `changes.diff` and commit it yourself.
@@ -209,7 +209,7 @@ A testing council works the same way: both models write tests, the judge merges 
 
 A debug council finds and fixes a bug: `./cc council run debug --feature my-feature --task "<exact symptom>"`. The CC first runs verify and hands its output to both models; each diagnoses the root cause with evidence; the judge picks the best-evidenced one; after your approval the writer adds a reproduction test that must fail, and only then fixes the cause. After three failed fixes it stops and asks you to rethink the design.
 
-Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "opus"` in `writer.json`); `catalog/councils/` sets the roles, the approval pause and the retry limit. Change them with `/cc-settings` in your session, in `./cc settings` (on Agents, select a role, press `e` and pick a model from the list), or with `./cc council set-role` and `./cc council set`. Run files are kept in `worktrees/<feature>/.cc-runs/` inside the CC.
+Which model plays which role is one field per file in `catalog/agents/` (for example `"model": "claude-opus-5-5"` in `writer.json`; an alias such as `opus` works but follows the newest model, so `./cc check` warns about it); `catalog/councils/` sets the roles, the approval pause and the retry limit. Change them with `/cc-settings` in your session, in `./cc settings` (on Agents, select a role, press `e` and pick a model from the list), or with `./cc council set-role` and `./cc council set`. Run files are kept in `worktrees/<feature>/.cc-runs/` inside the CC.
 
 ---
 

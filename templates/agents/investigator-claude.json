@@ -3,7 +3,7 @@
   "id": "investigator-claude",
   "purpose": "Diagnoses the root cause of a failure without editing",
   "provider": "claude",
-  "model": "opus",
+  "model": "claude-opus-5-5",
   "access": "read-only",
   "skills": [
     "debug",
