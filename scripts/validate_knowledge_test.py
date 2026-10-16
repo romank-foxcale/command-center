@@ -127,6 +127,14 @@ def check_stale_evidence() -> None:
         shutil.copytree(root, copy, ignore=shutil.ignore_patterns(".git"))
         check("a copy without .git (Nix) is skipped", validator.stale_evidence(copy) == [], validator.stale_evidence(copy))
 
+        commit(root, "2026-03-26", {"docs/kit/k.md": dated_note(["a.py"])})
+        kit = "docs/kit/k.md: evidence 'a.py' changed on 2026-03-20, after verified_at 2026-03-10"
+        check("the template, which owns docs/kit, gets kit notes too", kit in validator.stale_evidence(root),
+              validator.stale_evidence(root))
+        commit(root, "2026-03-27", {"control-center.json": "{}"})
+        check("a CC skips docs/kit: it never edits the kit, so it could not act on the warning",
+              validator.stale_evidence(root) == expected, validator.stale_evidence(root))
+
 
 def main() -> int:
     check_stale_evidence()

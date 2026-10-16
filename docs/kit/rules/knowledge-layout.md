@@ -57,4 +57,4 @@ A review lesson in `docs/lessons/` uses `templates/lesson.md`, which adds `repos
 
 `./cc validate` checks frontmatter, ID uniqueness, evidence, relations, Markdown links and the lesson fields.
 
-`./cc validate` and `./cc check` also warn, without failing, when an evidence file tracked in this repository was committed after the note's `verified_at` ([0023](../decisions/0023-stale-evidence-warning.md)). Re-check the note against the change, then refresh `verified_at` or correct the note; never bump the date without looking.
+`./cc validate` and `./cc check` also warn, without failing, when an evidence file tracked in this repository was committed after the note's `verified_at` ([0023](../decisions/0023-stale-evidence-warning.md)); a CC skips `docs/kit/`, which only the template can fix. Re-check the note against the change, then refresh `verified_at` or correct the note; never bump the date without looking.
