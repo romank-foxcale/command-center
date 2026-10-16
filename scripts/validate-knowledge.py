@@ -146,8 +146,12 @@ def stale_evidence(root: Path) -> list[str]:
     if shallow.returncode != 0 or shallow.stdout.strip() != "false":
         return []
 
+    # A CC never edits docs/kit, so only the template, which owns the kit, is warned about kit notes.
+    kit = root / "docs/kit" if (root / "control-center.json").exists() else None
     claims: list[tuple[str, str, str]] = []
     for note in sorted((root / "docs").rglob("*.md")):
+        if kit and note.is_relative_to(kit):
+            continue
         try:
             scalars, lists = parse_frontmatter(note, note.read_text(encoding="utf-8"))
         except ValueError:
