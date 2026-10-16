@@ -3,7 +3,7 @@ id: kit.decision.0007-agent-councils
 title: Agent roles and councils bound to models
 status: accepted
 summary: The CC assigns a provider CLI and model to each agent role, and runs coding, testing and debug councils in which Claude and GPT propose or diagnose, an anonymous judge decides, the user approves and a writer implements under ./cc verify.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - scripts/council/run.py
   - scripts/council/providers.py

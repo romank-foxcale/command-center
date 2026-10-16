@@ -3,7 +3,7 @@ id: kit.decision.0010-live-run-events
 title: Long runs report progress, agent talk and stalls as a live event stream
 status: accepted
 summary: Councils and ./cc verify append steps, handoffs between agents, what agents say, stalls after 3 minutes of silence and the end to an events.jsonl that ./cc watch follows, so the user never has to ask how a run is going.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - scripts/events.py
   - scripts/events_test.py

@@ -3,7 +3,7 @@ id: kit.rules.quality-gates
 title: Quality gates per stack
 status: active
 summary: Each repository declares its languages in the catalog; its adapter runs the stack's formatter, linter and architecture rules as ordinary checks and may expose a quality.mutation gate, which ./cc verify --quality runs and only warns about when it is missing.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - scripts/repositories.py
   - scripts/verify.py

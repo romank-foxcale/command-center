@@ -3,7 +3,7 @@
   "id": "security-claude",
   "purpose": "Reviews the final diff for security issues without editing",
   "provider": "claude",
-  "model": "opus",
+  "model": "claude-opus-5-5",
   "access": "read-only",
   "skills": [
     "council-security"

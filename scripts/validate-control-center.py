@@ -17,6 +17,9 @@ REPOSITORY_KINDS = {"project", "reference"}
 TARGETS = {"windows", "linux", "macos"}
 # Must match scripts/council/providers.py.
 PROVIDERS = {"claude", "codex", "cursor"}
+# Model names that silently move to a newer model, so a role's behaviour changes with no change here
+# (docs/kit/decisions/0024-pinned-model-ids.md).
+FLOATING_MODELS = {"claude": {"opus", "sonnet", "haiku"}, "cursor": {"auto"}}
 ACCESS_LEVELS = {"read-only", "write-worktree"}
 COUNCIL_KINDS = {"coding", "testing", "debug", "threads"}
 EXPECTED_LAYOUT = {
@@ -208,6 +211,21 @@ def validate_agents(root: Path, errors: list[str]) -> dict[str, dict[str, Any]]:
     return roles
 
 
+def floating_models(root: Path) -> list[str]:
+    """Warnings, never errors, for roles in catalog/agents that use a floating model alias."""
+    warnings = []
+    for path in sorted((root / "catalog" / "agents").glob("*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue  # validate_agents reports it
+        provider, model = data.get("provider"), data.get("model")
+        if model in FLOATING_MODELS.get(provider, ()):
+            warnings.append(f"{path.relative_to(root).as_posix()}: model '{model}' follows the newest {provider} model;"
+                            " pin a full model id")
+    return warnings
+
+
 def validate_trello(root: Path, errors: list[str]) -> None:
     """catalog/integrations/trello.json (optional): the board and list mapping, never credentials."""
     path = root / "catalog" / "integrations" / "trello.json"
@@ -380,6 +398,8 @@ def main() -> int:
     if len(sys.argv) > 2:
         adapter_targets = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
     errors = validate(root, adapter_targets)
+    for warning in floating_models(root.resolve()):
+        print(f"warning: {warning}")
     if errors:
         print("control-center validation failed:", file=sys.stderr)
         for error in errors:

@@ -23,6 +23,7 @@ relations:
   - docs/kit/decisions/0021-cc-check-in-ci.md
   - docs/kit/decisions/0022-deterministic-checks-before-review.md
   - docs/kit/decisions/0023-stale-evidence-warning.md
+  - docs/kit/decisions/0024-pinned-model-ids.md
 ---
 
 # Kit knowledge map
@@ -68,3 +69,4 @@ This folder belongs to the kit. A CC never edits it: to change kit behaviour for
 - [CI runs ./cc check on every pull request to the CC](decisions/0021-cc-check-in-ci.md)
 - [What a tool can decide is a check, so review judges only the rest](decisions/0022-deterministic-checks-before-review.md)
 - [A note whose evidence changed after verified_at gets a warning, not a failure](decisions/0023-stale-evidence-warning.md)
+- [Agent roles pin full model ids; a floating alias gets a warning](decisions/0024-pinned-model-ids.md)

@@ -3,7 +3,7 @@
   "id": "review-learner",
   "purpose": "Groups the accepted review comments of merged PRs into candidate review lessons and marks those that repeat a known lesson (./cc prs learn)",
   "provider": "claude",
-  "model": "opus",
+  "model": "claude-opus-5-5",
   "access": "read-only",
   "skills": [
     "review-learner"

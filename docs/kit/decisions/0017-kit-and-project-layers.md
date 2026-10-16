@@ -3,7 +3,7 @@ id: kit.decision.0017-kit-and-project-layers
 title: Kit knowledge and a CC's own knowledge are separate layers
 status: accepted
 summary: The kit's rules, architecture and decisions live in docs/kit with kit. ids, identical in every CC and replaced as a whole on a kit update; a CC's own decisions, debt, hacks, projects, glossary and plans live in the rest of docs/ and plans/, ship empty in the template and are committed only to that CC; a CC overrides kit behaviour with its own decision, never by editing docs/kit, and a hook asks before such an edit.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - docs/kit/index.md
   - docs/decisions/index.md

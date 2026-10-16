@@ -147,6 +147,18 @@ def check_catalog_rules() -> None:
             assert (errors() == []) == valid, (cap, errors())
         writer.write_text(json.dumps(data))
 
+        # A floating alias is allowed but warned about; the shipped roles pin full model ids.
+        assert validator.floating_models(root) == [], validator.floating_models(root)
+        sceptic = root / "catalog" / "agents" / "sceptic-claude.json"
+        pinned = json.loads(sceptic.read_text())
+        for provider, model in (("claude", "opus"), ("claude", "sonnet"), ("cursor", "auto")):
+            sceptic.write_text(json.dumps({**pinned, "provider": provider, "model": model}))
+            assert validator.floating_models(root) == [
+                f"catalog/agents/sceptic-claude.json: model '{model}' follows the newest {provider} model; pin a full model id"
+            ], (model, validator.floating_models(root))
+            assert errors() == [], (model, errors())
+        sceptic.write_text(json.dumps(pinned))
+
         data = json.loads(coding.read_text())
         for security, valid in (("security-claude", True), (None, True), ([], True), (["security-grok", "security-grok"], False),
                                 (["writer"], False), (["nobody"], False), ({"a": 1}, False)):
