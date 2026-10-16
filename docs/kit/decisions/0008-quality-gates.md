@@ -3,7 +3,7 @@ id: kit.decision.0008-quality-gates
 title: Language-specific quality gates behind language-neutral skills
 status: accepted
 summary: Skills say what to prove about tests; each repository's adapter says how, through a named quality.mutation gate that is optional for now and warns when missing.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - scripts/verify.py
   - scripts/council/run.py

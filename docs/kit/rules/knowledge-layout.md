@@ -3,7 +3,7 @@ id: kit.rules.knowledge-layout
 title: Markdown knowledge layout
 status: active
 summary: Markdown holds atomic facts, reasons, constraints, decisions, hacks and debt in a linked graph.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - scripts/validate-knowledge.py
   - templates/note.md

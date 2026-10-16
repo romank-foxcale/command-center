@@ -3,7 +3,7 @@ id: kit.decision.0006-target-platform-gates
 title: Every target platform has its own gate
 status: accepted
 summary: Each catalog project repository declares the platforms it ships on, and is verified only when the gate of every declared platform passes, including a real Windows host gate.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - scripts/repositories.py
   - scripts/validate-control-center.py

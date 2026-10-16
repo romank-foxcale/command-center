@@ -3,7 +3,7 @@ id: kit.decision.0002-atomic-linked-notes
 title: Atomic linked notes
 status: accepted
 summary: Explanatory knowledge is stored as small Markdown nodes with evidence and explicit relations.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - scripts/validate-knowledge.py
   - templates/note.md

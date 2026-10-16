@@ -3,7 +3,7 @@ id: kit.decision.0020-review-lessons
 title: Accepted review comments become user-confirmed, team-level review lessons that reviews and councils apply
 status: accepted
 summary: ./cc prs learn harvests the review comments accepted on merged catalog PRs (the line changed before merge, or ./cc prs judge found them VALID) without a model call; a read-only review-learner agent, whose model is set in ./cc settings, groups the anonymized comments into candidate lessons and counts the ones that repeat a known lesson; the user confirms each lesson before it is written to docs/lessons/; cc-review cites lessons as [KNOWLEDGE] and council roles see them in their prompts; a checkable lesson is routed to a gate through a normal feature; nothing about a person and no comment text is stored.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - scripts/lessons.py
   - scripts/lessons_test.py

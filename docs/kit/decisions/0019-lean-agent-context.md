@@ -3,7 +3,7 @@ id: kit.decision.0019-lean-agent-context
 title: Agent context states what the repo cannot show, once; role skills stay out of sessions
 status: accepted
 summary: AGENTS.md keeps only what an agent cannot see in the repo and the high-stakes rules, skill descriptions say what and when, generic behaviour steps are dropped, and runner-only role skills (council, thread sceptic, review learner) live in .agents/roles; an A/B eval of 30 headless runs per variant kept every check passing at 9% lower cost.
-verified_at: 2026-10-15
+verified_at: 2026-10-17
 evidence:
   - AGENTS.md
   - .agents/skills/_shared/cc-cli.md
